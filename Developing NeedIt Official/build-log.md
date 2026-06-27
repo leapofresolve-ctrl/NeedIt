@@ -32,6 +32,7 @@ _MVP = Lane 2 (open request board). No payments, no catalog, no Lane 1 yet._
 2. ✅ **Post a Need + Exprifi board (Prompts 2 & 3 bundled)** — LIVE & verified end-to-end. Home (app/page.tsx) replaced starter landing with: logged-out Exprifi landing (sign in/up); logged-in board listing open requests (newest first) with type/sport/condition/time-left badges + budget, empty state, SiteHeader nav (components/site-header.tsx: Exprifi logo, Post a Need, AuthButton). /post page + form (components/post/post-need-form.tsx) + createNeed action (app/post/actions.ts) — budget dollars→cents, expiry 24h/3d/7d→expires_at, inserts request (RLS ok), redirects to board. Verified: posted "2003 Topps Chrome LeBron rookie (raw)" $200 → appeared on board. (Test need exists in DB; Kyle can delete later.)
    - Minor polish TODO: timeLeft() floors hours so a fresh 7d need shows "6d left" — switch to ceil. Batch with next feature.
    - Board cards link to /request/[id] (built next) — clicking 404s until then.
+   - **Optional reference photo added (Kyle request, Jun 27):** `requests.image_url` column; public `request-photos` bucket + authenticated-insert policy; file input on post form; server-action upload (next.config serverActions.bodySizeLimit=8mb); thumbnail on board cards (plain <img>, no next/image config needed). Optional — posting without a photo still works.
 3. ⬜️ Request detail + make offer w/ photo (Prompt 4) — makes board cards work; sellers respond with structured offer (price/condition/photo/note).
 4. ⬜️ Accept / decline + deal unlock (Prompt 5)
 5. ⬜️ Polish: filters/sort on board, my-needs page, timeLeft ceil.
@@ -47,6 +48,9 @@ _MVP = Lane 2 (open request board). No payments, no catalog, no Lane 1 yet._
 ## 🏷️ Naming (decided Jun 25)
 - **Public brand = Exprifi** (domain: exprifi.com). Apply at UI/marketing + point domain at Vercel.
 - **Internal codename = needit** (repo, folders, Supabase project) — intentionally not renamed.
+
+## 💡 Future ideas (post-MVP)
+- **Split "buyer/seller" landing (Kyle, Jun 27):** split-screen landing — NOT an account-type gate (keep one account that's both; beachhead = breakers who are both sides). Frame as intent/mode: "Find cards" (→ /post) vs "Sell cards" (→ board). Black/white base + one accent color per mode as a light visual cue, not two separate apps. Marketing/onboarding polish for later.
 
 ## 🧠 Open items / reminders
 - Supabase project: confirm it exists and grab Project URL + anon/publishable key for env vars.
