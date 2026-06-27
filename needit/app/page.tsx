@@ -6,10 +6,28 @@ import { ThemeSwitcher } from "@/components/theme-switcher";
 import { ConnectSupabaseSteps } from "@/components/tutorial/connect-supabase-steps";
 import { SignUpUserSteps } from "@/components/tutorial/sign-up-user-steps";
 import { hasEnvVars } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
 
-export default function Home() {
+export default async function Home() {
+  if (hasEnvVars) {
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getClaims();
+    const userId = data?.claims?.sub;
+    if (userId) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", userId)
+        .maybeSingle();
+      if (!profile?.username) {
+        redirect("/onboarding");
+      }
+    }
+  }
+
   return (
     <main className="min-h-screen flex flex-col items-center">
       <div className="flex-1 w-full flex flex-col gap-20 items-center">
