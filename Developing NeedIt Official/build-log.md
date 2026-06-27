@@ -26,14 +26,17 @@ _MVP = Lane 2 (open request board). No payments, no catalog, no Lane 1 yet._
 - **Storage** — `offer-photos` bucket created (public). Added RLS policy: authenticated users can insert into `offer-photos` (needed for uploads — not in original plan).
 - **Auth URLs** — Site URL = `https://need-it.vercel.app`; Redirect URLs allow-list = vercel + `localhost:3000` (for local dev).
 
-## ⬜️ Next up — Step 4: Features (one at a time, test after each)
-1. Onboarding / set username (Prompt 1)
-2. Post a Need (Prompt 2)
-3. Board with filters/sort (Prompt 3)
-4. Request detail + make offer w/ photo (Prompt 4)
-5. Accept / decline + deal unlock (Prompt 5)
+## Step 4 — Features (one at a time, test after each)
+1. ✅ **Onboarding / set username (Prompt 1)** — LIVE & verified. Files: app/onboarding/{page.tsx,actions.ts}, components/onboarding/username-form.tsx; home guard in app/page.tsx; post-login redirect → "/". 
+   - **Trigger fix:** the schema's `handle_new_user` trigger was auto-setting username = email prefix, so onboarding never fired (and it leaked identity — against masked-identity principle). Changed trigger to insert profile with NULL username; ran `update profiles set username = null` to reset test accounts. Now new users must pick a username. Verified live: logged-in user with null username → redirected to /onboarding "Welcome to Exprifi" form.
+2. ⬜️ Post a Need (Prompt 2)
+3. ⬜️ Board with filters/sort (Prompt 3)
+4. ⬜️ Request detail + make offer w/ photo (Prompt 4)
+5. ⬜️ Accept / decline + deal unlock (Prompt 5)
 
-**Workflow for features:** Claude gives a Cursor prompt → Kyle pastes into Cursor's AI (Composer/Agent) → it writes the code → Kyle commits + pushes → Vercel auto-deploys → Claude verifies on https://need-it.vercel.app. One feature per cycle.
+**Workflow (CHANGED Jun 27):** Cursor's AI agent kept building in the wrong folder (made a stray `gradesave` repo). Switched to: **Claude writes feature files directly into `~/Desktop/NeedIt/needit` (Cowork now mounted at `~/Desktop/NeedIt`), type-checks with tsc, then Kyle runs `git add -A && git commit && git push` from `~/Desktop/NeedIt`** → Vercel deploys → Claude verifies live. Do NOT run git from Claude's sandbox (it leaves a stale .git/index.lock; if seen, Kyle runs `rm -f ~/Desktop/NeedIt/.git/index.lock`).
+
+**Gotcha fixed:** Next 16 shipped with `cacheComponents: true` in next.config.ts — breaks builds for auth/cookie pages (prerender error). Set to disabled. Keep it off.
 
 ## ⚠️ Follow-up (before email auth is fully tested)
 - Set Supabase **Auth → URL Configuration → Site URL** to `https://need-it.vercel.app` so signup/confirmation emails redirect to the live app (not localhost). Do when we first test signup.
