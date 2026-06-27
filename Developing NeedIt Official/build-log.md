@@ -50,6 +50,8 @@ _MVP = Lane 2 (open request board). No payments, no catalog, no Lane 1 yet._
 - **Internal codename = needit** (repo, folders, Supabase project) — intentionally not renamed.
 
 ## 💡 Future ideas (post-MVP)
+- **"My Needs" inbox (Kyle, Jun 27):** buyer command-center page listing the user's own posted needs with offer counts; drill in to view/act on offers. (≈ doc Prompt 6 /my-needs.) Build right after Feature 4 — it's where accept/decline lives most naturally.
+- **Offer-count badge on board (Kyle, Jun 27):** colored badge on each board card showing # of offers, as public social proof / "sellers race" signal. NOTE: offers are RLS-restricted to buyer+sellers, so a PUBLIC count needs a denormalized `offer_count` column on requests kept in sync by a trigger on offers insert/update. Build with the inbox.
 - **Split "buyer/seller" landing (Kyle, Jun 27):** split-screen landing — NOT an account-type gate (keep one account that's both; beachhead = breakers who are both sides). Frame as intent/mode: "Find cards" (→ /post) vs "Sell cards" (→ board). Black/white base + one accent color per mode as a light visual cue, not two separate apps. Marketing/onboarding polish for later.
 
 ## 🧠 Open items / reminders

@@ -71,3 +71,21 @@ export async function createOffer(
   revalidatePath(`/request/${requestId}`);
   return { success: true };
 }
+
+export async function acceptOffer(formData: FormData): Promise<void> {
+  const offerId = (formData.get("offer_id") ?? "").toString();
+  const requestId = (formData.get("request_id") ?? "").toString();
+  if (!offerId) return;
+  const supabase = await createClient();
+  await supabase.rpc("accept_offer", { p_offer_id: offerId });
+  revalidatePath(`/request/${requestId}`);
+}
+
+export async function declineOffer(formData: FormData): Promise<void> {
+  const offerId = (formData.get("offer_id") ?? "").toString();
+  const requestId = (formData.get("request_id") ?? "").toString();
+  if (!offerId) return;
+  const supabase = await createClient();
+  await supabase.rpc("decline_offer", { p_offer_id: offerId });
+  revalidatePath(`/request/${requestId}`);
+}

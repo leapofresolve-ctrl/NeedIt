@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
 import { Badge } from "@/components/ui/badge";
 import { OfferForm } from "@/components/offer/offer-form";
+import { Button } from "@/components/ui/button";
+import { acceptOffer, declineOffer } from "./actions";
 
 function formatMoney(cents: number | null) {
   if (cents == null) return "Open budget";
@@ -95,6 +97,7 @@ export default async function RequestDetail({
     }));
   }
 
+  const acceptedOffer = offers.find((o) => o.status === "accepted") ?? null;
   const left = timeLeft(request.expires_at);
 
   return (
@@ -149,10 +152,22 @@ export default async function RequestDetail({
 
         {/* Offer area */}
         {isBuyer ? (
-          <section className="flex flex-col gap-3">
-            <h2 className="text-lg font-semibold">
-              Offers ({offers.length})
-            </h2>
+          <section className="flex flex-col gap-4">
+            {request.status === "matched" && acceptedOffer && (
+              <div className="border rounded-lg p-5 bg-accent">
+                <h2 className="text-xl font-bold">It&apos;s a match! 🎉</h2>
+                <p className="text-sm mt-1">
+                  You accepted {formatMoney(acceptedOffer.price_cents)} from{" "}
+                  <strong>{acceptedOffer.sellerName}</strong>.
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Payments &amp; shipping are coming soon — for now, coordinate
+                  your first deals directly.
+                </p>
+              </div>
+            )}
+
+            <h2 className="text-lg font-semibold">Offers ({offers.length})</h2>
             {offers.length === 0 ? (
               <p className="text-sm text-muted-foreground border rounded-lg p-5">
                 No offers yet. Sellers who can fill this will show up here.
@@ -169,7 +184,7 @@ export default async function RequestDetail({
                         className="w-20 h-20 object-cover rounded-md shrink-0"
                       />
                     )}
-                    <div className="flex flex-col gap-1 min-w-0">
+                    <div className="flex flex-col gap-1 min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold">
                           {formatMoney(o.price_cents)}
@@ -189,14 +204,37 @@ export default async function RequestDetail({
                           {o.note}
                         </span>
                       )}
+                      {request.status === "open" && o.status === "pending" && (
+                        <div className="flex gap-2 mt-2">
+                          <form action={acceptOffer}>
+                            <input type="hidden" name="offer_id" value={o.id} />
+                            <input
+                              type="hidden"
+                              name="request_id"
+                              value={request.id}
+                            />
+                            <Button type="submit" size="sm">
+                              Accept
+                            </Button>
+                          </form>
+                          <form action={declineOffer}>
+                            <input type="hidden" name="offer_id" value={o.id} />
+                            <input
+                              type="hidden"
+                              name="request_id"
+                              value={request.id}
+                            />
+                            <Button type="submit" size="sm" variant="outline">
+                              Decline
+                            </Button>
+                          </form>
+                        </div>
+                      )}
                     </div>
                   </li>
                 ))}
               </ul>
             )}
-            <p className="text-xs text-muted-foreground">
-              Accepting an offer (and unlocking the match) is the next feature.
-            </p>
           </section>
         ) : request.status === "open" ? (
           <OfferForm requestId={request.id} />
