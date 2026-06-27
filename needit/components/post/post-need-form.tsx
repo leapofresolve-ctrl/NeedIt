@@ -64,6 +64,20 @@ export function PostNeedForm() {
           </div>
 
           <div className="grid gap-2">
+            <Label htmlFor="image">Reference photo (optional)</Label>
+            <input
+              id="image"
+              name="image"
+              type="file"
+              accept="image/*"
+              className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border file:border-input file:bg-transparent file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-accent"
+            />
+            <p className="text-xs text-muted-foreground">
+              Show the exact card or parallel you want. JPG/PNG, up to 8MB.
+            </p>
+          </div>
+
+          <div className="grid gap-2">
             <Label>Type</Label>
             <div className="flex gap-6 text-sm">
               <label className="flex items-center gap-2">

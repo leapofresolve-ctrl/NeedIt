@@ -29,10 +29,12 @@ _MVP = Lane 2 (open request board). No payments, no catalog, no Lane 1 yet._
 ## Step 4 — Features (one at a time, test after each)
 1. ✅ **Onboarding / set username (Prompt 1)** — LIVE & verified. Files: app/onboarding/{page.tsx,actions.ts}, components/onboarding/username-form.tsx; home guard in app/page.tsx; post-login redirect → "/". 
    - **Trigger fix:** the schema's `handle_new_user` trigger was auto-setting username = email prefix, so onboarding never fired (and it leaked identity — against masked-identity principle). Changed trigger to insert profile with NULL username; ran `update profiles set username = null` to reset test accounts. Now new users must pick a username. Verified live: logged-in user with null username → redirected to /onboarding "Welcome to Exprifi" form.
-2. ⬜️ Post a Need (Prompt 2)
-3. ⬜️ Board with filters/sort (Prompt 3)
-4. ⬜️ Request detail + make offer w/ photo (Prompt 4)
-5. ⬜️ Accept / decline + deal unlock (Prompt 5)
+2. ✅ **Post a Need + Exprifi board (Prompts 2 & 3 bundled)** — LIVE & verified end-to-end. Home (app/page.tsx) replaced starter landing with: logged-out Exprifi landing (sign in/up); logged-in board listing open requests (newest first) with type/sport/condition/time-left badges + budget, empty state, SiteHeader nav (components/site-header.tsx: Exprifi logo, Post a Need, AuthButton). /post page + form (components/post/post-need-form.tsx) + createNeed action (app/post/actions.ts) — budget dollars→cents, expiry 24h/3d/7d→expires_at, inserts request (RLS ok), redirects to board. Verified: posted "2003 Topps Chrome LeBron rookie (raw)" $200 → appeared on board. (Test need exists in DB; Kyle can delete later.)
+   - Minor polish TODO: timeLeft() floors hours so a fresh 7d need shows "6d left" — switch to ceil. Batch with next feature.
+   - Board cards link to /request/[id] (built next) — clicking 404s until then.
+3. ⬜️ Request detail + make offer w/ photo (Prompt 4) — makes board cards work; sellers respond with structured offer (price/condition/photo/note).
+4. ⬜️ Accept / decline + deal unlock (Prompt 5)
+5. ⬜️ Polish: filters/sort on board, my-needs page, timeLeft ceil.
 
 **Workflow (CHANGED Jun 27):** Cursor's AI agent kept building in the wrong folder (made a stray `gradesave` repo). Switched to: **Claude writes feature files directly into `~/Desktop/NeedIt/needit` (Cowork now mounted at `~/Desktop/NeedIt`), type-checks with tsc, then Kyle runs `git add -A && git commit && git push` from `~/Desktop/NeedIt`** → Vercel deploys → Claude verifies live. Do NOT run git from Claude's sandbox (it leaves a stale .git/index.lock; if seen, Kyle runs `rm -f ~/Desktop/NeedIt/.git/index.lock`).
 

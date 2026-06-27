@@ -44,6 +44,25 @@ export async function createNeed(
   const userId = claimsData?.claims?.sub;
   if (!userId) redirect("/auth/login");
 
+  // Optional reference photo.
+  let imageUrl: string | null = null;
+  const file = formData.get("image");
+  if (file instanceof File && file.size > 0) {
+    if (!file.type.startsWith("image/"))
+      return { error: "The attachment must be an image." };
+    if (file.size > 8 * 1024 * 1024)
+      return { error: "Image is too large (max 8MB)." };
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from("request-photos")
+      .upload(path, file, { contentType: file.type, upsert: false });
+    if (uploadError)
+      return { error: "Couldn't upload the image. Please try again." };
+    imageUrl = supabase.storage.from("request-photos").getPublicUrl(path)
+      .data.publicUrl;
+  }
+
   const { error } = await supabase.from("requests").insert({
     buyer_id: userId,
     title,
@@ -52,6 +71,7 @@ export async function createNeed(
     sport: sport || null,
     budget_cents: budgetCents,
     condition_pref: conditionPref || null,
+    image_url: imageUrl,
     status: "open",
     expires_at: expiresAt,
   });

@@ -13,6 +13,7 @@ type RequestRow = {
   sport: string | null;
   budget_cents: number | null;
   condition_pref: string | null;
+  image_url: string | null;
   expires_at: string | null;
   created_at: string;
 };
@@ -82,7 +83,7 @@ export default async function Home() {
   const { data: requests } = await supabase
     .from("requests")
     .select(
-      "id, title, type, sport, budget_cents, condition_pref, expires_at, created_at",
+      "id, title, type, sport, budget_cents, condition_pref, image_url, expires_at, created_at",
     )
     .eq("status", "open")
     .order("created_at", { ascending: false });
@@ -121,6 +122,14 @@ export default async function Home() {
                     href={`/request/${r.id}`}
                     className="block border rounded-lg p-4 hover:bg-accent transition-colors h-full"
                   >
+                    {r.image_url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={r.image_url}
+                        alt=""
+                        className="w-full h-36 object-cover rounded-md mb-3"
+                      />
+                    )}
                     <div className="flex items-start justify-between gap-2">
                       <h2 className="font-semibold leading-tight">{r.title}</h2>
                       <span className="font-semibold whitespace-nowrap">
