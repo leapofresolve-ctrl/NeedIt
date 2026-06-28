@@ -87,6 +87,7 @@ export default async function Home() {
       "id, buyer_id, title, type, sport, budget_cents, condition_pref, image_url, expires_at, created_at",
     )
     .eq("status", "open")
+    .eq("visibility", "public")
     .order("created_at", { ascending: false });
 
   const rows = (requests ?? []) as RequestRow[];

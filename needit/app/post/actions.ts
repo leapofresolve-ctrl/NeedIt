@@ -22,6 +22,10 @@ export async function createNeed(
   const conditionPref = (formData.get("condition_pref") ?? "").toString().trim();
   const budgetRaw = (formData.get("budget") ?? "").toString().trim();
   const expiry = (formData.get("expiry") ?? "7d").toString();
+  const visibility =
+    (formData.get("visibility") ?? "public").toString() === "private"
+      ? "private"
+      : "public";
 
   if (!title) return { error: "Please give your need a title." };
   if (type !== "single" && type !== "bulk")
@@ -36,8 +40,13 @@ export async function createNeed(
     budgetCents = Math.round(dollars * 100);
   }
 
-  const hours = EXPIRY_HOURS[expiry] ?? 168;
-  const expiresAt = new Date(Date.now() + hours * 3_600_000).toISOString();
+  // Private wants don't tick down — expiry starts when you publish to the board.
+  const expiresAt =
+    visibility === "private"
+      ? null
+      : new Date(
+          Date.now() + (EXPIRY_HOURS[expiry] ?? 168) * 3_600_000,
+        ).toISOString();
 
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
@@ -73,10 +82,21 @@ export async function createNeed(
     condition_pref: conditionPref || null,
     image_url: imageUrl,
     status: "open",
+    visibility,
     expires_at: expiresAt,
   });
 
   if (error) return { error: "Couldn't post your need. Please try again." };
+
+  // Private wants land on your own board; public ones go to the main board.
+  if (visibility === "private") {
+    const { data: me } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", userId)
+      .maybeSingle();
+    redirect(me?.username ? `/u/${me.username}` : "/");
+  }
 
   redirect("/");
 }

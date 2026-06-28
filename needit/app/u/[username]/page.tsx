@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { publishNeed } from "./actions";
 
 type RequestRow = {
   id: string;
@@ -38,17 +39,18 @@ function timeLeft(expiresAt: string | null) {
 function NeedCard({
   r,
   offerCount,
+  isPrivate,
+  footer,
 }: {
   r: RequestRow;
   offerCount?: number;
+  isPrivate?: boolean;
+  footer?: React.ReactNode;
 }) {
   const left = timeLeft(r.expires_at);
   return (
-    <li>
-      <Link
-        href={`/request/${r.id}`}
-        className="block border rounded-lg p-4 hover:bg-accent transition-colors h-full"
-      >
+    <li className="border rounded-lg p-4 hover:bg-accent transition-colors h-full flex flex-col">
+      <Link href={`/request/${r.id}`} className="block">
         {r.image_url && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -64,6 +66,7 @@ function NeedCard({
           </span>
         </div>
         <div className="flex flex-wrap gap-2 mt-3">
+          {isPrivate && <Badge variant="default">Private</Badge>}
           <Badge variant="secondary">
             {r.type === "bulk" ? "Bulk lot" : "Single"}
           </Badge>
@@ -76,7 +79,7 @@ function NeedCard({
               {offerCount} {offerCount === 1 ? "offer" : "offers"}
             </Badge>
           )}
-          {left && r.status === "open" && (
+          {!isPrivate && left && r.status === "open" && (
             <Badge variant="outline" className="ml-auto">
               {left}
             </Badge>
@@ -88,6 +91,7 @@ function NeedCard({
           )}
         </div>
       </Link>
+      {footer}
     </li>
   );
 }
@@ -122,7 +126,7 @@ export default async function ProfilePage({
 
   const isOwner = profile.id === viewerId;
 
-  // The want board: this user's open needs.
+  // The want board: this user's open, PUBLIC needs (private wants never show here).
   const { data: openData } = await supabase
     .from("requests")
     .select(
@@ -130,14 +134,27 @@ export default async function ProfilePage({
     )
     .eq("buyer_id", profile.id)
     .eq("status", "open")
+    .eq("visibility", "public")
     .order("created_at", { ascending: false });
   const openNeeds = (openData ?? []) as RequestRow[];
 
-  // Owner-only: offer counts per need + a matched/closed section.
+  // Owner-only: offer counts, private wants, and a matched/closed section.
   // RLS lets the buyer read offers on their own requests, so counts are safe here.
   const offerCountByReq: Record<string, number> = {};
+  let privateNeeds: RequestRow[] = [];
   let pastNeeds: RequestRow[] = [];
   if (isOwner) {
+    const { data: privateData } = await supabase
+      .from("requests")
+      .select(
+        "id, title, type, sport, budget_cents, condition_pref, image_url, status, expires_at, created_at",
+      )
+      .eq("buyer_id", profile.id)
+      .eq("status", "open")
+      .eq("visibility", "private")
+      .order("created_at", { ascending: false });
+    privateNeeds = (privateData ?? []) as RequestRow[];
+
     const openIds = openNeeds.map((r) => r.id);
     if (openIds.length) {
       const { data: offerRows } = await supabase
@@ -199,6 +216,54 @@ export default async function ProfilePage({
             </Button>
           )}
         </div>
+
+        {/* Owner-only: private wants (your wishlist, not on the board yet) */}
+        {isOwner && privateNeeds.length > 0 && (
+          <section className="flex flex-col gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Private wants</h2>
+              <p className="text-sm text-muted-foreground">
+                Only you can see these. Post one to the board when you&apos;re
+                ready to take offers.
+              </p>
+            </div>
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {privateNeeds.map((r) => (
+                <NeedCard
+                  key={r.id}
+                  r={r}
+                  isPrivate
+                  footer={
+                    <form
+                      action={publishNeed}
+                      className="flex items-end gap-2 mt-3"
+                    >
+                      <input type="hidden" name="request_id" value={r.id} />
+                      <input
+                        type="hidden"
+                        name="username"
+                        value={profile.username ?? ""}
+                      />
+                      <select
+                        name="expiry"
+                        defaultValue="7d"
+                        aria-label="Expires in"
+                        className="flex h-9 rounded-md border border-input bg-transparent px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      >
+                        <option value="24h">24h</option>
+                        <option value="3d">3 days</option>
+                        <option value="7d">7 days</option>
+                      </select>
+                      <Button type="submit" size="sm">
+                        Post to board
+                      </Button>
+                    </form>
+                  }
+                />
+              ))}
+            </ul>
+          </section>
+        )}
 
         {/* Want board */}
         <section className="flex flex-col gap-3">

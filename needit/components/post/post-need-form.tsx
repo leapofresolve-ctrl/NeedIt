@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { createNeed, type PostNeedState } from "@/app/post/actions";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +30,8 @@ const initialState: PostNeedState = {};
 
 export function PostNeedForm() {
   const [state, formAction, pending] = useActionState(createNeed, initialState);
+  const [visibility, setVisibility] = useState<"public" | "private">("public");
+  const isPrivate = visibility === "private";
 
   return (
     <Card>
@@ -129,23 +131,69 @@ export function PostNeedForm() {
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="expiry">Expires in</Label>
-            <select
-              id="expiry"
-              name="expiry"
-              defaultValue="7d"
-              className={fieldClass}
-            >
-              <option value="24h">24 hours</option>
-              <option value="3d">3 days</option>
-              <option value="7d">7 days</option>
-            </select>
+            <Label>Visibility</Label>
+            <input type="hidden" name="visibility" value={visibility} />
+            <div className="flex flex-col gap-2 text-sm">
+              <label className="flex items-start gap-2">
+                <input
+                  type="radio"
+                  name="visibility_choice"
+                  value="public"
+                  checked={visibility === "public"}
+                  onChange={() => setVisibility("public")}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="font-medium">Post to the board now</span>
+                  <span className="block text-muted-foreground">
+                    Sellers see it and can send offers right away.
+                  </span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2">
+                <input
+                  type="radio"
+                  name="visibility_choice"
+                  value="private"
+                  checked={visibility === "private"}
+                  onChange={() => setVisibility("private")}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="font-medium">Save as a private want</span>
+                  <span className="block text-muted-foreground">
+                    Only you can see it. Post it to the board later when
+                    you&apos;re ready — the timer starts then.
+                  </span>
+                </span>
+              </label>
+            </div>
           </div>
+
+          {!isPrivate && (
+            <div className="grid gap-2">
+              <Label htmlFor="expiry">Expires in</Label>
+              <select
+                id="expiry"
+                name="expiry"
+                defaultValue="7d"
+                className={fieldClass}
+              >
+                <option value="24h">24 hours</option>
+                <option value="3d">3 days</option>
+                <option value="7d">7 days</option>
+              </select>
+            </div>
+          )}
 
           {state?.error && <p className="text-sm text-red-500">{state.error}</p>}
 
           <Button type="submit" disabled={pending}>
-            {pending ? "Posting…" : "Post Need"}
+            {pending
+              ? "Saving…"
+              : isPrivate
+                ? "Save private want"
+                : "Post Need"}
           </Button>
         </form>
       </CardContent>
