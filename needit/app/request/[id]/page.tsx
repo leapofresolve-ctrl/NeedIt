@@ -4,8 +4,28 @@ import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
 import { Badge } from "@/components/ui/badge";
 import { OfferForm } from "@/components/offer/offer-form";
+import { CounterForm } from "@/components/offer/counter-form";
 import { Button } from "@/components/ui/button";
 import { acceptOffer, declineOffer } from "./actions";
+
+const COUNTER_LIMIT = 10;
+
+type OfferRow = {
+  id: string;
+  seller_id: string;
+  price_cents: number;
+  current_price_cents: number | null;
+  counter_by: "buyer" | "seller" | null;
+  counter_round: number | null;
+  condition: string | null;
+  photo_url: string | null;
+  note: string | null;
+  status: string;
+  sellerName: string;
+};
+
+const OFFER_SELECT =
+  "id, seller_id, price_cents, current_price_cents, counter_by, counter_round, condition, photo_url, note, status";
 
 function formatMoney(cents: number | null) {
   if (cents == null) return "Open budget";
@@ -22,6 +42,122 @@ function timeLeft(expiresAt: string | null) {
   const hours = Math.ceil(ms / 3_600_000);
   if (hours < 24) return `${hours}h left`;
   return `${Math.ceil(hours / 24)}d left`;
+}
+
+// Who can act next = the party who did NOT make the last move.
+function turnFor(counterBy: OfferRow["counter_by"]) {
+  return counterBy === "buyer" ? "seller" : "buyer";
+}
+
+function describeLastMove(
+  counterBy: OfferRow["counter_by"],
+  viewerIsBuyer: boolean,
+) {
+  if (counterBy == null) return viewerIsBuyer ? "Seller's offer" : "Your offer";
+  if (counterBy === "buyer")
+    return viewerIsBuyer ? "You countered" : "Buyer countered";
+  return viewerIsBuyer ? "Seller countered" : "You countered";
+}
+
+function OfferBody({
+  o,
+  viewerIsBuyer,
+}: {
+  o: OfferRow;
+  viewerIsBuyer: boolean;
+}) {
+  const live = o.current_price_cents ?? o.price_cents;
+  const round = o.counter_round ?? 0;
+  return (
+    <div className="flex flex-col gap-1 min-w-0 flex-1">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="font-semibold text-lg">{formatMoney(live)}</span>
+        {round > 0 && live !== o.price_cents && (
+          <span className="text-xs text-muted-foreground">
+            opened at {formatMoney(o.price_cents)}
+          </span>
+        )}
+        {o.status !== "pending" && (
+          <Badge variant="secondary">{o.status}</Badge>
+        )}
+      </div>
+      <span className="text-xs text-muted-foreground">
+        {describeLastMove(o.counter_by, viewerIsBuyer)}
+        {round > 0 ? ` · round ${round}/${COUNTER_LIMIT}` : ""}
+        {viewerIsBuyer ? ` · from ${o.sellerName}` : ""}
+      </span>
+      {o.condition && <span className="text-sm">Condition: {o.condition}</span>}
+      {o.note && (
+        <span className="text-sm text-muted-foreground whitespace-pre-wrap">
+          {o.note}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function OfferActions({ o, requestId }: { o: OfferRow; requestId: string }) {
+  const atLimit = (o.counter_round ?? 0) >= COUNTER_LIMIT;
+  return (
+    <div className="flex flex-wrap items-center gap-2 mt-2">
+      <form action={acceptOffer}>
+        <input type="hidden" name="offer_id" value={o.id} />
+        <input type="hidden" name="request_id" value={requestId} />
+        <Button type="submit" size="sm">
+          Accept {formatMoney(o.current_price_cents ?? o.price_cents)}
+        </Button>
+      </form>
+      {!atLimit && <CounterForm offerId={o.id} requestId={requestId} />}
+      <form action={declineOffer}>
+        <input type="hidden" name="offer_id" value={o.id} />
+        <input type="hidden" name="request_id" value={requestId} />
+        <Button type="submit" size="sm" variant="ghost">
+          Decline
+        </Button>
+      </form>
+    </div>
+  );
+}
+
+function OfferListItem({
+  o,
+  requestId,
+  viewerIsBuyer,
+  requestOpen,
+}: {
+  o: OfferRow;
+  requestId: string;
+  viewerIsBuyer: boolean;
+  requestOpen: boolean;
+}) {
+  const myRole = viewerIsBuyer ? "buyer" : "seller";
+  const myTurn =
+    requestOpen && o.status === "pending" && turnFor(o.counter_by) === myRole;
+  const waiting =
+    requestOpen && o.status === "pending" && turnFor(o.counter_by) !== myRole;
+  return (
+    <li className="border rounded-lg p-4 flex gap-4">
+      {o.photo_url && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={o.photo_url}
+          alt=""
+          className="w-20 h-20 object-cover rounded-md shrink-0"
+        />
+      )}
+      <div className="flex flex-col min-w-0 flex-1">
+        <OfferBody o={o} viewerIsBuyer={viewerIsBuyer} />
+        {myTurn && <OfferActions o={o} requestId={requestId} />}
+        {waiting && (
+          <p className="text-xs text-muted-foreground mt-2">
+            {viewerIsBuyer
+              ? `Waiting on ${o.sellerName} to respond to your counter.`
+              : "Waiting on the buyer to respond."}
+          </p>
+        )}
+      </div>
+    </li>
+  );
 }
 
 export default async function RequestDetail({
@@ -53,6 +189,7 @@ export default async function RequestDetail({
   if (!request) notFound();
 
   const isBuyer = request.buyer_id === userId;
+  const requestOpen = request.status === "open";
 
   const { data: buyer } = await supabase
     .from("profiles")
@@ -60,44 +197,35 @@ export default async function RequestDetail({
     .eq("id", request.buyer_id)
     .maybeSingle();
 
-  // Buyer sees the offers on their need (RLS restricts visibility to parties).
-  let offers: Array<{
-    id: string;
-    seller_id: string;
-    price_cents: number;
-    condition: string | null;
-    photo_url: string | null;
-    note: string | null;
-    status: string;
-    sellerName: string;
-  }> = [];
+  // Fetch offers: the buyer sees all; a seller sees only their own.
+  let offerQuery = supabase
+    .from("offers")
+    .select(OFFER_SELECT)
+    .eq("request_id", id)
+    .order("created_at", { ascending: false });
+  if (!isBuyer) offerQuery = offerQuery.eq("seller_id", userId);
+  const { data: offerRows } = await offerQuery;
+  const baseOffers = (offerRows ?? []) as Omit<OfferRow, "sellerName">[];
 
-  if (isBuyer) {
-    const { data: offerRows } = await supabase
-      .from("offers")
-      .select("id, seller_id, price_cents, condition, photo_url, note, status")
-      .eq("request_id", id)
-      .order("created_at", { ascending: false });
-
-    const rows = offerRows ?? [];
-    const sellerIds = [...new Set(rows.map((o) => o.seller_id))];
-    let nameById: Record<string, string> = {};
-    if (sellerIds.length) {
-      const { data: sellers } = await supabase
-        .from("profiles")
-        .select("id, username")
-        .in("id", sellerIds);
-      nameById = Object.fromEntries(
-        (sellers ?? []).map((s) => [s.id, s.username ?? "member"]),
-      );
-    }
-    offers = rows.map((o) => ({
-      ...o,
-      sellerName: nameById[o.seller_id] ?? "member",
-    }));
+  // Attach seller usernames.
+  const sellerIds = [...new Set(baseOffers.map((o) => o.seller_id))];
+  let nameById: Record<string, string> = {};
+  if (sellerIds.length) {
+    const { data: sellers } = await supabase
+      .from("profiles")
+      .select("id, username")
+      .in("id", sellerIds);
+    nameById = Object.fromEntries(
+      (sellers ?? []).map((s) => [s.id, s.username ?? "member"]),
+    );
   }
+  const offers: OfferRow[] = baseOffers.map((o) => ({
+    ...o,
+    sellerName: nameById[o.seller_id] ?? "member",
+  }));
 
-  const acceptedOffer = offers.find((o) => o.status === "accepted") ?? null;
+  const accepted = offers.find((o) => o.status === "accepted") ?? null;
+  const sellerHasActive = offers.some((o) => o.status === "pending");
   const left = timeLeft(request.expires_at);
 
   return (
@@ -122,9 +250,7 @@ export default async function RequestDetail({
             />
           )}
           <div className="flex items-start justify-between gap-3">
-            <h1 className="text-2xl font-bold leading-tight">
-              {request.title}
-            </h1>
+            <h1 className="text-2xl font-bold leading-tight">{request.title}</h1>
             <span className="text-xl font-bold whitespace-nowrap">
               {formatMoney(request.budget_cents)}
             </span>
@@ -160,15 +286,15 @@ export default async function RequestDetail({
           </p>
         </div>
 
-        {/* Offer area */}
-        {isBuyer ? (
+        {/* ===== Buyer view ===== */}
+        {isBuyer && (
           <section className="flex flex-col gap-4">
-            {request.status === "matched" && acceptedOffer && (
+            {request.status === "matched" && accepted && (
               <div className="border rounded-lg p-5 bg-accent">
                 <h2 className="text-xl font-bold">It&apos;s a match! 🎉</h2>
                 <p className="text-sm mt-1">
-                  You accepted {formatMoney(acceptedOffer.price_cents)} from{" "}
-                  <strong>{acceptedOffer.sellerName}</strong>.
+                  You accepted {formatMoney(accepted.price_cents)} from{" "}
+                  <strong>{accepted.sellerName}</strong>.
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
                   Payments &amp; shipping are coming soon — for now, coordinate
@@ -185,73 +311,63 @@ export default async function RequestDetail({
             ) : (
               <ul className="flex flex-col gap-3">
                 {offers.map((o) => (
-                  <li key={o.id} className="border rounded-lg p-4 flex gap-4">
-                    {o.photo_url && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={o.photo_url}
-                        alt=""
-                        className="w-20 h-20 object-cover rounded-md shrink-0"
-                      />
-                    )}
-                    <div className="flex flex-col gap-1 min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">
-                          {formatMoney(o.price_cents)}
-                        </span>
-                        <span className="text-sm text-muted-foreground">
-                          from {o.sellerName}
-                        </span>
-                        {o.status !== "pending" && (
-                          <Badge variant="secondary">{o.status}</Badge>
-                        )}
-                      </div>
-                      {o.condition && (
-                        <span className="text-sm">Condition: {o.condition}</span>
-                      )}
-                      {o.note && (
-                        <span className="text-sm text-muted-foreground whitespace-pre-wrap">
-                          {o.note}
-                        </span>
-                      )}
-                      {request.status === "open" && o.status === "pending" && (
-                        <div className="flex gap-2 mt-2">
-                          <form action={acceptOffer}>
-                            <input type="hidden" name="offer_id" value={o.id} />
-                            <input
-                              type="hidden"
-                              name="request_id"
-                              value={request.id}
-                            />
-                            <Button type="submit" size="sm">
-                              Accept
-                            </Button>
-                          </form>
-                          <form action={declineOffer}>
-                            <input type="hidden" name="offer_id" value={o.id} />
-                            <input
-                              type="hidden"
-                              name="request_id"
-                              value={request.id}
-                            />
-                            <Button type="submit" size="sm" variant="outline">
-                              Decline
-                            </Button>
-                          </form>
-                        </div>
-                      )}
-                    </div>
-                  </li>
+                  <OfferListItem
+                    key={o.id}
+                    o={o}
+                    requestId={request.id}
+                    viewerIsBuyer={true}
+                    requestOpen={requestOpen}
+                  />
                 ))}
               </ul>
             )}
           </section>
-        ) : request.status === "open" ? (
-          <OfferForm requestId={request.id} />
-        ) : (
-          <p className="text-sm text-muted-foreground border rounded-lg p-5">
-            This need is no longer open for offers.
-          </p>
+        )}
+
+        {/* ===== Seller view ===== */}
+        {!isBuyer && accepted && (
+          <div className="border rounded-lg p-5 bg-accent">
+            <h2 className="text-xl font-bold">It&apos;s a match! 🎉</h2>
+            <p className="text-sm mt-1">
+              {buyer?.username ?? "The buyer"} accepted your offer at{" "}
+              <strong>{formatMoney(accepted.price_cents)}</strong>.
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Payments &amp; shipping are coming soon — coordinate your first
+              deals directly.
+            </p>
+          </div>
+        )}
+
+        {!isBuyer && !accepted && (
+          <section className="flex flex-col gap-4">
+            {offers.length > 0 && (
+              <>
+                <h2 className="text-lg font-semibold">Your offer</h2>
+                <ul className="flex flex-col gap-3">
+                  {offers.map((o) => (
+                    <OfferListItem
+                      key={o.id}
+                      o={o}
+                      requestId={request.id}
+                      viewerIsBuyer={false}
+                      requestOpen={requestOpen}
+                    />
+                  ))}
+                </ul>
+              </>
+            )}
+
+            {requestOpen && !sellerHasActive && (
+              <OfferForm requestId={request.id} />
+            )}
+
+            {!requestOpen && (
+              <p className="text-sm text-muted-foreground border rounded-lg p-5">
+                This need is no longer open for offers.
+              </p>
+            )}
+          </section>
         )}
       </div>
     </main>

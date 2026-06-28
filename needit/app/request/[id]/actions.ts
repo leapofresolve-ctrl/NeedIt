@@ -148,6 +148,7 @@ export async function createOffer(
     request_id: requestId,
     seller_id: userId,
     price_cents: priceCents,
+    current_price_cents: priceCents,
     condition: condition || null,
     photo_url: photoUrl,
     note: note || null,
@@ -175,5 +176,23 @@ export async function declineOffer(formData: FormData): Promise<void> {
   if (!offerId) return;
   const supabase = await createClient();
   await supabase.rpc("decline_offer", { p_offer_id: offerId });
+  revalidatePath(`/request/${requestId}`);
+}
+
+export async function counterOffer(formData: FormData): Promise<void> {
+  const offerId = (formData.get("offer_id") ?? "").toString();
+  const requestId = (formData.get("request_id") ?? "").toString();
+  const priceRaw = (formData.get("price") ?? "").toString().trim();
+  if (!offerId) return;
+
+  const dollars = Number(priceRaw);
+  if (!priceRaw || !Number.isFinite(dollars) || dollars <= 0) return;
+  const priceCents = Math.round(dollars * 100);
+
+  const supabase = await createClient();
+  await supabase.rpc("counter_offer", {
+    p_offer_id: offerId,
+    p_price_cents: priceCents,
+  });
   revalidatePath(`/request/${requestId}`);
 }
