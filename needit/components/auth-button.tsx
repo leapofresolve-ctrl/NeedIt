@@ -1,29 +1,45 @@
 import Link from "next/link";
-import { Button } from "./ui/button";
 import { createClient } from "@/lib/supabase/server";
+import { Button } from "./ui/button";
 import { LogoutButton } from "./logout-button";
 
 export async function AuthButton() {
   const supabase = await createClient();
 
-  // You can also use getUser() which will be slower.
   const { data } = await supabase.auth.getClaims();
+  const userId = data?.claims?.sub;
 
-  const user = data?.claims;
+  if (!userId) {
+    return (
+      <div className="flex gap-2">
+        <Button asChild size="sm" variant={"outline"}>
+          <Link href="/auth/login">Sign in</Link>
+        </Button>
+        <Button asChild size="sm" variant={"default"}>
+          <Link href="/auth/sign-up">Sign up</Link>
+        </Button>
+      </div>
+    );
+  }
 
-  return user ? (
+  // Show the pseudonymous username (not the email) and link it to the profile.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("username")
+    .eq("id", userId)
+    .maybeSingle();
+
+  return (
     <div className="flex items-center gap-4">
-      Hey, {user.email}!
+      {profile?.username && (
+        <Link
+          href={`/u/${profile.username}`}
+          className="text-sm font-medium hover:underline"
+        >
+          @{profile.username}
+        </Link>
+      )}
       <LogoutButton />
-    </div>
-  ) : (
-    <div className="flex gap-2">
-      <Button asChild size="sm" variant={"outline"}>
-        <Link href="/auth/login">Sign in</Link>
-      </Button>
-      <Button asChild size="sm" variant={"default"}>
-        <Link href="/auth/sign-up">Sign up</Link>
-      </Button>
     </div>
   );
 }

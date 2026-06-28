@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 
 type RequestRow = {
   id: string;
+  buyer_id: string;
   title: string;
   type: "single" | "bulk";
   sport: string | null;
@@ -83,12 +84,27 @@ export default async function Home() {
   const { data: requests } = await supabase
     .from("requests")
     .select(
-      "id, title, type, sport, budget_cents, condition_pref, image_url, expires_at, created_at",
+      "id, buyer_id, title, type, sport, budget_cents, condition_pref, image_url, expires_at, created_at",
     )
     .eq("status", "open")
     .order("created_at", { ascending: false });
 
   const rows = (requests ?? []) as RequestRow[];
+
+  // Map buyer ids → pseudonymous usernames for card attribution / profile links.
+  const buyerIds = [...new Set(rows.map((r) => r.buyer_id))];
+  let usernameById: Record<string, string> = {};
+  if (buyerIds.length) {
+    const { data: buyers } = await supabase
+      .from("profiles")
+      .select("id, username")
+      .in("id", buyerIds);
+    usernameById = Object.fromEntries(
+      (buyers ?? [])
+        .filter((b) => b.username)
+        .map((b) => [b.id, b.username as string]),
+    );
+  }
 
   return (
     <main className="min-h-screen flex flex-col items-center">
@@ -116,12 +132,13 @@ export default async function Home() {
           <ul className="grid gap-3 sm:grid-cols-2">
             {rows.map((r) => {
               const left = timeLeft(r.expires_at);
+              const poster = usernameById[r.buyer_id];
               return (
-                <li key={r.id}>
-                  <Link
-                    href={`/request/${r.id}`}
-                    className="block border rounded-lg p-4 hover:bg-accent transition-colors h-full"
-                  >
+                <li
+                  key={r.id}
+                  className="border rounded-lg p-4 hover:bg-accent transition-colors h-full flex flex-col"
+                >
+                  <Link href={`/request/${r.id}`} className="block">
                     {r.image_url && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -151,6 +168,14 @@ export default async function Home() {
                       )}
                     </div>
                   </Link>
+                  {poster && (
+                    <Link
+                      href={`/u/${poster}`}
+                      className="text-xs text-muted-foreground hover:underline mt-3 w-fit"
+                    >
+                      by {poster}
+                    </Link>
+                  )}
                 </li>
               );
             })}

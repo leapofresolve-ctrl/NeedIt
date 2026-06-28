@@ -33,9 +33,18 @@ _MVP = Lane 2 (open request board). No payments, no catalog, no Lane 1 yet._
    - Minor polish TODO: timeLeft() floors hours so a fresh 7d need shows "6d left" — switch to ceil. Batch with next feature.
    - Board cards link to /request/[id] (built next) — clicking 404s until then.
    - **Optional reference photo added (Kyle request, Jun 27):** `requests.image_url` column; public `request-photos` bucket + authenticated-insert policy; file input on post form; server-action upload (next.config serverActions.bodySizeLimit=8mb); thumbnail on board cards (plain <img>, no next/image config needed). Optional — posting without a photo still works.
-3. ⬜️ Request detail + make offer w/ photo (Prompt 4) — makes board cards work; sellers respond with structured offer (price/condition/photo/note).
-4. ⬜️ Accept / decline + deal unlock (Prompt 5)
-5. ⬜️ Polish: filters/sort on board, my-needs page, timeLeft ceil.
+3. ✅ **Request detail + structured offer (Prompt 4)** — LIVE & verified. app/request/[id]/page.tsx (async params), actions.ts (createOffer, photo→offer-photos), components/offer/offer-form.tsx. Buyer sees private offers list (RLS); non-buyer sees offer form (price/condition/photo/note, no chat). Verified: offer flowed account→account.
+4. ✅ **Accept / decline + match (Prompt 5) — CORE MVP LOOP COMPLETE** — LIVE. Two SECURITY DEFINER SQL funcs `accept_offer`/`decline_offer` (buyer-only auth check via auth.uid(); accept is atomic: offer→accepted, siblings→declined, request→matched, insert deal; guards against double-accept via status check). Server actions acceptOffer/declineOffer (form actions calling rpc + revalidatePath). Accept/Decline buttons on pending offers; "It's a match! 🎉" panel reveals seller + "payments/shipping coming soon". Verified offer-send success state; accept test handed to Kyle (2-account).
+   - timeLeft now uses ceil (shows "7d left" correctly).
+
+## ⬜️ Next up — enhancements
+1. "My Needs" inbox (buyer command center + offer counts) — see Future ideas.
+2. Offer-count badge on board (needs denormalized counter) — see Future ideas.
+3. **Counter-offers (NEW Kyle, Jun 27):** buyer/seller can counter an offer's price (lightweight negotiation, still structured / no chat). Decide who counters whom + round limit.
+4. **Mandatory offer photos (NEW Kyle, Jun 27):** require photo on offers (currently optional). REC: required for single-card offers (trust/anti-fake), optional for bulk/filter requests (avoid suppressing liquidity); revisit from usage. Kyle's call.
+5. Polish: filters/sort on board, buyer/seller mode landing, pixel sizing tweaks.
+
+See `exprifi-status-and-next-steps.md` for the full kickoff brief (open in new chats).
 
 **Workflow (CHANGED Jun 27):** Cursor's AI agent kept building in the wrong folder (made a stray `gradesave` repo). Switched to: **Claude writes feature files directly into `~/Desktop/NeedIt/needit` (Cowork now mounted at `~/Desktop/NeedIt`), type-checks with tsc, then Kyle runs `git add -A && git commit && git push` from `~/Desktop/NeedIt`** → Vercel deploys → Claude verifies live. Do NOT run git from Claude's sandbox (it leaves a stale .git/index.lock; if seen, Kyle runs `rm -f ~/Desktop/NeedIt/.git/index.lock`).
 

@@ -146,7 +146,17 @@ export default async function RequestDetail({
             <p className="text-sm whitespace-pre-wrap">{request.description}</p>
           )}
           <p className="text-xs text-muted-foreground">
-            Posted by {buyer?.username ?? "member"}
+            Posted by{" "}
+            {buyer?.username ? (
+              <Link
+                href={`/u/${buyer.username}`}
+                className="font-medium hover:underline"
+              >
+                {buyer.username}
+              </Link>
+            ) : (
+              "member"
+            )}
           </p>
         </div>
 
