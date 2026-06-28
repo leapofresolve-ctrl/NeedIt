@@ -34,6 +34,8 @@ A **reverse marketplace for sports cards**: buyers post the card or lot they wan
 3. **The Board** (home) — Exprifi-branded; lists open needs with badges, budget, time-left, photo thumbnails; empty state; nav.
 4. **Structured offers** — on a need's detail page, non-owners send an offer (price, condition, optional photo, note) — no public chat. Buyer sees offers privately (enforced by row-level security).
 5. **Accept / decline → match** — buyer accepts an offer; atomically the offer is accepted, siblings auto-decline, the request flips to "matched", a deal record is created, and an **"It's a match!"** panel reveals the seller. Guarded against double-accepts.
+6. **Public profiles + want boards (Jun 28)** — `/u/<username>` shows a member's open public needs; owner view doubles as the buyer command center (offer-count badges + matched/closed history). Usernames link everywhere (header, board cards, request detail); the header shows @username instead of the email.
+7. **Private vs public wants (Jun 28)** — save a want as a private wishlist, publish to the board later ("put the call out"); expiry starts at publish. Private rows are owner-only via RLS; they never appear on any board. (Open Q: make private wants editable before publishing?)
 
 ## How we work (important for the next session)
 
@@ -45,8 +47,8 @@ A **reverse marketplace for sports cards**: buyers post the card or lot they wan
 
 ## ⬜️ Next steps (suggested priority)
 
-1. **"My Needs" inbox** — a buyer command center listing your own posted needs with offer counts; drill in to view/act on offers. (This is the natural home for accepting/declining.)
-2. **Offer-count badge on the board** — a small colored badge on each card showing # of offers, as public social proof / "sellers race" signal. *Note: offers are private by security rules, so this needs a denormalized counter on each need kept in sync by a trigger.*
+1. ~~**"My Needs" inbox**~~ — **DONE** via the owner profile view (`/u/<username>`): your own needs with offer counts + matched/closed history.
+2. **Offer-count badge on the public board** — a small colored badge on each card showing # of offers, as public social proof / "sellers race" signal. *Note: offers are private by security rules, so this needs a denormalized counter on each need kept in sync by a trigger.* (The owner's own profile already shows counts; this is for the public board.)
 3. **Counter-offers (NEW — Kyle):** let a buyer (and/or seller) counter an offer's price instead of a flat accept/decline — lightweight negotiation that still stays inside structured offers (no public chat). Decide who can counter whom and how many rounds.
 4. **Mandatory offer photos (NEW — Kyle):** require a photo when sending an offer (currently optional). *Recommendation: make it required for **single-card** offers (proof-of-card builds trust and fights fakes/scams, and it's easy to photo one card), but keep it optional/encouraged for **bulk lots & filter requests** where a single photo is less meaningful and friction could suppress the offer volume we need during the liquidity test. Revisit based on real usage.*
 5. **Buyer/Seller "mode" landing** — split landing framed as intent ("Find cards" vs "Sell cards"), NOT account type (everyone keeps one account that's both). Black/white base + one accent color per mode as a light cue.

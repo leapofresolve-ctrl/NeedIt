@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "./ui/button";
 import { LogoutButton } from "./logout-button";
+import { UserMenu } from "./user-menu";
 
 export async function AuthButton() {
   const supabase = await createClient();
@@ -22,24 +23,17 @@ export async function AuthButton() {
     );
   }
 
-  // Show the pseudonymous username (not the email) and link it to the profile.
+  // Show the pseudonymous username (not the email) as an avatar menu.
   const { data: profile } = await supabase
     .from("profiles")
     .select("username")
     .eq("id", userId)
     .maybeSingle();
 
-  return (
-    <div className="flex items-center gap-4">
-      {profile?.username && (
-        <Link
-          href={`/u/${profile.username}`}
-          className="text-sm font-medium hover:underline"
-        >
-          @{profile.username}
-        </Link>
-      )}
-      <LogoutButton />
-    </div>
-  );
+  if (!profile?.username) {
+    // Not onboarded yet — keep a simple logout fallback.
+    return <LogoutButton />;
+  }
+
+  return <UserMenu username={profile.username} />;
 }

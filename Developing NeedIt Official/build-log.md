@@ -37,9 +37,17 @@ _MVP = Lane 2 (open request board). No payments, no catalog, no Lane 1 yet._
 4. ✅ **Accept / decline + match (Prompt 5) — CORE MVP LOOP COMPLETE** — LIVE. Two SECURITY DEFINER SQL funcs `accept_offer`/`decline_offer` (buyer-only auth check via auth.uid(); accept is atomic: offer→accepted, siblings→declined, request→matched, insert deal; guards against double-accept via status check). Server actions acceptOffer/declineOffer (form actions calling rpc + revalidatePath). Accept/Decline buttons on pending offers; "It's a match! 🎉" panel reveals seller + "payments/shipping coming soon". Verified offer-send success state; accept test handed to Kyle (2-account).
    - timeLeft now uses ceil (shows "7d left" correctly).
 
+## ✅ Done (Step 5 — Profiles + private wants, Jun 28)
+5. ✅ **Public profile + want board (Prompt 6-ish) — LIVE & verified.** `app/u/[username]/page.tsx`: pseudonymous profile at `/u/<username>`; any logged-in member can view a user's open **public** needs (their want board) and make offers via the existing flow. Owner view of the same page doubles as the buyer command center — each need shows an **offer-count badge** (read directly; RLS lets the buyer read offers on their own requests, so no denormalized counter needed for the owner's own view) plus a "Matched & closed" history section. Nav/discovery: `auth-button.tsx` now shows **@username linked to the profile** (stopped printing the email — leak-defense win); "Posted by" on request detail + a new "by @username" line on each board card link to the poster's profile. Verified live: `/u/voloksvault` shows header, "2 open needs", offer badges; board shows attribution links.
+6. ✅ **Private vs public wants (NEW Kyle, Jun 28) — LIVE & verified.** A want can be saved as a private wishlist and published to the board later ("put the call out"); **expiry starts at publish**, not at draft. 
+   - **DB (migration `needit/supabase/migrations/0002_request_visibility.sql`, run in SQL Editor):** added `requests.visibility text not null default 'public' check (public|private)` + index `requests_visibility_status_idx`; **replaced the SELECT RLS** so private rows are readable only by their owner (`visibility = 'public' or auth.uid() = buyer_id`).
+   - **Code:** post form has a Visibility radio (hides expiry when private; button → "Save private want"); `app/post/actions.ts` sets visibility + nulls expiry for private + redirects private posts to the owner's profile. Profile has an owner-only **"Private wants"** section with a duration picker + **"Post to board"** publish action (`app/u/[username]/actions.ts` — sets visibility=public, sets expires_at). Board (`app/page.tsx`) + want board now filter `visibility='public'` so the owner's own private wants don't leak onto either board. Non-owner hitting a private want URL → 404 (RLS).
+   - Verified live: post form shows the Visibility choice; deploy green.
+   - **Open Q for Kyle:** should a private want be editable (title/budget/photo) before publishing? Not built yet.
+
 ## ⬜️ Next up — enhancements
-1. "My Needs" inbox (buyer command center + offer counts) — see Future ideas.
-2. Offer-count badge on board (needs denormalized counter) — see Future ideas.
+1. ~~"My Needs" inbox~~ — DONE via the owner profile view (offer counts + manage).
+2. Offer-count badge on the *public* board (needs denormalized counter) — still future; the owner's own profile shows counts already.
 3. **Counter-offers (NEW Kyle, Jun 27):** buyer/seller can counter an offer's price (lightweight negotiation, still structured / no chat). Decide who counters whom + round limit.
 4. **Mandatory offer photos (NEW Kyle, Jun 27):** require photo on offers (currently optional). REC: required for single-card offers (trust/anti-fake), optional for bulk/filter requests (avoid suppressing liquidity); revisit from usage. Kyle's call.
 5. Polish: filters/sort on board, buyer/seller mode landing, pixel sizing tweaks.

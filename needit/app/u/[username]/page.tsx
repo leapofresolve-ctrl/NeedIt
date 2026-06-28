@@ -234,30 +234,35 @@ export default async function ProfilePage({
                   r={r}
                   isPrivate
                   footer={
-                    <form
-                      action={publishNeed}
-                      className="flex items-end gap-2 mt-3"
-                    >
-                      <input type="hidden" name="request_id" value={r.id} />
-                      <input
-                        type="hidden"
-                        name="username"
-                        value={profile.username ?? ""}
-                      />
-                      <select
-                        name="expiry"
-                        defaultValue="7d"
-                        aria-label="Expires in"
-                        className="flex h-9 rounded-md border border-input bg-transparent px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      >
-                        <option value="24h">24h</option>
-                        <option value="3d">3 days</option>
-                        <option value="7d">7 days</option>
-                      </select>
-                      <Button type="submit" size="sm">
-                        Post to board
+                    <div className="flex flex-col gap-2 mt-3">
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/request/${r.id}/edit`}>Edit</Link>
                       </Button>
-                    </form>
+                      <form
+                        action={publishNeed}
+                        className="flex items-end gap-2"
+                      >
+                        <input type="hidden" name="request_id" value={r.id} />
+                        <input
+                          type="hidden"
+                          name="username"
+                          value={profile.username ?? ""}
+                        />
+                        <select
+                          name="expiry"
+                          defaultValue="7d"
+                          aria-label="Expires in"
+                          className="flex h-9 rounded-md border border-input bg-transparent px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        >
+                          <option value="24h">24h</option>
+                          <option value="3d">3 days</option>
+                          <option value="7d">7 days</option>
+                        </select>
+                        <Button type="submit" size="sm">
+                          Post to board
+                        </Button>
+                      </form>
+                    </div>
                   }
                 />
               ))}
