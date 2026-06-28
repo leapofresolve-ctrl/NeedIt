@@ -68,6 +68,7 @@ function OfferBody({
 }) {
   const live = o.current_price_cents ?? o.price_cents;
   const round = o.counter_round ?? 0;
+  const remaining = Math.max(0, COUNTER_LIMIT - round);
   return (
     <div className="flex flex-col gap-1 min-w-0 flex-1">
       <div className="flex items-center gap-2 flex-wrap">
@@ -77,13 +78,19 @@ function OfferBody({
             opened at {formatMoney(o.price_cents)}
           </span>
         )}
-        {o.status !== "pending" && (
+        {o.status === "pending" ? (
+          <Badge variant={remaining === 0 ? "secondary" : "outline"}>
+            {remaining === 0
+              ? "No counters left"
+              : `${remaining} ${remaining === 1 ? "counter" : "counters"} left`}
+          </Badge>
+        ) : (
           <Badge variant="secondary">{o.status}</Badge>
         )}
       </div>
       <span className="text-xs text-muted-foreground">
         {describeLastMove(o.counter_by, viewerIsBuyer)}
-        {round > 0 ? ` · round ${round}/${COUNTER_LIMIT}` : ""}
+        {round > 0 ? ` · round ${round} of ${COUNTER_LIMIT}` : ""}
         {viewerIsBuyer ? ` · from ${o.sellerName}` : ""}
       </span>
       {o.condition && <span className="text-sm">Condition: {o.condition}</span>}
