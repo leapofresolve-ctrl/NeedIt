@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { User, Plus, LogOut } from "lucide-react";
+import { User, Plus, LogOut, Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   DropdownMenu,
@@ -46,6 +46,12 @@ export function UserMenu({ username }: { username: string }) {
           <Link href="/post" className="cursor-pointer">
             <Plus />
             Post a Need
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/completed-deals" className="cursor-pointer">
+            <Check />
+            Completed deals
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

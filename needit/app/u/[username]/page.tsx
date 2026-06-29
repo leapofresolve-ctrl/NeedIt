@@ -159,7 +159,6 @@ export default async function ProfilePage({
   // RLS lets the buyer read offers on their own requests, so counts are safe here.
   const offerCountByReq: Record<string, number> = {};
   let privateNeeds: RequestRow[] = [];
-  let completedDeals: RequestRow[] = [];
   let historyNeeds: RequestRow[] = [];
   let historyCount = 0;
   let yourOffers: YourOffer[] = [];
@@ -220,17 +219,6 @@ export default async function ProfilePage({
       }
     }
 
-    // Completed deals (successful transactions) → live inside the top button.
-    const { data: dealData } = await supabase
-      .from("requests")
-      .select(
-        "id, title, type, sport, budget_cents, condition_pref, image_url, status, expires_at, created_at",
-      )
-      .eq("buyer_id", profile.id)
-      .eq("status", "matched")
-      .order("created_at", { ascending: false });
-    completedDeals = (dealData ?? []) as RequestRow[];
-
     // Full history (every past need) → paginated running log at the bottom.
     const from = (hpage - 1) * hsize;
     const { data: historyData, count } = await supabase
@@ -288,26 +276,6 @@ export default async function ProfilePage({
             </Button>
           )}
         </div>
-
-        {/* Owner-only: completed deals tucked behind a button up top */}
-        {isOwner && (
-          <details className="border rounded-lg p-4">
-            <summary className="font-semibold cursor-pointer select-none">
-              Completed deals ({completedDeals.length})
-            </summary>
-            {completedDeals.length === 0 ? (
-              <p className="text-sm text-muted-foreground mt-3">
-                No completed deals yet.
-              </p>
-            ) : (
-              <ul className="grid gap-3 sm:grid-cols-2 mt-3">
-                {completedDeals.map((r) => (
-                  <NeedCard key={r.id} r={r} />
-                ))}
-              </ul>
-            )}
-          </details>
-        )}
 
         {/* Owner-only: offers you've sent (as a seller), incl. counters waiting on you */}
         {isOwner && yourOffers.length > 0 && (
@@ -444,35 +412,15 @@ export default async function ProfilePage({
           )}
         </section>
 
-        {/* Owner-only: running history log (paginated) */}
+        {/* Owner-only: running history log (paginated; full-width rows, controls at bottom) */}
         {isOwner && (
           <section id="history" className="flex flex-col gap-3 scroll-mt-20">
-            <div className="flex flex-wrap items-end justify-between gap-2">
-              <div>
-                <h2 className="text-lg font-semibold">History</h2>
-                <p className="text-sm text-muted-foreground">
-                  {historyCount} past{" "}
-                  {historyCount === 1 ? "transaction" : "transactions"}
-                </p>
-              </div>
-              {historyCount > 0 && (
-                <div className="flex items-center gap-1 text-sm">
-                  <span className="text-muted-foreground mr-1">Show</span>
-                  {PAGE_SIZES.map((size) => (
-                    <Link
-                      key={size}
-                      href={`/u/${profile.username}?hsize=${size}&hpage=1#history`}
-                      className={`px-2 py-1 rounded-md border ${
-                        size === hsize
-                          ? "bg-primary text-primary-foreground"
-                          : "hover:bg-accent"
-                      }`}
-                    >
-                      {size}
-                    </Link>
-                  ))}
-                </div>
-              )}
+            <div>
+              <h2 className="text-lg font-semibold">History</h2>
+              <p className="text-sm text-muted-foreground">
+                {historyCount} past{" "}
+                {historyCount === 1 ? "transaction" : "transactions"}
+              </p>
             </div>
 
             {historyCount === 0 ? (
@@ -481,44 +429,63 @@ export default async function ProfilePage({
               </p>
             ) : (
               <>
-                <ul className="grid gap-3 sm:grid-cols-2">
+                <ul className="flex flex-col gap-3 w-full">
                   {historyNeeds.map((r) => (
                     <NeedCard key={r.id} r={r} />
                   ))}
                 </ul>
-                {totalHistoryPages > 1 && (
-                  <div className="flex items-center justify-between gap-2 pt-1">
+
+                {/* Controls at the bottom: page size + arrows */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t mt-1">
+                  <div className="flex items-center gap-1 text-sm">
+                    <span className="text-muted-foreground mr-1">Show</span>
+                    {PAGE_SIZES.map((size) => (
+                      <Link
+                        key={size}
+                        href={`/u/${profile.username}?hsize=${size}&hpage=1#history`}
+                        className={`px-2 py-1 rounded-md border ${
+                          size === hsize
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-accent"
+                        }`}
+                      >
+                        {size}
+                      </Link>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-2">
                     {hpage > 1 ? (
-                      <Button asChild variant="outline" size="sm">
+                      <Button asChild variant="outline" size="sm" aria-label="Previous page">
                         <Link
                           href={`/u/${profile.username}?hsize=${hsize}&hpage=${hpage - 1}#history`}
                         >
-                          ← Previous
+                          ←
                         </Link>
                       </Button>
                     ) : (
-                      <Button variant="outline" size="sm" disabled>
-                        ← Previous
+                      <Button variant="outline" size="sm" disabled aria-label="Previous page">
+                        ←
                       </Button>
                     )}
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">
                       Page {hpage} of {totalHistoryPages}
                     </span>
                     {hpage < totalHistoryPages ? (
-                      <Button asChild variant="outline" size="sm">
+                      <Button asChild variant="outline" size="sm" aria-label="Next page">
                         <Link
                           href={`/u/${profile.username}?hsize=${hsize}&hpage=${hpage + 1}#history`}
                         >
-                          Next →
+                          →
                         </Link>
                       </Button>
                     ) : (
-                      <Button variant="outline" size="sm" disabled>
-                        Next →
+                      <Button variant="outline" size="sm" disabled aria-label="Next page">
+                        →
                       </Button>
                     )}
                   </div>
-                )}
+                </div>
               </>
             )}
           </section>
