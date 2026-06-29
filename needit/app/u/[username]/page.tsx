@@ -19,6 +19,16 @@ type RequestRow = {
   created_at: string;
 };
 
+type YourOffer = {
+  id: string;
+  request_id: string;
+  live: number;
+  counter_by: "buyer" | "seller" | null;
+  status: string;
+  requestTitle: string;
+  requestStatus: string;
+};
+
 function formatBudget(cents: number | null) {
   if (cents == null) return "Open budget";
   return `$${(cents / 100).toLocaleString("en-US", {
@@ -143,7 +153,42 @@ export default async function ProfilePage({
   const offerCountByReq: Record<string, number> = {};
   let privateNeeds: RequestRow[] = [];
   let pastNeeds: RequestRow[] = [];
+  let yourOffers: YourOffer[] = [];
   if (isOwner) {
+    // Offers this user has SENT (as a seller) — incl. counters waiting on them.
+    const { data: sentData } = await supabase
+      .from("offers")
+      .select(
+        "id, request_id, price_cents, current_price_cents, counter_by, status, created_at, requests(title, status)",
+      )
+      .eq("seller_id", profile.id)
+      .order("created_at", { ascending: false });
+    yourOffers = (
+      (sentData ?? []) as Array<{
+        id: string;
+        request_id: string;
+        price_cents: number;
+        current_price_cents: number | null;
+        counter_by: "buyer" | "seller" | null;
+        status: string;
+        requests:
+          | { title: string; status: string }
+          | { title: string; status: string }[]
+          | null;
+      }>
+    ).map((row) => {
+      const req = Array.isArray(row.requests) ? row.requests[0] : row.requests;
+      return {
+        id: row.id,
+        request_id: row.request_id,
+        live: row.current_price_cents ?? row.price_cents,
+        counter_by: row.counter_by,
+        status: row.status,
+        requestTitle: req?.title ?? "a need",
+        requestStatus: req?.status ?? "open",
+      };
+    });
+
     const { data: privateData } = await supabase
       .from("requests")
       .select(
@@ -216,6 +261,55 @@ export default async function ProfilePage({
             </Button>
           )}
         </div>
+
+        {/* Owner-only: offers you've sent (as a seller), incl. counters waiting on you */}
+        {isOwner && yourOffers.length > 0 && (
+          <section className="flex flex-col gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Your offers</h2>
+              <p className="text-sm text-muted-foreground">
+                Offers you&apos;ve sent on other people&apos;s needs.
+              </p>
+            </div>
+            <ul className="flex flex-col gap-2">
+              {yourOffers.map((o) => {
+                const open = o.requestStatus === "open";
+                const yourMove =
+                  open && o.status === "pending" && o.counter_by === "buyer";
+                const waiting =
+                  open && o.status === "pending" && o.counter_by !== "buyer";
+                return (
+                  <li key={o.id}>
+                    <Link
+                      href={`/request/${o.request_id}`}
+                      className="flex items-center justify-between gap-3 border rounded-lg p-4 hover:bg-accent transition-colors"
+                    >
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-medium truncate">
+                          {o.requestTitle}
+                        </span>
+                        <span className="text-sm text-muted-foreground">
+                          Your offer: {formatBudget(o.live)}
+                        </span>
+                      </div>
+                      {o.status === "accepted" ? (
+                        <Badge variant="default">Matched 🎉</Badge>
+                      ) : o.status === "declined" ? (
+                        <Badge variant="secondary">Declined</Badge>
+                      ) : !open ? (
+                        <Badge variant="secondary">Closed</Badge>
+                      ) : yourMove ? (
+                        <Badge variant="default">Your move — counter waiting</Badge>
+                      ) : waiting ? (
+                        <Badge variant="outline">Waiting on buyer</Badge>
+                      ) : null}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
 
         {/* Owner-only: private wants (your wishlist, not on the board yet) */}
         {isOwner && privateNeeds.length > 0 && (
