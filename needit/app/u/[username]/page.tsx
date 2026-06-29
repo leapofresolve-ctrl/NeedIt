@@ -106,12 +106,19 @@ function NeedCard({
   );
 }
 
+const PAGE_SIZES = [10, 25, 50];
+
 export default async function ProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ username: string }>;
+  searchParams: Promise<{ hsize?: string; hpage?: string }>;
 }) {
   const { username } = await params;
+  const sp = await searchParams;
+  const hsize = PAGE_SIZES.includes(Number(sp.hsize)) ? Number(sp.hsize) : 10;
+  const hpage = Math.max(1, Number(sp.hpage) || 1);
   const supabase = await createClient();
 
   const { data: claimsData } = await supabase.auth.getClaims();
@@ -152,7 +159,9 @@ export default async function ProfilePage({
   // RLS lets the buyer read offers on their own requests, so counts are safe here.
   const offerCountByReq: Record<string, number> = {};
   let privateNeeds: RequestRow[] = [];
-  let pastNeeds: RequestRow[] = [];
+  let completedDeals: RequestRow[] = [];
+  let historyNeeds: RequestRow[] = [];
+  let historyCount = 0;
   let yourOffers: YourOffer[] = [];
   if (isOwner) {
     // Offers this user has SENT (as a seller) — incl. counters waiting on them.
@@ -211,16 +220,34 @@ export default async function ProfilePage({
       }
     }
 
-    const { data: pastData } = await supabase
+    // Completed deals (successful transactions) → live inside the top button.
+    const { data: dealData } = await supabase
       .from("requests")
       .select(
         "id, title, type, sport, budget_cents, condition_pref, image_url, status, expires_at, created_at",
       )
       .eq("buyer_id", profile.id)
-      .neq("status", "open")
+      .eq("status", "matched")
       .order("created_at", { ascending: false });
-    pastNeeds = (pastData ?? []) as RequestRow[];
+    completedDeals = (dealData ?? []) as RequestRow[];
+
+    // Full history (every past need) → paginated running log at the bottom.
+    const from = (hpage - 1) * hsize;
+    const { data: historyData, count } = await supabase
+      .from("requests")
+      .select(
+        "id, title, type, sport, budget_cents, condition_pref, image_url, status, expires_at, created_at",
+        { count: "exact" },
+      )
+      .eq("buyer_id", profile.id)
+      .neq("status", "open")
+      .order("created_at", { ascending: false })
+      .range(from, from + hsize - 1);
+    historyNeeds = (historyData ?? []) as RequestRow[];
+    historyCount = count ?? 0;
   }
+
+  const totalHistoryPages = Math.max(1, Math.ceil(historyCount / hsize));
 
   const memberSince = profile.created_at
     ? new Date(profile.created_at).toLocaleDateString("en-US", {
@@ -261,6 +288,26 @@ export default async function ProfilePage({
             </Button>
           )}
         </div>
+
+        {/* Owner-only: completed deals tucked behind a button up top */}
+        {isOwner && (
+          <details className="border rounded-lg p-4">
+            <summary className="font-semibold cursor-pointer select-none">
+              Completed deals ({completedDeals.length})
+            </summary>
+            {completedDeals.length === 0 ? (
+              <p className="text-sm text-muted-foreground mt-3">
+                No completed deals yet.
+              </p>
+            ) : (
+              <ul className="grid gap-3 sm:grid-cols-2 mt-3">
+                {completedDeals.map((r) => (
+                  <NeedCard key={r.id} r={r} />
+                ))}
+              </ul>
+            )}
+          </details>
+        )}
 
         {/* Owner-only: offers you've sent (as a seller), incl. counters waiting on you */}
         {isOwner && yourOffers.length > 0 && (
@@ -397,15 +444,83 @@ export default async function ProfilePage({
           )}
         </section>
 
-        {/* Owner-only: matched & closed history */}
-        {isOwner && pastNeeds.length > 0 && (
-          <section className="flex flex-col gap-3">
-            <h2 className="text-lg font-semibold">Matched &amp; closed</h2>
-            <ul className="grid gap-3 sm:grid-cols-2">
-              {pastNeeds.map((r) => (
-                <NeedCard key={r.id} r={r} />
-              ))}
-            </ul>
+        {/* Owner-only: running history log (paginated) */}
+        {isOwner && (
+          <section id="history" className="flex flex-col gap-3 scroll-mt-20">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h2 className="text-lg font-semibold">History</h2>
+                <p className="text-sm text-muted-foreground">
+                  {historyCount} past{" "}
+                  {historyCount === 1 ? "transaction" : "transactions"}
+                </p>
+              </div>
+              {historyCount > 0 && (
+                <div className="flex items-center gap-1 text-sm">
+                  <span className="text-muted-foreground mr-1">Show</span>
+                  {PAGE_SIZES.map((size) => (
+                    <Link
+                      key={size}
+                      href={`/u/${profile.username}?hsize=${size}&hpage=1#history`}
+                      className={`px-2 py-1 rounded-md border ${
+                        size === hsize
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-accent"
+                      }`}
+                    >
+                      {size}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {historyCount === 0 ? (
+              <p className="text-sm text-muted-foreground border rounded-lg p-5">
+                No past transactions yet.
+              </p>
+            ) : (
+              <>
+                <ul className="grid gap-3 sm:grid-cols-2">
+                  {historyNeeds.map((r) => (
+                    <NeedCard key={r.id} r={r} />
+                  ))}
+                </ul>
+                {totalHistoryPages > 1 && (
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    {hpage > 1 ? (
+                      <Button asChild variant="outline" size="sm">
+                        <Link
+                          href={`/u/${profile.username}?hsize=${hsize}&hpage=${hpage - 1}#history`}
+                        >
+                          ← Previous
+                        </Link>
+                      </Button>
+                    ) : (
+                      <Button variant="outline" size="sm" disabled>
+                        ← Previous
+                      </Button>
+                    )}
+                    <span className="text-sm text-muted-foreground">
+                      Page {hpage} of {totalHistoryPages}
+                    </span>
+                    {hpage < totalHistoryPages ? (
+                      <Button asChild variant="outline" size="sm">
+                        <Link
+                          href={`/u/${profile.username}?hsize=${hsize}&hpage=${hpage + 1}#history`}
+                        >
+                          Next →
+                        </Link>
+                      </Button>
+                    ) : (
+                      <Button variant="outline" size="sm" disabled>
+                        Next →
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
           </section>
         )}
       </div>
