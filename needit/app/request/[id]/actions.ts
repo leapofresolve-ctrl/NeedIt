@@ -179,20 +179,38 @@ export async function declineOffer(formData: FormData): Promise<void> {
   revalidatePath(`/request/${requestId}`);
 }
 
-export async function counterOffer(formData: FormData): Promise<void> {
+export type CounterState = { error?: string };
+
+export async function counterOffer(
+  _prev: CounterState,
+  formData: FormData,
+): Promise<CounterState> {
   const offerId = (formData.get("offer_id") ?? "").toString();
   const requestId = (formData.get("request_id") ?? "").toString();
   const priceRaw = (formData.get("price") ?? "").toString().trim();
-  if (!offerId) return;
+  if (!offerId) return { error: "Something went wrong. Try again." };
 
   const dollars = Number(priceRaw);
-  if (!priceRaw || !Number.isFinite(dollars) || dollars <= 0) return;
+  if (!priceRaw || !Number.isFinite(dollars) || dollars <= 0)
+    return { error: "Enter a price greater than $0." };
   const priceCents = Math.round(dollars * 100);
 
   const supabase = await createClient();
-  await supabase.rpc("counter_offer", {
+  const { error } = await supabase.rpc("counter_offer", {
     p_offer_id: offerId,
     p_price_cents: priceCents,
   });
+  if (error) {
+    return {
+      error:
+        error.message?.includes("counter limit")
+          ? "No counters left on this offer."
+          : error.message?.includes("your turn")
+            ? "It's not your turn to counter right now."
+            : "Couldn't send your counter. Please try again.",
+    };
+  }
+
   revalidatePath(`/request/${requestId}`);
+  return {};
 }

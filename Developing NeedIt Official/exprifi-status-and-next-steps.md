@@ -35,7 +35,9 @@ A **reverse marketplace for sports cards**: buyers post the card or lot they wan
 4. **Structured offers** — on a need's detail page, non-owners send an offer (price, condition, optional photo, note) — no public chat. Buyer sees offers privately (enforced by row-level security).
 5. **Accept / decline → match** — buyer accepts an offer; atomically the offer is accepted, siblings auto-decline, the request flips to "matched", a deal record is created, and an **"It's a match!"** panel reveals the seller. Guarded against double-accepts.
 6. **Public profiles + want boards (Jun 28)** — `/u/<username>` shows a member's open public needs; owner view doubles as the buyer command center (offer-count badges + matched/closed history). Usernames link everywhere (header, board cards, request detail); the header shows @username instead of the email.
-7. **Private vs public wants (Jun 28)** — save a want as a private wishlist, publish to the board later ("put the call out"); expiry starts at publish. Private rows are owner-only via RLS; they never appear on any board. (Open Q: make private wants editable before publishing?)
+7. **Private vs public wants (Jun 28)** — save a want as a private wishlist, publish to the board later ("put the call out"); expiry starts at publish. Private rows are owner-only via RLS; they never appear on any board. Private wants are **editable** before publishing.
+8. **Avatar account menu (Jun 28)** — round avatar in the top-right (My board / Post a Need / Log out), like a normal social app.
+9. **Counter-offers (Jun 28)** — structured price negotiation (no chat): either side can Accept / Counter / Decline on their turn; accept locks the live price; **round cap = 10** (tune later); each offer shows a "counters left" countdown.
 
 ## How we work (important for the next session)
 

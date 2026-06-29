@@ -43,14 +43,24 @@ _MVP = Lane 2 (open request board). No payments, no catalog, no Lane 1 yet._
    - **DB (migration `needit/supabase/migrations/0002_request_visibility.sql`, run in SQL Editor):** added `requests.visibility text not null default 'public' check (public|private)` + index `requests_visibility_status_idx`; **replaced the SELECT RLS** so private rows are readable only by their owner (`visibility = 'public' or auth.uid() = buyer_id`).
    - **Code:** post form has a Visibility radio (hides expiry when private; button → "Save private want"); `app/post/actions.ts` sets visibility + nulls expiry for private + redirects private posts to the owner's profile. Profile has an owner-only **"Private wants"** section with a duration picker + **"Post to board"** publish action (`app/u/[username]/actions.ts` — sets visibility=public, sets expires_at). Board (`app/page.tsx`) + want board now filter `visibility='public'` so the owner's own private wants don't leak onto either board. Non-owner hitting a private want URL → 404 (RLS).
    - Verified live: post form shows the Visibility choice; deploy green.
-   - **Open Q for Kyle:** should a private want be editable (title/budget/photo) before publishing? Not built yet.
+
+## ✅ Done (Step 6 — Editable wants, avatar menu, counter-offers, Jun 28)
+7. ✅ **Editable private wants + avatar account menu — LIVE.** Private wants now have an **Edit** button → `/request/[id]/edit` (`app/request/[id]/edit/page.tsx` + `components/post/edit-need-form.tsx`); `updateNeed` action (`app/request/[id]/actions.ts`) guards owner + visibility='private' (public/live needs aren't editable here — edit screen redirects away), supports replacing the photo. Header now shows a round **avatar menu** (`components/user-menu.tsx`, shadcn dropdown) in the top-right with My board / Post a Need / Log out; `auth-button.tsx` renders it instead of the plain @username + logout. No DB change. Verified: deploy green.
+8. ✅ **Counter-offers (NEW Kyle) — LIVE; full loop needs Kyle's 2-account test.** Structured price negotiation, no chat.
+   - **DB (migration `needit/supabase/migrations/0003_counter_offers.sql`):** added `offers.current_price_cents` (backfilled, NOT NULL), `offers.counter_by` ('buyer'|'seller'|null), `offers.counter_round` (default 0). No enum change — negotiation stays `status='pending'` with `counter_by` tracking whose turn. Rewrote `accept_offer` (party-aware: the side that did NOT make the last move accepts; **locks price_cents = current_price_cents**; still atomic — siblings decline, request→matched, deal inserted) and `decline_offer` (either party may end it). New `counter_offer(p_offer_id, p_price_cents)` validates turn + enforces round cap; all SECURITY DEFINER.
+   - **Code:** `counterOffer` action + `createOffer` now sets `current_price_cents`. Request page (`app/request/[id]/page.tsx`) reworked: buyer sees all offers, **seller now sees their own offer's state** (previously only the offer form) incl. a seller-side match panel when they win. Whoever's turn it is gets Accept/Counter/Decline; the other side sees "waiting". `CounterForm` (`components/offer/counter-form.tsx`) = inline price input. Each offer shows a **"X counters left"** countdown badge (shared pool).
+   - **Round cap = 10** (≈5 each), set as `COUNTER_LIMIT` in the page + `v_max` in the SQL. "Do 10 for now, adjust later" (Kyle, Jun 28).
+   - **Verified live (Jun 29):** buyer counter works end-to-end — $200→$150, countdown 10→9, turn flipped to seller, buyer sees "waiting". (Seller-side accept/counter still Kyle's to confirm with the 2nd account, but logic is symmetric.)
+   - ⚠️ **GOTCHA that cost a debugging detour:** the `0003` migration was run in two parts and only the **column ALTERs** applied — the **functions never got created**, so `counter_offer` was missing. The old deployed `counterOffer` action swallowed the resulting RPC error → counters failed **silently** (a transient cold-start 503 in the browser was a red herring; Vercel logged the POST as 200). Root-caused by checking the Supabase Functions list directly. **Lesson: after running any migration with functions, confirm them in Supabase → Database → Functions; and don't swallow `supabase.rpc` errors.**
+   - **Pending push:** `counterOffer` + `CounterForm` updated to surface RPC errors on-screen (uncommitted on disk as of Jun 29) — push so future failures aren't silent.
 
 ## ⬜️ Next up — enhancements
 1. ~~"My Needs" inbox~~ — DONE via the owner profile view (offer counts + manage).
-2. Offer-count badge on the *public* board (needs denormalized counter) — still future; the owner's own profile shows counts already.
-3. **Counter-offers (NEW Kyle, Jun 27):** buyer/seller can counter an offer's price (lightweight negotiation, still structured / no chat). Decide who counters whom + round limit.
-4. **Mandatory offer photos (NEW Kyle, Jun 27):** require photo on offers (currently optional). REC: required for single-card offers (trust/anti-fake), optional for bulk/filter requests (avoid suppressing liquidity); revisit from usage. Kyle's call.
-5. Polish: filters/sort on board, buyer/seller mode landing, pixel sizing tweaks.
+2. ~~Editable private wants~~ — DONE (Step 6). Could later allow editing live/public needs (with care re: offers in flight).
+3. ~~Counter-offers~~ — DONE (Step 6); cap=10 for now, tune later.
+4. Offer-count badge on the *public* board (needs denormalized counter) — still future; the owner's own profile shows counts already.
+5. **Mandatory offer photos (NEW Kyle, Jun 27):** require photo on offers (currently optional). REC: required for single-card offers (trust/anti-fake), optional for bulk/filter requests (avoid suppressing liquidity); revisit from usage. Kyle's call.
+6. Polish: filters/sort on board, buyer/seller mode landing (DEFERRED until follower-marketing plan is finalized), pixel sizing tweaks.
 
 See `exprifi-status-and-next-steps.md` for the full kickoff brief (open in new chats).
 

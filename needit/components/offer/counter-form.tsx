@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { counterOffer } from "@/app/request/[id]/actions";
+import { useState, useActionState } from "react";
+import { counterOffer, type CounterState } from "@/app/request/[id]/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+const initialState: CounterState = {};
 
 export function CounterForm({
   offerId,
@@ -13,42 +15,54 @@ export function CounterForm({
   requestId: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [state, formAction, pending] = useActionState(
+    counterOffer,
+    initialState,
+  );
 
   if (!open) {
     return (
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        onClick={() => setOpen(true)}
+      >
         Counter
       </Button>
     );
   }
 
   return (
-    <form action={counterOffer} className="flex items-center gap-2">
-      <input type="hidden" name="offer_id" value={offerId} />
-      <input type="hidden" name="request_id" value={requestId} />
-      <span className="text-sm text-muted-foreground">$</span>
-      <Input
-        name="price"
-        type="number"
-        min="0"
-        step="0.01"
-        inputMode="decimal"
-        placeholder="Your price"
-        required
-        autoFocus
-        className="h-9 w-28"
-      />
-      <Button type="submit" size="sm">
-        Send
-      </Button>
-      <Button
-        type="button"
-        size="sm"
-        variant="ghost"
-        onClick={() => setOpen(false)}
-      >
-        Cancel
-      </Button>
+    <form action={formAction} className="flex flex-col gap-1">
+      <div className="flex items-center gap-2">
+        <input type="hidden" name="offer_id" value={offerId} />
+        <input type="hidden" name="request_id" value={requestId} />
+        <span className="text-sm text-muted-foreground">$</span>
+        <Input
+          name="price"
+          type="number"
+          min="0"
+          step="0.01"
+          inputMode="decimal"
+          placeholder="Your price"
+          required
+          autoFocus
+          className="h-9 w-28"
+        />
+        <Button type="submit" size="sm" disabled={pending}>
+          {pending ? "Sending…" : "Send"}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={() => setOpen(false)}
+        >
+          Cancel
+        </Button>
+      </div>
+      {state.error && <p className="text-xs text-red-500">{state.error}</p>}
     </form>
   );
 }
