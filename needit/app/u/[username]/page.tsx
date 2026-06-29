@@ -164,12 +164,14 @@ export default async function ProfilePage({
   let yourOffers: YourOffer[] = [];
   if (isOwner) {
     // Offers this user has SENT (as a seller) — incl. counters waiting on them.
+    // Only ACTIVE offers belong here — matched/declined live in history & completed deals.
     const { data: sentData } = await supabase
       .from("offers")
       .select(
         "id, request_id, price_cents, current_price_cents, counter_by, status, created_at, requests(title, status)",
       )
       .eq("seller_id", profile.id)
+      .eq("status", "pending")
       .order("created_at", { ascending: false });
     yourOffers = (
       (sentData ?? []) as Array<{
@@ -283,7 +285,8 @@ export default async function ProfilePage({
             <div>
               <h2 className="text-lg font-semibold">Your offers</h2>
               <p className="text-sm text-muted-foreground">
-                Offers you&apos;ve sent on other people&apos;s needs.
+                Active offers you&apos;ve sent. Completed ones move to your
+                history.
               </p>
             </div>
             <ul className="flex flex-col gap-2">
