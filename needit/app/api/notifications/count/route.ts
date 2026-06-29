@@ -1,11 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
-import { NotificationBellClient } from "@/components/notification-bell-client";
 
-export async function NotificationBell() {
+export const dynamic = "force-dynamic";
+
+// Lightweight endpoint the bell polls for the current user's unread count.
+export async function GET() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
-  if (!userId) return null;
+  if (!userId) return Response.json({ count: 0 });
 
   const { count } = await supabase
     .from("notifications")
@@ -13,5 +15,5 @@ export async function NotificationBell() {
     .eq("user_id", userId)
     .eq("read", false);
 
-  return <NotificationBellClient initialCount={count ?? 0} />;
+  return Response.json({ count: count ?? 0 });
 }
