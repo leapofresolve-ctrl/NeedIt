@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { AuthButton } from "@/components/auth-button";
+import { NotificationBell } from "@/components/notification-bell";
 import { Button } from "@/components/ui/button";
 
 export function SiteHeader() {
@@ -15,9 +16,14 @@ export function SiteHeader() {
             <Link href="/post">Post a Need</Link>
           </Button>
         </div>
-        <Suspense>
-          <AuthButton />
-        </Suspense>
+        <div className="flex items-center gap-2">
+          <Suspense>
+            <NotificationBell />
+          </Suspense>
+          <Suspense>
+            <AuthButton />
+          </Suspense>
+        </div>
       </div>
     </nav>
   );

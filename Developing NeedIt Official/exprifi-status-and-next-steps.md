@@ -37,7 +37,10 @@ A **reverse marketplace for sports cards**: buyers post the card or lot they wan
 6. **Public profiles + want boards (Jun 28)** — `/u/<username>` shows a member's open public needs; owner view doubles as the buyer command center (offer-count badges + matched/closed history). Usernames link everywhere (header, board cards, request detail); the header shows @username instead of the email.
 7. **Private vs public wants (Jun 28)** — save a want as a private wishlist, publish to the board later ("put the call out"); expiry starts at publish. Private rows are owner-only via RLS; they never appear on any board. Private wants are **editable** before publishing.
 8. **Avatar account menu (Jun 28)** — round avatar in the top-right (My board / Post a Need / Log out), like a normal social app.
-9. **Counter-offers (Jun 28)** — structured price negotiation (no chat): either side can Accept / Counter / Decline on their turn; accept locks the live price; **round cap = 10** (tune later); each offer shows a "counters left" countdown.
+9. **Counter-offers (Jun 28-29)** — structured price negotiation (no chat): either side can Accept / Counter / Decline on their turn; accept locks the live price; **round cap = 10** (tune later); each offer shows a "counters left" countdown. Errors now surface on-screen.
+10. **Seller command center (Jun 29)** — "Your offers" section on the profile lists offers you've sent; a buyer's counter shows up as "Your move — counter waiting" on the offerer's own page.
+11. **Completed deals (Jun 29)** — in the avatar dropdown → `/completed-deals` page with Bought + Sold transactions.
+12. **History log (Jun 29)** — paginated (10/25/50 + ← →) full-width log of past needs at the bottom of the profile.
 
 ## How we work (important for the next session)
 
