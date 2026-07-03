@@ -36,9 +36,20 @@ export async function AuthButton() {
   }
 
   return (
-    <UserMenu
-      username={profile.username}
-      isAdmin={profile.is_admin === true}
-    />
+    <div className="flex items-center gap-2">
+      {/* One-click hop from the main board to your own page. */}
+      <Button
+        asChild
+        size="sm"
+        variant="outline"
+        className="hidden sm:inline-flex"
+      >
+        <Link href={`/u/${profile.username}`}>My board</Link>
+      </Button>
+      <UserMenu
+        username={profile.username}
+        isAdmin={profile.is_admin === true}
+      />
+    </div>
   );
 }

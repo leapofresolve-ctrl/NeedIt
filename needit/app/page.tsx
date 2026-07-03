@@ -17,7 +17,27 @@ type RequestRow = {
   image_url: string | null;
   expires_at: string | null;
   created_at: string;
+  offer_count: number;
 };
+
+const SPORTS = [
+  "Basketball",
+  "Football",
+  "Baseball",
+  "Hockey",
+  "Soccer",
+  "Pokémon",
+  "Other",
+];
+
+const SORTS = [
+  { value: "newest", label: "Newest" },
+  { value: "expiring", label: "Expiring soon" },
+  { value: "budget", label: "Highest budget" },
+] as const;
+
+const fieldClass =
+  "flex rounded-md border border-input bg-transparent px-2 py-1.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
 function formatBudget(cents: number | null) {
   if (cents == null) return "Open budget";
@@ -36,7 +56,11 @@ function timeLeft(expiresAt: string | null) {
   return `${Math.floor(hours / 24)}d left`;
 }
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   if (!hasEnvVars) {
     return (
       <main className="min-h-screen flex items-center justify-center p-8 text-center">
@@ -81,15 +105,44 @@ export default async function Home() {
     redirect("/onboarding");
   }
 
-  const { data: requests } = await supabase
+  // ----- Filters + sort from the URL -----
+  const params = await searchParams;
+  const one = (v: string | string[] | undefined) =>
+    (Array.isArray(v) ? v[0] : v)?.trim() || undefined;
+
+  const fType = one(params.type); // 'single' | 'bulk'
+  const fSport = one(params.sport);
+  const fCondition = one(params.condition);
+  const fMin = one(params.min); // dollars
+  const fMax = one(params.max); // dollars
+  const sort = one(params.sort) ?? "newest";
+  const hasFilters = !!(fType || fSport || fCondition || fMin || fMax);
+
+  let query = supabase
     .from("requests")
     .select(
-      "id, buyer_id, title, type, sport, budget_cents, condition_pref, image_url, expires_at, created_at",
+      "id, buyer_id, title, type, sport, budget_cents, condition_pref, image_url, expires_at, created_at, offer_count",
     )
     .eq("status", "open")
-    .eq("visibility", "public")
-    .order("created_at", { ascending: false });
+    .eq("visibility", "public");
 
+  if (fType === "single" || fType === "bulk") query = query.eq("type", fType);
+  if (fSport && SPORTS.includes(fSport)) query = query.eq("sport", fSport);
+  if (fCondition) query = query.ilike("condition_pref", `%${fCondition}%`);
+  const minCents = fMin ? Math.round(parseFloat(fMin) * 100) : NaN;
+  const maxCents = fMax ? Math.round(parseFloat(fMax) * 100) : NaN;
+  if (Number.isFinite(minCents)) query = query.gte("budget_cents", minCents);
+  if (Number.isFinite(maxCents)) query = query.lte("budget_cents", maxCents);
+
+  if (sort === "expiring") {
+    query = query.order("expires_at", { ascending: true, nullsFirst: false });
+  } else if (sort === "budget") {
+    query = query.order("budget_cents", { ascending: false, nullsFirst: false });
+  } else {
+    query = query.order("created_at", { ascending: false });
+  }
+
+  const { data: requests } = await query;
   const rows = (requests ?? []) as RequestRow[];
 
   // Map buyer ids → pseudonymous usernames for card attribution / profile links.
@@ -120,14 +173,95 @@ export default async function Home() {
           </div>
         </div>
 
+        {/* Filters + sort (GET form → searchParams, server-rendered) */}
+        <form
+          method="get"
+          className="flex flex-wrap items-end gap-2 border rounded-lg p-3"
+        >
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+            Type
+            <select name="type" defaultValue={fType ?? ""} className={fieldClass}>
+              <option value="">All</option>
+              <option value="single">Single</option>
+              <option value="bulk">Bulk lot</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+            Sport
+            <select name="sport" defaultValue={fSport ?? ""} className={fieldClass}>
+              <option value="">All</option>
+              {SPORTS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+            Condition
+            <input
+              name="condition"
+              defaultValue={fCondition ?? ""}
+              placeholder="e.g. psa 9"
+              className={`${fieldClass} w-24`}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+            Budget $ min
+            <input
+              name="min"
+              type="number"
+              min="0"
+              defaultValue={fMin ?? ""}
+              className={`${fieldClass} w-20`}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+            Budget $ max
+            <input
+              name="max"
+              type="number"
+              min="0"
+              defaultValue={fMax ?? ""}
+              className={`${fieldClass} w-20`}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+            Sort
+            <select name="sort" defaultValue={sort} className={fieldClass}>
+              {SORTS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Button type="submit" size="sm" variant="default">
+            Apply
+          </Button>
+          {hasFilters && (
+            <Button asChild size="sm" variant="ghost">
+              <Link href="/">Clear</Link>
+            </Button>
+          )}
+        </form>
+
         {rows.length === 0 ? (
           <div className="border rounded-lg p-10 flex flex-col items-center gap-3 text-center">
             <p className="text-muted-foreground">
-              No open needs yet. Be the first to post one.
+              {hasFilters
+                ? "Nothing matches these filters."
+                : "No open needs yet. Be the first to post one."}
             </p>
-            <Button asChild>
-              <Link href="/post">Post a Need</Link>
-            </Button>
+            {hasFilters ? (
+              <Button asChild variant="outline">
+                <Link href="/">Clear filters</Link>
+              </Button>
+            ) : (
+              <Button asChild>
+                <Link href="/post">Post a Need</Link>
+              </Button>
+            )}
           </div>
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2">
@@ -161,6 +295,12 @@ export default async function Home() {
                       {r.sport && <Badge variant="outline">{r.sport}</Badge>}
                       {r.condition_pref && (
                         <Badge variant="outline">{r.condition_pref}</Badge>
+                      )}
+                      {r.offer_count > 0 && (
+                        <Badge variant="default">
+                          {r.offer_count}{" "}
+                          {r.offer_count === 1 ? "offer" : "offers"}
+                        </Badge>
                       )}
                       {left && (
                         <Badge variant="outline" className="ml-auto">
