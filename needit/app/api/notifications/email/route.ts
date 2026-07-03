@@ -31,6 +31,11 @@ function buildEmail(type: string, title: string) {
         subject: "Update on your Exprifi offer",
         line: `Your offer on “${title}” was declined.`,
       };
+    case "demand_match":
+      return {
+        subject: "A buyer wants what you have — Exprifi",
+        line: `A new need matches one of your demand alerts: “${title}”. Get there before another seller does.`,
+      };
     default:
       return {
         subject: "Exprifi update",

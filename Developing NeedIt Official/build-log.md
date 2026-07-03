@@ -86,6 +86,11 @@ _MVP = Lane 2 (open request board). No payments, no catalog, no Lane 1 yet._
     - **Caveat:** publish time isn't stored for private→published wants, so TTFO measures from `created_at` (noted on the page). Add a `published_at` column if this ever matters.
     - First reading (Jul 2): 4 published needs, 100% with ≥1 offer, median TTFO 21h, p90 1.8d, 1.25 offers/need, 2.67 counter-rounds avg, 75% match rate.
 
+## ✅ Done (Step 11 — Offer-count badges + board filters/sort + My board link, Jul 2)
+18. ✅ **Offer-count badge on board cards — LIVE & verified.** Migration `0007_offer_count.sql`: denormalized `requests.offer_count` (offers stay RLS-private; only the aggregate is public) kept in sync by SECURITY DEFINER trigger `offers_count_sync` on offers insert/delete + backfill. Board cards show "N offers" (hidden at 0). Verified: trigger exists, baseball test shows "1 offer".
+19. ✅ **Board filters + sort — LIVE & verified.** GET-form → searchParams on `/`: filter by type (single/bulk), sport (post-form list), condition (ilike), budget $ min/max (converted to cents); sort newest / expiring soon / highest budget. Form reflects URL state; filtered-empty state has "Clear filters". Verified live (`?type=bulk&sort=budget` correctly filters).
+20. ✅ **"My board" header button.** One-click hop from the main board to your own `/u/<username>` page, next to the avatar (hidden on mobile widths — avatar menu still has it).
+
 ## ⬜️ Next up — enhancements
 1. ~~"My Needs" inbox~~ — DONE via the owner profile view (offer counts + manage).
 2. ~~Editable private wants~~ — DONE (Step 6). Could later allow editing live/public needs (with care re: offers in flight).

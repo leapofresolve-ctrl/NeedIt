@@ -24,6 +24,8 @@ function describe(type: string) {
       return "Offer accepted 🎉";
     case "declined":
       return "Offer declined";
+    case "demand_match":
+      return "A buyer wants what you have";
     default:
       return "Update";
   }

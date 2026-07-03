@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { User, Plus, LogOut, Check, Settings, BarChart3 } from "lucide-react";
+import {
+  User,
+  Plus,
+  LogOut,
+  Check,
+  Settings,
+  BarChart3,
+  BellRing,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   DropdownMenu,
@@ -58,6 +66,12 @@ export function UserMenu({
           <Link href="/completed-deals" className="cursor-pointer">
             <Check />
             Completed deals
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/alerts" className="cursor-pointer">
+            <BellRing />
+            Demand alerts
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
