@@ -41,6 +41,7 @@ A **reverse marketplace for sports cards**: buyers post the card or lot they wan
 10. **Seller command center (Jun 29)** — "Your offers" section on the profile lists offers you've sent; a buyer's counter shows up as "Your move — counter waiting" on the offerer's own page.
 11. **Completed deals (Jun 29)** — in the avatar dropdown → `/completed-deals` page with Bought + Sold transactions.
 12. **History log (Jun 29)** — paginated (10/25/50 + ← →) full-width log of past needs at the bottom of the profile.
+13. **Notifications (Jun 29)** — in-app bell (live-updating via 15s poll + hover preview of recent items) + a `/notifications` page, driven by a DB trigger on offers. Plus a `/settings` email-notifications toggle and a Resend-backed email pipeline (live once a Resend domain is verified). "Your offers" shows active offers only; completed ones move to history.
 
 ## How we work (important for the next session)
 

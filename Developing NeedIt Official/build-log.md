@@ -61,13 +61,25 @@ _MVP = Lane 2 (open request board). No payments, no catalog, no Lane 1 yet._
    - Note: History currently logs the **buyer side** (your past needs); seller-side completed sales live in `/completed-deals` and "Your offers". Could unify into one transaction log later if wanted.
    - **Real-time notifications still TODO:** counters/offers only surface when the seller opens their profile — no push/email/badge alert yet (separate, bigger piece; Kyle flagged interest).
 
+## ✅ Done (Step 8 — Notifications: in-app + email + live bell, Jun 29)
+12. ✅ **In-app notifications — LIVE & verified.** DB migration `0004_notifications.sql`: `notifications` table (user_id, type, request_id, offer_id, read, created_at) + RLS (own select/update only) + a SECURITY DEFINER trigger `notify_offer_change` on `offers` (insert→`new_offer` to the buyer; update→`counter`/`accepted`/`declined` to the correct party, computed from `auth.uid()` so the actor is never self-notified). Header **bell** (`components/notification-bell*.tsx`) with unread badge → **`/notifications`** page (`app/notifications/page.tsx`) listing items linked to their request, auto-marking read on view (`MarkReadOnView` client effect + `markAllRead` action). Verified live: counter/accept/new-offer all generated rows and showed up.
+13. ✅ **Live-updating bell + hover preview — LIVE & verified.** Bell is now a client component (`notification-bell-client.tsx`) that **polls `/api/notifications/count` every 15s + on tab-focus**, so the badge updates with no refresh. **Hover** shows a preview box of the 5 most recent notifications (each linked) + "See all"; **click** still opens the full page. Verified live (preview showed real counter/accepted/new-offer items).
+14. ✅ **Settings + email notifications — CODE LIVE; email needs external setup.** `0005_email_notifications_pref.sql`: `profiles.email_notifications` boolean (default true). **`/settings`** page (avatar menu → Settings) with the email toggle (`updateSettings` action). Email delivery: **`/api/notifications/email`** route called by a **Supabase Database Webhook** on `notifications` insert → looks up recipient email (service role) + preference + request title → sends via **Resend**. Route is inert until env vars exist. Verified: Settings save works; bell/in-app fully live.
+    - **Email turn-on (Kyle's external setup — DONE Jun 29):** Resend account + `RESEND_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NOTIFY_WEBHOOK_SECRET` added to Vercel (server-only); Supabase DB webhook on `notifications` insert → POST to the route with `x-webhook-secret` header, timeout 5000ms. **Env vars require a redeploy to take effect.**
+    - ⚠️ **Resend test-mode limit:** with the default sender `onboarding@resend.dev`, Resend only delivers to your own Resend-account email. **To email any user, verify a domain (e.g. exprifi.com) in Resend and set `EMAIL_FROM`.** Not done yet.
+15. ✅ **"Your offers" shows ACTIVE only (Jun 29).** That profile section now filters to `status='pending'` — matched/declined offers drop off automatically and live in History / Completed deals instead.
+    - ⚠️ **Recurring gotcha repeated again:** notifications "didn't work" at first because migration 0004 was run in parts — the **table** existed but the **trigger** wasn't created. Same lesson: run the *whole* migration (functions/triggers included) and verify in Supabase. Also: the notification bell is **not** instant — it updates on poll/focus/navigation, and lights for the **recipient**, not the actor.
+
 ## ⬜️ Next up — enhancements
 1. ~~"My Needs" inbox~~ — DONE via the owner profile view (offer counts + manage).
 2. ~~Editable private wants~~ — DONE (Step 6). Could later allow editing live/public needs (with care re: offers in flight).
 3. ~~Counter-offers~~ — DONE (Step 6); cap=10 for now, tune later.
 4. Offer-count badge on the *public* board (needs denormalized counter) — still future; the owner's own profile shows counts already.
 5. **Mandatory offer photos (NEW Kyle, Jun 27):** require photo on offers (currently optional). REC: required for single-card offers (trust/anti-fake), optional for bulk/filter requests (avoid suppressing liquidity); revisit from usage. Kyle's call.
-6. Polish: filters/sort on board, buyer/seller mode landing (DEFERRED until follower-marketing plan is finalized), pixel sizing tweaks.
+6. **Preset buyer questions on an offer (scoped Jun 29, not built):** canned-only Q&A (no free text → leak-safe) — "Is price firm?", "Bundle?", "More photos?", "In hand?". Build when ready.
+7. **Verify a Resend domain (e.g. exprifi.com) + set `EMAIL_FROM`** so notification emails deliver to *any* user, not just the Resend account owner.
+8. **(Optional) Supabase Realtime** for truly-instant bell (websockets) instead of the 15s poll.
+9. Polish: filters/sort on board, buyer/seller mode landing (DEFERRED until follower-marketing plan is finalized), pixel sizing tweaks.
 
 See `exprifi-status-and-next-steps.md` for the full kickoff brief (open in new chats).
 
