@@ -80,6 +80,12 @@ _MVP = Lane 2 (open request board). No payments, no catalog, no Lane 1 yet._
     - ⚠️ Two synthetic "counter" notifications for **voloksvault** were created during testing (in-app bell will show them; harmless). Also the real test negotiation on "baseball test" advanced: voloksvault countered $0.03, now waiting on voloktest (round 5 of 10).
     - ⚠️ **exprifi.com still points at a Namecheap parking page** (www CNAME + URL redirect). Fine for now (Kyle OK with site not public yet); when ready, point it at Vercel — also helps email deliverability reputation.
 
+## ✅ Done (Step 10 — Admin /metrics liquidity dashboard, Jul 2)
+17. ✅ **Admin-only `/metrics` page — LIVE & verified (commit `d80b7ff`).** The M1 dashboard: % of published needs with ≥1 offer, median + p90 time-to-first-offer, offers per need (and per engaged need), avg counter-rounds across negotiated offers, match rate, and 7-day bar trends (needs/offers/matches). All computed live from `requests`/`offers`/`deals` — no tracking events.
+    - **Gating:** migration `0006_admin_metrics.sql` adds `profiles.is_admin` (true only for voloksvault) + `admin_metrics()` SECURITY DEFINER function that raises `not authorized` unless the caller's profile is admin (verified: raises under the bare `authenticated` role). The page also checks `is_admin` and redirects non-admins home. RLS alone can't gate cross-user aggregates — the definer-function-with-check is the pattern.
+    - **Caveat:** publish time isn't stored for private→published wants, so TTFO measures from `created_at` (noted on the page). Add a `published_at` column if this ever matters.
+    - First reading (Jul 2): 4 published needs, 100% with ≥1 offer, median TTFO 21h, p90 1.8d, 1.25 offers/need, 2.67 counter-rounds avg, 75% match rate.
+
 ## ⬜️ Next up — enhancements
 1. ~~"My Needs" inbox~~ — DONE via the owner profile view (offer counts + manage).
 2. ~~Editable private wants~~ — DONE (Step 6). Could later allow editing live/public needs (with care re: offers in flight).

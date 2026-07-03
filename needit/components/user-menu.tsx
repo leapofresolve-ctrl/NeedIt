@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { User, Plus, LogOut, Check, Settings } from "lucide-react";
+import { User, Plus, LogOut, Check, Settings, BarChart3 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   DropdownMenu,
@@ -13,7 +13,13 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 
-export function UserMenu({ username }: { username: string }) {
+export function UserMenu({
+  username,
+  isAdmin = false,
+}: {
+  username: string;
+  isAdmin?: boolean;
+}) {
   const router = useRouter();
   const initial = username.charAt(0).toUpperCase();
 
@@ -60,6 +66,17 @@ export function UserMenu({ username }: { username: string }) {
             Settings
           </Link>
         </DropdownMenuItem>
+        {isAdmin && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/metrics" className="cursor-pointer">
+                <BarChart3 />
+                Metrics
+              </Link>
+            </DropdownMenuItem>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={logout} className="cursor-pointer">
           <LogOut />

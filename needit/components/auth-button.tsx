@@ -26,7 +26,7 @@ export async function AuthButton() {
   // Show the pseudonymous username (not the email) as an avatar menu.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("username")
+    .select("username, is_admin")
     .eq("id", userId)
     .maybeSingle();
 
@@ -35,5 +35,10 @@ export async function AuthButton() {
     return <LogoutButton />;
   }
 
-  return <UserMenu username={profile.username} />;
+  return (
+    <UserMenu
+      username={profile.username}
+      isAdmin={profile.is_admin === true}
+    />
+  );
 }
