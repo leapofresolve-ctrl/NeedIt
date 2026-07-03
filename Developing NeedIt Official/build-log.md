@@ -70,6 +70,16 @@ _MVP = Lane 2 (open request board). No payments, no catalog, no Lane 1 yet._
 15. ✅ **"Your offers" shows ACTIVE only (Jun 29).** That profile section now filters to `status='pending'` — matched/declined offers drop off automatically and live in History / Completed deals instead.
     - ⚠️ **Recurring gotcha repeated again:** notifications "didn't work" at first because migration 0004 was run in parts — the **table** existed but the **trigger** wasn't created. Same lesson: run the *whole* migration (functions/triggers included) and verify in Supabase. Also: the notification bell is **not** instant — it updates on poll/focus/navigation, and lights for the **recipient**, not the actor.
 
+## ✅ Done (Step 9 — Email delivery LIVE end-to-end, Jul 2)
+16. ✅ **Email notifications fully working — VERIFIED (Resend shows "Delivered" to kylevolo72@gmail.com, sent from the verified domain).** Three things were broken/missing; all fixed Jul 2:
+    - **Domain verified:** exprifi.com added in Resend (region us-east-1) and **verified**. DNS added at **Namecheap** (registrar): DKIM TXT `resend._domainkey`, SPF TXT on host `send`, **MX on host `send`** → `feedback-smtp.us-east-1.amazonses.com` (prio 10, required switching Namecheap MAIL SETTINGS from "Email Forwarding" → **Custom MX**; no forwarders existed so nothing broke), plus optional DMARC TXT `_dmarc` = `v=DMARC1; p=none;`.
+    - **`EMAIL_FROM` set in Vercel** = `Exprifi <notifications@exprifi.com>` (Production+Preview) + redeploy.
+    - **Bug 1 — middleware 307:** the Supabase webhook POST to `/api/notifications/email` was being **redirected to /auth/login** by the auth middleware (no session cookie), so the route never ran — emails had silently never sent. Fix: exempt that path in `lib/supabase/proxy.ts` (route already self-authenticates via `x-webhook-secret`). Commit `e5cb84f`.
+    - **Bug 2 — webhook 401:** the Supabase webhook header `x-webhook-secret` contained the **literal string "NOTIFY_WEBHOOK_SECRET"** (env var *name* pasted instead of a value). Fix: minted a fresh 64-hex secret (browser-generated → clipboard; never displayed) and pasted the same value into BOTH the Supabase webhook header and Vercel's `NOTIFY_WEBHOOK_SECRET`, then redeployed.
+    - **Debug trail for posterity:** Vercel logs showed POST `/api/notifications/email` go **307 → 401 → 200** as each layer was fixed. Test method: `insert into notifications (user_id, type, request_id) values (...)` in the Supabase SQL editor fires the webhook exactly like production.
+    - ⚠️ Two synthetic "counter" notifications for **voloksvault** were created during testing (in-app bell will show them; harmless). Also the real test negotiation on "baseball test" advanced: voloksvault countered $0.03, now waiting on voloktest (round 5 of 10).
+    - ⚠️ **exprifi.com still points at a Namecheap parking page** (www CNAME + URL redirect). Fine for now (Kyle OK with site not public yet); when ready, point it at Vercel — also helps email deliverability reputation.
+
 ## ⬜️ Next up — enhancements
 1. ~~"My Needs" inbox~~ — DONE via the owner profile view (offer counts + manage).
 2. ~~Editable private wants~~ — DONE (Step 6). Could later allow editing live/public needs (with care re: offers in flight).
@@ -77,7 +87,7 @@ _MVP = Lane 2 (open request board). No payments, no catalog, no Lane 1 yet._
 4. Offer-count badge on the *public* board (needs denormalized counter) — still future; the owner's own profile shows counts already.
 5. **Mandatory offer photos (NEW Kyle, Jun 27):** require photo on offers (currently optional). REC: required for single-card offers (trust/anti-fake), optional for bulk/filter requests (avoid suppressing liquidity); revisit from usage. Kyle's call.
 6. **Preset buyer questions on an offer (scoped Jun 29, not built):** canned-only Q&A (no free text → leak-safe) — "Is price firm?", "Bundle?", "More photos?", "In hand?". Build when ready.
-7. **Verify a Resend domain (e.g. exprifi.com) + set `EMAIL_FROM`** so notification emails deliver to *any* user, not just the Resend account owner.
+7. ~~Verify a Resend domain + set `EMAIL_FROM`~~ — **DONE Jul 2** (see Step 9). Emails deliver to any user from `notifications@exprifi.com`.
 8. **(Optional) Supabase Realtime** for truly-instant bell (websockets) instead of the 15s poll.
 9. Polish: filters/sort on board, buyer/seller mode landing (DEFERRED until follower-marketing plan is finalized), pixel sizing tweaks.
 
