@@ -64,6 +64,19 @@ Pseudonymous header (@handle, member since), trust strip (✓ 12 deals completed
 
 - 1a clean light w/ orange #FF4A00 (Archivo) · 1b dark treasure-hunt gold/ember (Barlow Cond.) · 1c light chrome + phosphor-green dark board (Familjen) · 2b unified light (no dark panel) · 2c full dark glassy (#2EE58A).
 
+## Implementation README deltas (Kyle pasted the full handoff, Jul 4 — supersedes where it differs)
+
+- **SHARP base: `--radius: 2px` everywhere** — square chips, square dots. (Combined with the 5c notch per Kyle's screenshot: normal rows = flat hairline rows inside the panel; **urgent <12h rows become amber-bordered notched cards with the amber notch fill**.)
+- Extra tokens: `--board-card #15171C`, `--board-hairline #1C1E23`, `--board-secondary #C6CAD0`, `--board-faint #5C6167`, `--faint-foreground #9BA0A6`, `--muted-foreground #6E7378`, `--primary-deep #00794B`, `--cat-tcg #B78AE8` (chip bg #241E2A).
+- **Wordmark tick**: not a dot — a static green BAR (#00A968, ~0.4em × 0.14em, r2, baseline-aligned). Never animates.
+- Board screen: category pills (Sports cards active-ink / TCG + Comics outlined / "Coins — soon" dashed disabled), H1 **"Open demand"** + right mono stats, quiet filter row, LIVE BOARD panel with **hairline-separated rows (no gaps, no per-row radius)**.
+- Row anatomy details: BULK chip bg #1E2A24 live-green text / SINGLE outlined; "racing" at **≥5** offers; budget 18/600 mono + tiny "max"; countdown board-secondary >24h → amber <24h → blinking amber + "closing" <12h; hover = 1px live inset + rgba(46,217,138,.06) tint, active .14; min 44px tap target; 150ms border/bg transitions only.
+- Countdown **ticks client-side each minute**, formats "2d 04h"/"8h 30m" zero-padded, tabular-nums (`components/exchange/countdown.tsx`).
+- Blink: opacity 1→.35, ~1.4s steps; **respect prefers-reduced-motion** (disable blink + match-in).
+- Match panel spec: dark card, 4px green gradient top edge, 56px check ring, one-shot scale .7→1.06→1 ~500ms (`.match-in` utility ready in globals.css; panel restyle still TODO).
+- Profile spec (TODO): identity card + trust chips ("✓ N DEALS COMPLETED" green soft chip, close rate, avg match), tabs w/ ink underline, want board reuses dark panel ("MY OPEN NEEDS"), bottom nav Board/Post/Activity/You.
+- Mobile-first at 390px; no chat/DMs anywhere (structured Accept/Counter/Decline only).
+
 ## Implementation notes
 
 - The artifact references a fuller handoff (`design_handoff_exprifi_brand/README.md`) that never made it into the folder; this file reconstructs the spec from the artifact itself.

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { hasEnvVars } from "@/lib/utils";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
+import { Countdown } from "@/components/exchange/countdown";
 
 type RequestRow = {
   id: string;
@@ -36,31 +37,14 @@ const SORTS = [
 ] as const;
 
 const fieldClass =
-  "flex rounded-md border border-input bg-card px-2 py-1.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+  "flex rounded-sm border border-input bg-card px-2 py-1.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
 function formatBudget(cents: number | null) {
-  if (cents == null) return "Open budget";
+  if (cents == null) return "Open";
   return `$${(cents / 100).toLocaleString("en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   })}`;
-}
-
-// Countdown per brand spec: mono; amber <24h; blinks <12h (the ONLY motion on the board).
-function countdown(expiresAt: string | null): {
-  label: string;
-  hours: number | null;
-} {
-  if (!expiresAt) return { label: "", hours: null };
-  const ms = new Date(expiresAt).getTime() - Date.now();
-  if (ms <= 0) return { label: "expired", hours: 0 };
-  const totalHours = ms / 3_600_000;
-  const d = Math.floor(totalHours / 24);
-  const h = Math.floor(totalHours % 24);
-  const m = Math.floor((ms % 3_600_000) / 60_000);
-  const label =
-    d > 0 ? `${d}d ${String(h).padStart(2, "0")}h` : `${h}h ${String(m).padStart(2, "0")}m`;
-  return { label, hours: totalHours };
 }
 
 export default async function Home({
@@ -80,56 +64,60 @@ export default async function Home({
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims?.sub;
 
-  // Logged-out: brand landing — hero tagline + the two intent doors.
+  // Logged-out: split landing — hero tagline + the two intent doors.
   if (!userId) {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center gap-12 p-8">
+      <main className="min-h-screen flex flex-col items-center justify-center gap-10 p-6">
         <div className="flex flex-col gap-4 max-w-2xl text-center items-center">
-          <span className="text-2xl font-bold tracking-tight">
-            exprifi<span className="text-primary">.</span>
+          <span className="text-2xl font-bold tracking-[-0.04em]">
+            exprifi
+            <span className="wordmark-tick" aria-hidden />
           </span>
-          <h1 className="text-5xl font-bold tracking-tight leading-[1.05]">
+          <h1 className="text-5xl font-bold tracking-[-0.04em] leading-[1.05]">
             The marketplace
             <br />
-            that <span className="text-primary">hunts for you.</span>
+            that hunts for you.
           </h1>
           <p className="text-lg text-muted-foreground">
             The demand exchange — post what you want, sellers come to you.
           </p>
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-4 w-full max-w-3xl">
-          <div className="notched border bg-card rounded-xl p-7 flex flex-col gap-3">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        <div className="grid sm:grid-cols-2 w-full max-w-3xl border bg-card notched">
+          <div className="p-7 flex flex-col gap-3 border-b sm:border-b-0 sm:border-r">
+            <span className="microlabel text-[10px] text-muted-foreground">
               Find cards
             </span>
-            <h2 className="text-2xl font-bold tracking-tight">
+            <h2 className="text-2xl font-bold tracking-[-0.03em]">
               Where demand finds supply.
             </h2>
             <p className="text-sm text-muted-foreground">
               Post a need. Watch sellers race to fill it.
             </p>
-            <Button asChild className="w-fit mt-2">
+            <Button
+              asChild
+              className="w-fit mt-2 bg-foreground text-background hover:bg-foreground/90"
+            >
               <Link href="/auth/sign-up">Post a need</Link>
             </Button>
           </div>
-          <div className="notched bg-board border border-board rounded-xl p-7 flex flex-col gap-3">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-board-muted">
+          <div className="p-7 flex flex-col gap-3">
+            <span className="microlabel text-[10px] text-muted-foreground">
               Sell cards
             </span>
-            <h2 className="text-2xl font-bold tracking-tight text-board-fg">
+            <h2 className="text-2xl font-bold tracking-[-0.03em]">
               Where supply finds demand.
             </h2>
-            <p className="text-sm text-board-muted">
+            <p className="text-sm text-muted-foreground">
               Browse open needs. Be first to strike the deal.
             </p>
-            <Button asChild variant="outline" className="w-fit mt-2">
+            <Button asChild className="w-fit mt-2">
               <Link href="/auth/login">Browse the board</Link>
             </Button>
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground">
+        <p className="num text-xs text-muted-foreground">
           every account does both — intent, not identity
         </p>
       </main>
@@ -205,11 +193,36 @@ export default async function Home({
   return (
     <main className="min-h-screen flex flex-col items-center">
       <SiteHeader />
-      <div className="w-full max-w-5xl flex flex-col gap-5 p-5">
-        {/* Filters + sort — light chrome above the dark live board */}
+      <div className="w-full max-w-5xl flex flex-col gap-4 px-2.5 sm:px-5 py-4">
+        {/* Category pills — sports cards live; the platform is category-agnostic */}
+        <div className="flex flex-wrap gap-2 px-1">
+          <span className="rounded-sm bg-foreground text-background text-xs font-semibold px-3 py-1.5">
+            Sports cards
+          </span>
+          <span className="rounded-sm border bg-card text-xs font-semibold px-3 py-1.5 text-muted-foreground">
+            TCG
+          </span>
+          <span className="rounded-sm border bg-card text-xs font-semibold px-3 py-1.5 text-muted-foreground">
+            Comics
+          </span>
+          <span className="rounded-sm border border-dashed text-xs font-semibold px-3 py-1.5 text-faint">
+            Coins — soon
+          </span>
+        </div>
+
+        {/* H1 + stats */}
+        <div className="flex items-baseline justify-between gap-3 px-1">
+          <h1 className="text-2xl font-bold tracking-[-0.03em]">Open demand</h1>
+          <span className="num text-xs text-muted-foreground">
+            {rows.length} open · {totalOffers}{" "}
+            {totalOffers === 1 ? "offer" : "offers"} in play
+          </span>
+        </div>
+
+        {/* Quiet filter row (functional GET form) */}
         <form
           method="get"
-          className="flex flex-wrap items-end gap-2 bg-card border rounded-xl p-3"
+          className="flex flex-wrap items-end gap-2 bg-card border rounded-sm p-3"
         >
           <label className="flex flex-col gap-1 text-xs text-muted-foreground">
             Type
@@ -267,22 +280,20 @@ export default async function Home({
           )}
         </form>
 
-        {/* THE LIVE BOARD — dark exchange panel */}
-        <section className="bg-board border border-board rounded-xl p-5 flex flex-col gap-5">
-          <div className="flex items-baseline justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-3">
-              <span className="inline-block w-2 h-2 rounded-full bg-live" />
-              <h1 className="text-sm font-bold tracking-[0.22em] uppercase text-board-fg">
-                Live board
-              </h1>
-            </div>
-            <span className="num text-xs text-board-muted">
-              {rows.length} open · {totalOffers} offers in play
+        {/* THE LIVE BOARD — dark exchange panel, hairline rows */}
+        <section className="notched bg-board border border-board rounded-sm">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-hairline">
+            <h2 className="microlabel text-[11px] font-bold text-board-fg">
+              Live board
+            </h2>
+            <span className="num text-xs text-live flex items-center gap-2">
+              <span className="inline-block w-1.5 h-1.5 bg-live" aria-hidden />
+              {rows.length} open
             </span>
           </div>
 
           {rows.length === 0 ? (
-            <div className="border border-board rounded-lg p-10 flex flex-col items-center gap-3 text-center">
+            <div className="p-10 flex flex-col items-center gap-3 text-center">
               <p className="text-board-muted text-sm">
                 {hasFilters
                   ? "Nothing matches these filters."
@@ -299,89 +310,34 @@ export default async function Home({
               )}
             </div>
           ) : (
-            <ul className="grid gap-3 sm:grid-cols-2">
-              {rows.map((r) => {
-                const cd = countdown(r.expires_at);
-                const urgent = cd.hours != null && cd.hours < 12;
-                const soon = cd.hours != null && cd.hours < 24;
+            <ul>
+              {rows.map((r, i) => {
                 const poster = usernameById[r.buyer_id];
+                const noOffers = r.offer_count === 0;
+                // Urgent (<12h): the row becomes an amber-bordered notched card —
+                // "urgency fills the notch amber". Computed at render; the blink
+                // itself stays client-side in <Countdown>.
+                const msLeft = r.expires_at
+                  ? new Date(r.expires_at).getTime() - Date.now()
+                  : null;
+                const urgentNow =
+                  msLeft != null && msLeft > 0 && msLeft < 12 * 3_600_000;
+                if (urgentNow) {
+                  return (
+                    <li key={r.id} className="relative m-3">
+                      <span aria-hidden className="notch-fill" />
+                      <div className="notched border border-warn bg-board-card rounded-sm">
+                        <NeedRowLink r={r} poster={poster} noOffers={noOffers} />
+                      </div>
+                    </li>
+                  );
+                }
                 return (
-                  <li key={r.id} className="relative">
-                    {urgent && <span aria-hidden className="notch-fill" />}
-                    <div className="notched rounded-lg border border-board bg-white/[0.03] hover:border-board-muted transition-colors">
-                    <Link href={`/request/${r.id}`} className="block p-4">
-                      {/* Row 1: type badge + condition · offer count */}
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          {r.type === "bulk" ? (
-                            <span className="text-[10px] font-bold uppercase tracking-[0.12em] bg-primary text-primary-foreground rounded px-2 py-0.5">
-                              Bulk
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-bold uppercase tracking-[0.12em] border border-board-muted text-board-fg rounded px-2 py-0.5">
-                              Single
-                            </span>
-                          )}
-                          {(r.sport || r.condition_pref) && (
-                            <span className="text-[10px] uppercase tracking-[0.12em] text-board-muted">
-                              {[r.sport, r.condition_pref]
-                                .filter(Boolean)
-                                .join(" · ")}
-                            </span>
-                          )}
-                        </div>
-                        <span
-                          className={`num text-xs ${
-                            r.offer_count > 0 ? "text-live" : "text-board-muted"
-                          }`}
-                        >
-                          {r.offer_count > 0
-                            ? `${r.offer_count} offer${r.offer_count === 1 ? "" : "s"}${r.offer_count >= 3 ? " · racing" : ""}`
-                            : "no offers — be first"}
-                        </span>
-                      </div>
-
-                      {/* Row 2: title */}
-                      <h2 className="mt-3 font-semibold text-[15px] leading-snug text-board-fg line-clamp-1">
-                        {r.title}
-                      </h2>
-
-                      {/* Row 3: budget anchor + countdown */}
-                      <div className="mt-3 flex items-end justify-between gap-2">
-                        <span className="num text-2xl font-bold text-live leading-none">
-                          {formatBudget(r.budget_cents)}
-                          {r.budget_cents != null && (
-                            <span className="text-[11px] font-normal text-board-muted ml-1.5">
-                              max
-                            </span>
-                          )}
-                        </span>
-                        {cd.label && (
-                          <span
-                            className={`num text-xs ${
-                              urgent
-                                ? "text-warn blink-urgent"
-                                : soon
-                                  ? "text-warn"
-                                  : "text-board-muted"
-                            }`}
-                          >
-                            {urgent ? `closing ${cd.label}` : cd.label}
-                          </span>
-                        )}
-                      </div>
-                    </Link>
-                    {poster && (
-                      <div className="px-4 pb-3 -mt-1">
-                        <Link
-                          href={`/u/${poster}`}
-                          className="text-[11px] text-board-muted hover:text-board-fg hover:underline"
-                        >
-                          by {poster}
-                        </Link>
-                      </div>
-                    )}
-                    </div>
+                  <li
+                    key={r.id}
+                    className={i > 0 ? "border-t border-hairline" : ""}
+                  >
+                    <NeedRowLink r={r} poster={poster} noOffers={noOffers} />
                   </li>
                 );
               })}
@@ -390,5 +346,80 @@ export default async function Home({
         </section>
       </div>
     </main>
+  );
+}
+
+// <NeedRow> — the anatomy: type badge → chips → title → budget anchor → countdown.
+// Whole row is the tap target (min 44px); hover = inset live border + tint;
+// transitions on border/background only, 150ms — no transform on rows.
+function NeedRowLink({
+  r,
+  poster,
+  noOffers,
+}: {
+  r: RequestRow;
+  poster: string | undefined;
+  noOffers: boolean;
+}) {
+  return (
+    <Link
+      href={`/request/${r.id}`}
+      className="block px-4 py-3.5 min-h-[44px] transition-[background-color,box-shadow] duration-150 hover:bg-[rgba(46,217,138,0.06)] hover:shadow-[inset_0_0_0_1px_hsl(var(--primary-live))] active:bg-[rgba(46,217,138,0.14)]"
+    >
+      {/* Top line: type badge + attribute chips · offer count */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {r.type === "bulk" ? (
+            <span className="num text-[9px] font-bold uppercase tracking-[0.08em] bg-[#1E2A24] text-live rounded-sm px-1.5 py-0.5 shrink-0">
+              Bulk
+            </span>
+          ) : (
+            <span className="num text-[9px] font-bold uppercase tracking-[0.08em] border border-[hsl(var(--primary-live))] text-live rounded-sm px-1.5 py-0.5 shrink-0">
+              Single
+            </span>
+          )}
+          {[r.sport, r.condition_pref].filter(Boolean).map((chip) => (
+            <span
+              key={chip as string}
+              className="num text-[9px] uppercase tracking-[0.08em] text-board-muted border border-board rounded-sm px-1.5 py-0.5 shrink-0"
+            >
+              {chip}
+            </span>
+          ))}
+        </div>
+        <span
+          className={`num text-[10.5px] shrink-0 ${
+            noOffers || r.offer_count >= 5 ? "text-live" : "text-board-secondary"
+          }`}
+        >
+          {noOffers
+            ? "no offers — be first"
+            : `${r.offer_count} offer${r.offer_count === 1 ? "" : "s"}${r.offer_count >= 5 ? " · racing" : ""}`}
+        </span>
+      </div>
+
+      {/* Title */}
+      <h3 className="mt-2 font-semibold text-[14.5px] leading-[1.3] text-board-fg line-clamp-1">
+        {r.title}
+      </h3>
+
+      {/* Bottom line: budget anchor · countdown */}
+      <div className="mt-2 flex items-end justify-between gap-2">
+        <span className="num text-lg font-semibold text-live leading-none">
+          {formatBudget(r.budget_cents)}
+          {r.budget_cents != null && (
+            <span className="text-[9px] font-normal text-board-muted ml-1">
+              max
+            </span>
+          )}
+        </span>
+        <span className="flex items-center gap-3">
+          <Countdown expiresAt={r.expires_at} />
+          {poster && (
+            <span className="num text-[10px] text-board-faint">@{poster}</span>
+          )}
+        </span>
+      </div>
+    </Link>
   );
 }

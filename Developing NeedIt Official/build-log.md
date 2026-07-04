@@ -97,6 +97,12 @@ _MVP = Lane 2 (open request board). No payments, no catalog, no Lane 1 yet._
     - **E2E verified:** created alert ("Jordan" · Basketball · $50–$500) as voloksvault via the UI → inserted matching need as voloktest via SQL → `demand_match` notification row for voloksvault → Resend shows **Delivered** to kylevolo72@gmail.com. Test need then set private to keep the board clean (an extra "A buyer wants what you have" notification remains on Kyle's bell — it's the demo).
     - **Strategic note:** every saved alert doubles as Lane 1 training data (what sellers hold, in structured form) — this is the on-ramp to inventory matching in M2.
 
+## ✅ Done (Step 13 — 3a brand system + 5c notch applied, Jul 4)
+22. ✅ **Exprifi 3a brand system applied — LIVE & verified.** Source: Kyle's "Exprifi Brand Directions" artifact, saved as `exprifi-brand-system.md` (working folder) — 3a locked: Precise/Global/Live, light chrome + dark live board. Applied: shadcn tokens in `globals.css` (primary #00A968, radius .75rem, board surface #101114 family, warn #F5A623, primary-live #2ED98A + `.num`/board utilities), **Instrument Sans + Spline Sans Mono** via next/font, lowercase `exprifi.` wordmark, ThemeProvider pinned to light.
+23. ✅ **The Board → LIVE BOARD panel.** Dark exchange panel with live dot + "N open · N offers in play" (mono); full card anatomy: Bulk filled / Single outlined badge, sport·condition microline, offer count in live-green mono ("racing" at 3+, "no offers — be first" at 0), budget as the big green mono anchor ("$212 max"), countdown mono — amber <24h, **blinks only <12h** (the board's only motion). Logged-out landing rebuilt: "The marketplace that hunts for you." + Find/Sell intent doors with locked voice lines.
+24. ✅ **5c notched corner — LOCKED by Kyle & applied.** One clipped top-right corner (14px ticket stub) on board cards + landing doors via `.notched` clip-path; **urgent (<12h) cards fill the notch amber** via `.notch-fill` sibling. Verified live (notch renders clean; 16h card showed amber countdown, no blink — motion rule holds).
+    - Nit for next pass: "1 offers in play" pluralization; extend notch + anatomy to need detail, offer flow, and match panel ("one-shot scale-in" celebration is still unbuilt).
+
 ## ⬜️ Next up — enhancements
 1. ~~"My Needs" inbox~~ — DONE via the owner profile view (offer counts + manage).
 2. ~~Editable private wants~~ — DONE (Step 6). Could later allow editing live/public needs (with care re: offers in flight).
