@@ -91,6 +91,12 @@ _MVP = Lane 2 (open request board). No payments, no catalog, no Lane 1 yet._
 19. ✅ **Board filters + sort — LIVE & verified.** GET-form → searchParams on `/`: filter by type (single/bulk), sport (post-form list), condition (ilike), budget $ min/max (converted to cents); sort newest / expiring soon / highest budget. Form reflects URL state; filtered-empty state has "Clear filters". Verified live (`?type=bulk&sort=budget` correctly filters).
 20. ✅ **"My board" header button.** One-click hop from the main board to your own `/u/<username>` page, next to the avatar (hidden on mobile widths — avatar menu still has it).
 
+## ✅ Done (Step 12 — Seller demand alerts, Jul 2)
+21. ✅ **Demand alerts (inverted saved search) — LIVE & verified end-to-end.** Kyle originally asked for seller inventory + auto-match ("autosale") — that's Lane 1; per guardrails we built the criteria-only bridge instead. Migration `0008_demand_alerts.sql`: `demand_alerts` table (keyword ilike on title/description, sport, type, budget min/max in cents, active flag), own-rows-only RLS (4 policies), SECURITY DEFINER `notify_demand_match()` with triggers on requests INSERT + UPDATE-of-visibility (fires only when a need BECOMES public+open; never notifies the buyer about their own need; one notification per matching seller).
+    - **UI:** avatar menu → **Demand alerts** → `/alerts` page (create form with useActionState, list with Pause/Resume/Delete via server actions). New notification type `demand_match` = "A buyer wants what you have" in the bell + notifications page; email subject "A buyer wants what you have — Exprifi" via the existing Resend pipeline (opt-out respected).
+    - **E2E verified:** created alert ("Jordan" · Basketball · $50–$500) as voloksvault via the UI → inserted matching need as voloktest via SQL → `demand_match` notification row for voloksvault → Resend shows **Delivered** to kylevolo72@gmail.com. Test need then set private to keep the board clean (an extra "A buyer wants what you have" notification remains on Kyle's bell — it's the demo).
+    - **Strategic note:** every saved alert doubles as Lane 1 training data (what sellers hold, in structured form) — this is the on-ramp to inventory matching in M2.
+
 ## ⬜️ Next up — enhancements
 1. ~~"My Needs" inbox~~ — DONE via the owner profile view (offer counts + manage).
 2. ~~Editable private wants~~ — DONE (Step 6). Could later allow editing live/public needs (with care re: offers in flight).

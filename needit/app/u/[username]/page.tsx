@@ -29,6 +29,31 @@ type YourOffer = {
   requestStatus: string;
 };
 
+type DemandAlert = {
+  id: string;
+  keyword: string | null;
+  sport: string | null;
+  type: "single" | "bulk" | null;
+  min_budget_cents: number | null;
+  max_budget_cents: number | null;
+  active: boolean;
+};
+
+function summarizeAlert(a: DemandAlert) {
+  const parts: string[] = [];
+  if (a.keyword) parts.push(`“${a.keyword}”`);
+  if (a.sport) parts.push(a.sport);
+  if (a.type) parts.push(a.type === "bulk" ? "Bulk lots" : "Singles");
+  const money = (c: number) =>
+    `$${(c / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+  if (a.min_budget_cents != null && a.max_budget_cents != null)
+    parts.push(`${money(a.min_budget_cents)}–${money(a.max_budget_cents)}`);
+  else if (a.min_budget_cents != null) parts.push(`${money(a.min_budget_cents)}+`);
+  else if (a.max_budget_cents != null)
+    parts.push(`up to ${money(a.max_budget_cents)}`);
+  return parts.join(" · ") || "Anything";
+}
+
 function formatBudget(cents: number | null) {
   if (cents == null) return "Open budget";
   return `$${(cents / 100).toLocaleString("en-US", {
@@ -162,6 +187,7 @@ export default async function ProfilePage({
   let historyNeeds: RequestRow[] = [];
   let historyCount = 0;
   let yourOffers: YourOffer[] = [];
+  let demandAlerts: DemandAlert[] = [];
   if (isOwner) {
     // Offers this user has SENT (as a seller) — incl. counters waiting on them.
     // Only ACTIVE offers belong here — matched/declined live in history & completed deals.
@@ -235,6 +261,16 @@ export default async function ProfilePage({
       .range(from, from + hsize - 1);
     historyNeeds = (historyData ?? []) as RequestRow[];
     historyCount = count ?? 0;
+
+    // Seller side: your saved demand alerts (own rows only via RLS).
+    const { data: alertData } = await supabase
+      .from("demand_alerts")
+      .select(
+        "id, keyword, sport, type, min_budget_cents, max_budget_cents, active",
+      )
+      .eq("seller_id", profile.id)
+      .order("created_at", { ascending: false });
+    demandAlerts = (alertData ?? []) as DemandAlert[];
   }
 
   const totalHistoryPages = Math.max(1, Math.ceil(historyCount / hsize));
@@ -326,6 +362,40 @@ export default async function ProfilePage({
                 );
               })}
             </ul>
+          </section>
+        )}
+
+        {/* Owner-only: your demand alerts (seller side — what you're hunting for) */}
+        {isOwner && (
+          <section className="flex flex-col gap-3">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold">Demand alerts</h2>
+                <p className="text-sm text-muted-foreground">
+                  What you&apos;re watching for. You&apos;re notified the moment
+                  a matching need hits the board. Only you see these.
+                </p>
+              </div>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/alerts">
+                  {demandAlerts.length > 0 ? "Manage" : "Create one"}
+                </Link>
+              </Button>
+            </div>
+            {demandAlerts.length > 0 && (
+              <ul className="flex flex-wrap gap-2">
+                {demandAlerts.map((a) => (
+                  <li key={a.id}>
+                    <Link href="/alerts">
+                      <Badge variant={a.active ? "default" : "outline"}>
+                        {summarizeAlert(a)}
+                        {!a.active && " (paused)"}
+                      </Badge>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         )}
 

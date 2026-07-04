@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exprifi — Direction A: Clean Marketplace</title>
+<style>
+  :root {
+    --bg: #ffffff; --ink: #0a0a0a; --muted: #6b7280; --line: #e5e7eb;
+    --accent: #00b96b; --accent-ink: #ffffff; --chip: #f4f4f5;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--ink); }
+  .banner { background: var(--ink); color: #fff; text-align: center; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; padding: 8px; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 14px 32px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: rgba(255,255,255,.92); backdrop-filter: blur(8px); z-index: 10; }
+  .logo { font-size: 22px; font-weight: 900; letter-spacing: -0.04em; }
+  .logo span { color: var(--accent); }
+  .nav { display: flex; gap: 10px; align-items: center; }
+  .btn { border: 1px solid var(--line); background: #fff; padding: 8px 16px; border-radius: 999px; font-weight: 600; font-size: 14px; cursor: pointer; }
+  .btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .btn.accent { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+  .hero { padding: 44px 32px 10px; max-width: 1120px; margin: 0 auto; }
+  .hero h1 { font-size: 42px; font-weight: 900; letter-spacing: -0.05em; }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p { color: var(--muted); margin-top: 6px; font-size: 16px; }
+  .filters { max-width: 1120px; margin: 22px auto 0; padding: 0 32px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 600; color: var(--ink); cursor: pointer; }
+  .pill.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .pill.sort { margin-left: auto; color: var(--muted); }
+  .grid { max-width: 1120px; margin: 20px auto 60px; padding: 0 32px; display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 16px; }
+  .card { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #fff; transition: transform .15s, box-shadow .15s; cursor: pointer; }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,.08); }
+  .thumb { height: 150px; background: linear-gradient(120deg, #f8fafc, #eef2f7); display: grid; place-items: center; color: #c3cad4; font-size: 40px; position: relative; }
+  .offers { position: absolute; top: 10px; left: 10px; background: var(--accent); color: #fff; font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 999px; }
+  .offers.zero { background: #fff; color: var(--muted); border: 1px solid var(--line); }
+  .ttl { position: absolute; top: 10px; right: 10px; background: rgba(10,10,10,.85); color: #fff; font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 999px; }
+  .body { padding: 14px 16px 16px; }
+  .row1 { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+  .title { font-weight: 700; font-size: 15px; line-height: 1.3; }
+  .price { font-weight: 900; font-size: 20px; letter-spacing: -0.03em; white-space: nowrap; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .chip { background: var(--chip); border-radius: 6px; font-size: 11.5px; font-weight: 600; color: #374151; padding: 4px 8px; }
+  .by { margin-top: 10px; font-size: 12px; color: var(--muted); }
+  .by b { color: var(--ink); }
+  footer { border-top: 1px solid var(--line); padding: 20px 32px; text-align: center; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+  <div class="banner">Direction A — “Clean marketplace” · black/white base · one signal green accent · photo-forward</div>
+  <header>
+    <div class="logo">Exprifi<span>.</span></div>
+    <div class="nav">
+      <button class="btn accent">Post a Need</button>
+      <button class="btn">My board</button>
+      <button class="btn">🔔</button>
+      <div class="avatar">V</div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <h1>The Board<em>.</em></h1>
+    <p>Open needs from buyers. Bring them what they’re looking for — first seller to close wins.</p>
+  </section>
+
+  <div class="filters">
+    <button class="pill on">All</button>
+    <button class="pill">Singles</button>
+    <button class="pill">Bulk lots</button>
+    <button class="pill">Basketball</button>
+    <button class="pill">Baseball</button>
+    <button class="pill">Pokémon</button>
+    <button class="pill">$0–500</button>
+    <button class="pill sort">Sort: Newest ▾</button>
+  </div>
+
+  <main class="grid">
+    <div class="card"><div class="thumb">⚾<span class="offers">1 offer</span><span class="ttl">1d left</span></div>
+      <div class="body"><div class="row1"><div class="title">baseball test</div><div class="price">$212</div></div>
+      <div class="chips"><span class="chip">Single</span><span class="chip">Baseball</span><span class="chip">PSA 9</span></div>
+      <div class="by">by <b>voloksvault</b></div></div></div>
+
+    <div class="card"><div class="thumb">🏀<span class="offers">3 offers</span><span class="ttl">2d left</span></div>
+      <div class="body"><div class="row1"><div class="title">Jordan Fleer rookie</div><div class="price">$200</div></div>
+      <div class="chips"><span class="chip">Single</span><span class="chip">Basketball</span><span class="chip">PSA 8+</span></div>
+      <div class="by">by <b>voloktest</b></div></div></div>
+
+    <div class="card"><div class="thumb">📦<span class="offers">2 offers</span><span class="ttl">3d left</span></div>
+      <div class="body"><div class="row1"><div class="title">5,000-ct box 2019–21 basketball w/ rookies</div><div class="price">$450</div></div>
+      <div class="chips"><span class="chip">Bulk lot</span><span class="chip">Basketball</span></div>
+      <div class="by">by <b>breakking</b></div></div></div>
+
+    <div class="card"><div class="thumb">⚾<span class="offers">5 offers</span><span class="ttl">12h left</span></div>
+      <div class="body"><div class="row1"><div class="title">Any PSA 10 Ohtani rookie</div><div class="price">$850</div></div>
+      <div class="chips"><span class="chip">Single</span><span class="chip">Baseball</span><span class="chip">PSA 10</span></div>
+      <div class="by">by <b>dugoutdeals</b></div></div></div>
+
+    <div class="card"><div class="thumb">🏒<span class="offers zero">Be first</span><span class="ttl">6d left</span></div>
+      <div class="body"><div class="row1"><div class="title">Vintage hockey lot, pre-1980, any condition</div><div class="price">$300</div></div>
+      <div class="chips"><span class="chip">Bulk lot</span><span class="chip">Hockey</span></div>
+      <div class="by">by <b>icecoldpc</b></div></div></div>
+
+    <div class="card"><div class="thumb">🔥<span class="offers">4 offers</span><span class="ttl">2d left</span></div>
+      <div class="body"><div class="row1"><div class="title">Charizard base set holo, raw ok</div><div class="price">$500</div></div>
+      <div class="chips"><span class="chip">Single</span><span class="chip">Pokémon</span></div>
+      <div class="by">by <b>pokevault</b></div></div></div>
+  </main>
+
+  <footer>Exprifi — demand is the listing. · Mockup A</footer>
+</body>
+</html>

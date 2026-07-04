@@ -4,52 +4,60 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    /* Exprifi 3a brand system — Precise / Global / Live (see exprifi-brand-system.md) */
+    --background: 0 0% 98%;          /* #FAFAFA */
+    --foreground: 210 21% 5%;        /* #0B0E11 */
+    --card: 0 0% 100%;               /* #FFFFFF */
+    --card-foreground: 210 21% 5%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
+    --popover-foreground: 210 21% 5%;
+    --primary: 157 100% 33%;         /* #00A968 */
+    --primary-foreground: 0 0% 100%;
     --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
+    --secondary-foreground: 210 21% 5%;
     --muted: 0 0% 96.1%;
     --muted-foreground: 0 0% 45.1%;
     --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
+    --accent-foreground: 210 21% 5%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
+    --border: 220 6% 91%;            /* #E6E7E9 */
+    --input: 220 6% 91%;
+    --ring: 157 100% 33%;
+    /* Live-board surface (dark panel inside light chrome) */
+    --board: 225 11% 7%;             /* #101114 */
+    --board-border: 223 9% 15%;      /* #24262B */
+    --board-fg: 220 13% 95%;         /* #F2F3F5 */
+    --board-muted: 215 5% 56%;       /* #8A8F96 */
+    --primary-live: 152 69% 52%;     /* #2ED98A */
+    --warn: 37 91% 55%;              /* #F5A623 */
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
+    --radius: 0.75rem;
   }
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
+    --background: 225 11% 7%;
+    --foreground: 220 13% 95%;
+    --card: 225 11% 7%;
+    --card-foreground: 220 13% 95%;
+    --popover: 225 11% 7%;
+    --popover-foreground: 220 13% 95%;
+    --primary: 152 69% 52%;
+    --primary-foreground: 225 11% 7%;
+    --secondary: 223 9% 15%;
+    --secondary-foreground: 220 13% 95%;
+    --muted: 223 9% 15%;
+    --muted-foreground: 215 5% 56%;
+    --accent: 223 9% 15%;
+    --accent-foreground: 220 13% 95%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
+    --border: 223 9% 15%;
+    --input: 223 9% 15%;
+    --ring: 152 69% 52%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
@@ -66,3 +74,24 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ===== Exprifi 3a brand utilities ===== */
+@layer utilities {
+  .bg-board { background-color: hsl(var(--board)); }
+  .border-board { border-color: hsl(var(--board-border)); }
+  .text-board-fg { color: hsl(var(--board-fg)); }
+  .text-board-muted { color: hsl(var(--board-muted)); }
+  .text-live { color: hsl(var(--primary-live)); }
+  .bg-live { background-color: hsl(var(--primary-live)); }
+  .text-warn { color: hsl(var(--warn)); }
+  .border-warn { border-color: hsl(var(--warn)); }
+  /* Money + countdowns: mono, tabular ("num" per brand spec) */
+  .num { font-family: var(--font-num), ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+}
+
+/* Motion rule: blink is reserved for countdowns under 12h — nothing else moves. */
+@keyframes exprifi-blink {
+  0%, 60% { opacity: 1; }
+  61%, 100% { opacity: 0.35; }
+}
+.blink-urgent { animation: exprifi-blink 1.2s steps(1) infinite; }

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exprifi — Direction B: Collector Dark</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #151b24; --ink: #e8eaf0; --muted: #8b94a3;
+    --line: #232c38; --gold: #e8b64c; --gold-deep: #b98a2b; --hot: #ff5d3b;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Georgia, "Times New Roman", serif; background: var(--bg); color: var(--ink);
+         background-image: radial-gradient(circle at 20% -10%, rgba(232,182,76,.07), transparent 40%), radial-gradient(circle at 90% 10%, rgba(255,93,59,.05), transparent 35%); }
+  .banner { background: var(--gold); color: #1a1206; text-align: center; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; padding: 8px; font-family: Arial, sans-serif; font-weight: 700; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; border-bottom: 1px solid var(--line); }
+  .logo { font-size: 24px; font-weight: 700; letter-spacing: .02em; color: var(--gold); }
+  .logo small { color: var(--muted); font-size: 11px; letter-spacing: .3em; display: block; text-transform: uppercase; font-family: Arial, sans-serif; }
+  .nav { display: flex; gap: 10px; align-items: center; font-family: Arial, sans-serif; }
+  .btn { border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 9px 16px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; }
+  .btn.gold { background: linear-gradient(180deg, var(--gold), var(--gold-deep)); color: #1a1206; border: none; }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--gold); color: #1a1206; display: grid; place-items: center; font-weight: 800; font-family: Arial, sans-serif; }
+  .hero { padding: 48px 32px 8px; max-width: 1120px; margin: 0 auto; }
+  .hero h1 { font-size: 44px; font-weight: 700; }
+  .hero h1 span { color: var(--gold); }
+  .hero p { color: var(--muted); margin-top: 8px; font-size: 16px; font-family: Arial, sans-serif; }
+  .filters { max-width: 1120px; margin: 24px auto 0; padding: 0 32px; display: flex; gap: 8px; flex-wrap: wrap; font-family: Arial, sans-serif; }
+  .pill { border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .pill.on { border-color: var(--gold); color: var(--gold); background: rgba(232,182,76,.08); }
+  .pill.sort { margin-left: auto; }
+  .grid { max-width: 1120px; margin: 22px auto 60px; padding: 0 32px; display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 18px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; cursor: pointer; transition: border-color .2s, box-shadow .2s; }
+  .card:hover { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 14px 40px rgba(0,0,0,.5); }
+  .thumb { height: 150px; background: linear-gradient(140deg, #1a2230, #10151d); display: grid; place-items: center; font-size: 42px; position: relative; }
+  .offers { position: absolute; top: 10px; left: 10px; background: var(--hot); color: #fff; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; font-family: Arial, sans-serif; letter-spacing: .05em; }
+  .offers.zero { background: transparent; border: 1px dashed var(--muted); color: var(--muted); }
+  .ttl { position: absolute; top: 10px; right: 10px; color: var(--gold); border: 1px solid var(--gold-deep); font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 6px; font-family: Arial, sans-serif; background: rgba(13,17,23,.7); }
+  .body { padding: 14px 16px 16px; }
+  .row1 { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+  .title { font-weight: 700; font-size: 16px; line-height: 1.35; }
+  .price { font-weight: 700; font-size: 22px; color: var(--gold); white-space: nowrap; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; font-family: Arial, sans-serif; }
+  .chip { border: 1px solid var(--line); border-radius: 4px; font-size: 11px; font-weight: 600; color: var(--muted); padding: 4px 8px; text-transform: uppercase; letter-spacing: .06em; }
+  .by { margin-top: 10px; font-size: 12.5px; color: var(--muted); font-family: Arial, sans-serif; }
+  .by b { color: var(--ink); }
+  footer { border-top: 1px solid var(--line); padding: 20px 32px; text-align: center; color: var(--muted); font-size: 12px; font-family: Arial, sans-serif; }
+</style>
+</head>
+<body>
+  <div class="banner">Direction B — “Collector dark” · card-shop-at-night energy · gold + ember accents</div>
+  <header>
+    <div class="logo">Exprifi<small>The Hunt Comes To You</small></div>
+    <div class="nav">
+      <button class="btn gold">Post a Need</button>
+      <button class="btn">My board</button>
+      <button class="btn">🔔</button>
+      <div class="avatar">V</div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <h1>The Board — <span>tonight’s hunts</span></h1>
+    <p>Buyers put out the call. First seller to bring the card wins the deal.</p>
+  </section>
+
+  <div class="filters">
+    <button class="pill on">All</button>
+    <button class="pill">Singles</button>
+    <button class="pill">Bulk lots</button>
+    <button class="pill">Basketball</button>
+    <button class="pill">Baseball</button>
+    <button class="pill">Pokémon</button>
+    <button class="pill">$0–500</button>
+    <button class="pill sort">Sort: Newest ▾</button>
+  </div>
+
+  <main class="grid">
+    <div class="card"><div class="thumb">⚾<span class="offers">1 offer</span><span class="ttl">1d left</span></div>
+      <div class="body"><div class="row1"><div class="title">baseball test</div><div class="price">$212</div></div>
+      <div class="chips"><span class="chip">Single</span><span class="chip">Baseball</span><span class="chip">PSA 9</span></div>
+      <div class="by">wanted by <b>voloksvault</b></div></div></div>
+
+    <div class="card"><div class="thumb">🏀<span class="offers">3 offers</span><span class="ttl">2d left</span></div>
+      <div class="body"><div class="row1"><div class="title">Jordan Fleer rookie</div><div class="price">$200</div></div>
+      <div class="chips"><span class="chip">Single</span><span class="chip">Basketball</span><span class="chip">PSA 8+</span></div>
+      <div class="by">wanted by <b>voloktest</b></div></div></div>
+
+    <div class="card"><div class="thumb">📦<span class="offers">2 offers</span><span class="ttl">3d left</span></div>
+      <div class="body"><div class="row1"><div class="title">5,000-ct box 2019–21 basketball w/ rookies</div><div class="price">$450</div></div>
+      <div class="chips"><span class="chip">Bulk lot</span><span class="chip">Basketball</span></div>
+      <div class="by">wanted by <b>breakking</b></div></div></div>
+
+    <div class="card"><div class="thumb">⚾<span class="offers">5 offers</span><span class="ttl">12h left</span></div>
+      <div class="body"><div class="row1"><div class="title">Any PSA 10 Ohtani rookie</div><div class="price">$850</div></div>
+      <div class="chips"><span class="chip">Single</span><span class="chip">Baseball</span><span class="chip">PSA 10</span></div>
+      <div class="by">wanted by <b>dugoutdeals</b></div></div></div>
+
+    <div class="card"><div class="thumb">🏒<span class="offers zero">unclaimed</span><span class="ttl">6d left</span></div>
+      <div class="body"><div class="row1"><div class="title">Vintage hockey lot, pre-1980, any condition</div><div class="price">$300</div></div>
+      <div class="chips"><span class="chip">Bulk lot</span><span class="chip">Hockey</span></div>
+      <div class="by">wanted by <b>icecoldpc</b></div></div></div>
+
+    <div class="card"><div class="thumb">🔥<span class="offers">4 offers</span><span class="ttl">2d left</span></div>
+      <div class="body"><div class="row1"><div class="title">Charizard base set holo, raw ok</div><div class="price">$500</div></div>
+      <div class="chips"><span class="chip">Single</span><span class="chip">Pokémon</span></div>
+      <div class="by">wanted by <b>pokevault</b></div></div></div>
+  </main>
+
+  <footer>Exprifi — the hunt comes to you. · Mockup B</footer>
+</body>
+</html>

@@ -6,14 +6,14 @@ import { Button } from "@/components/ui/button";
 
 export function SiteHeader() {
   return (
-    <nav className="w-full border-b border-b-foreground/10 h-16">
+    <nav className="w-full border-b bg-card h-16 sticky top-0 z-20">
       <div className="w-full max-w-5xl mx-auto flex justify-between items-center p-3 px-5">
         <div className="flex items-center gap-4">
-          <Link href="/" className="text-lg font-bold tracking-tight">
-            Exprifi
+          <Link href="/" className="text-xl font-bold tracking-tight">
+            exprifi<span className="text-primary">.</span>
           </Link>
           <Button asChild size="sm" variant="default">
-            <Link href="/post">Post a Need</Link>
+            <Link href="/post">Post a need</Link>
           </Button>
         </div>
         <div className="flex items-center gap-2">

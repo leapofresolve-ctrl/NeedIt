@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Instrument_Sans, Spline_Sans_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 
@@ -9,12 +9,20 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Next.js and Supabase Starter Kit",
-  description: "The fastest way to build apps with Next.js and Supabase",
+  title: "Exprifi — the marketplace that hunts for you",
+  description:
+    "The demand exchange — post what you want, sellers come to you.",
 };
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Brand type system (3a): Instrument Sans display+body, Spline Sans Mono numerals.
+const instrument = Instrument_Sans({
+  variable: "--font-sans",
+  display: "swap",
+  subsets: ["latin"],
+});
+
+const splineMono = Spline_Sans_Mono({
+  variable: "--font-num",
   display: "swap",
   subsets: ["latin"],
 });
@@ -26,11 +34,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.className} antialiased`}>
+      <body
+        className={`${instrument.className} ${splineMono.variable} antialiased`}
+      >
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="light"
           disableTransitionOnChange
         >
           {children}
