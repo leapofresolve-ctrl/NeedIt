@@ -89,6 +89,28 @@
   .num { font-family: var(--font-num), ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 }
 
+/* 5c notched corner — ticket-stub signature (LOCKED). One clipped top-right
+   corner, 14px. On urgent cards (<12h) the notch void fills amber: pair a
+   .notch-fill sibling BEFORE the .notched element inside a relative parent. */
+.notched {
+  clip-path: polygon(
+    0 0,
+    calc(100% - 14px) 0,
+    100% 14px,
+    100% 100%,
+    0 100%
+  );
+}
+.notch-fill {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  background: hsl(var(--warn));
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
 /* Motion rule: blink is reserved for countdowns under 12h — nothing else moves. */
 @keyframes exprifi-blink {
   0%, 60% { opacity: 1; }

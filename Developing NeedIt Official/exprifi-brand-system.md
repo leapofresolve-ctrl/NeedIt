@@ -50,9 +50,11 @@ Source: Kyle's Claude design artifact ("Exprifi Brand Directions", 5 iteration b
 
 "It's a match ✓" + price large ($395), item line + counters used, buyer ⇄ seller pseudonyms revealed, "identities revealed · escrow opens next", CTA "Complete the deal".
 
-## Edge treatment (section 5 — explored, NOT locked)
+## Edge treatment — 5c Notched, LOCKED (Kyle, Jul 4 2026)
 
-- 5a Sharp (2px, terminal) · 5b Soft (20/24px, consumer) · **5c Notched (one clipped top-right corner 14px, "ticket stub" — ownable signature; urgency fills the notch amber)**. Doc's "try next" leaned toward applying 5c across the board. Default until Kyle decides: keep --radius 0.75rem (3a as printed).
+- **5c Notched: one clipped top-right corner (14px), ticket-stub signature.** On urgent cards (<12h) the notch void fills amber. "The most ownable signature — nobody else in the hobby has it."
+- Implementation: `.notched` clip-path utility + `.notch-fill` amber triangle sibling (see globals.css). Applied to board cards + landing intent doors; extend to future card surfaces (need detail, match panel).
+- (5a sharp / 5b soft were the rejected alternates.)
 
 ## Profile page (section 4, in 3a system)
 

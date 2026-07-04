@@ -99,7 +99,7 @@ export default async function Home({
         </div>
 
         <div className="grid sm:grid-cols-2 gap-4 w-full max-w-3xl">
-          <div className="border bg-card rounded-xl p-7 flex flex-col gap-3">
+          <div className="notched border bg-card rounded-xl p-7 flex flex-col gap-3">
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Find cards
             </span>
@@ -113,7 +113,7 @@ export default async function Home({
               <Link href="/auth/sign-up">Post a need</Link>
             </Button>
           </div>
-          <div className="bg-board border border-board rounded-xl p-7 flex flex-col gap-3">
+          <div className="notched bg-board border border-board rounded-xl p-7 flex flex-col gap-3">
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-board-muted">
               Sell cards
             </span>
@@ -306,10 +306,9 @@ export default async function Home({
                 const soon = cd.hours != null && cd.hours < 24;
                 const poster = usernameById[r.buyer_id];
                 return (
-                  <li
-                    key={r.id}
-                    className="rounded-lg border border-board bg-white/[0.03] hover:border-board-muted transition-colors"
-                  >
+                  <li key={r.id} className="relative">
+                    {urgent && <span aria-hidden className="notch-fill" />}
+                    <div className="notched rounded-lg border border-board bg-white/[0.03] hover:border-board-muted transition-colors">
                     <Link href={`/request/${r.id}`} className="block p-4">
                       {/* Row 1: type badge + condition · offer count */}
                       <div className="flex items-center justify-between gap-2">
@@ -382,6 +381,7 @@ export default async function Home({
                         </Link>
                       </div>
                     )}
+                    </div>
                   </li>
                 );
               })}
