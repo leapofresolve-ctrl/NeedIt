@@ -33,15 +33,27 @@ export async function setUsername(
 
   if (existing) return { error: "That username is taken. Try another." };
 
-  const { error } = await supabase
+  // Upsert (not update): if this account has no profile row yet — e.g. the
+  // signup trigger didn't fire — an UPDATE would silently match 0 rows and the
+  // app would bounce back to onboarding forever. Upsert creates the row if
+  // missing. We .select() so we can tell whether a row was actually written.
+  const { data: saved, error } = await supabase
     .from("profiles")
-    .update({ username: raw })
-    .eq("id", userId);
+    .upsert({ id: userId, username: raw }, { onConflict: "id" })
+    .select("id");
 
   if (error) {
     if (error.code === "23505")
       return { error: "That username is taken. Try another." };
-    return { error: "Couldn't save your username. Please try again." };
+    // Surface the real reason instead of looping silently.
+    return { error: `Couldn't save your username: ${error.message}` };
+  }
+
+  if (!saved || saved.length === 0) {
+    return {
+      error:
+        "Your account has no profile row and the app couldn't create one — this is usually a database permission (RLS) setting. Tell your setup assistant you saw this message.",
+    };
   }
 
   redirect("/");

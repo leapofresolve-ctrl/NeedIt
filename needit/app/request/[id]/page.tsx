@@ -7,6 +7,7 @@ import { OfferForm } from "@/components/offer/offer-form";
 import { CounterForm } from "@/components/offer/counter-form";
 import { Button } from "@/components/ui/button";
 import { acceptOffer, declineOffer } from "./actions";
+import { FundDealButton } from "@/components/deal/fund-deal-button";
 
 const COUNTER_LIMIT = 10;
 
@@ -235,6 +236,25 @@ export default async function RequestDetail({
   const sellerHasActive = offers.some((o) => o.status === "pending");
   const left = timeLeft(request.expires_at);
 
+  // On a matched deal, load the deal's payment status and whether the seller
+  // can receive payouts — the buyer needs both to fund it.
+  let deal: { id: string; payment_status: string } | null = null;
+  let sellerReady = false;
+  if (request.status === "matched" && accepted) {
+    const { data: dealRow } = await supabase
+      .from("deals")
+      .select("id, payment_status")
+      .eq("request_id", id)
+      .maybeSingle();
+    deal = dealRow ?? null;
+    const { data: sellerProfile } = await supabase
+      .from("profiles")
+      .select("stripe_payouts_enabled")
+      .eq("id", accepted.seller_id)
+      .maybeSingle();
+    sellerReady = !!sellerProfile?.stripe_payouts_enabled;
+  }
+
   return (
     <main className="min-h-screen flex flex-col items-center">
       <SiteHeader />
@@ -303,10 +323,24 @@ export default async function RequestDetail({
                   You accepted {formatMoney(accepted.price_cents)} from{" "}
                   <strong>{accepted.sellerName}</strong>.
                 </p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Payments &amp; shipping are coming soon — for now, coordinate
-                  your first deals directly.
-                </p>
+
+                {deal?.payment_status === "unfunded" && (
+                  <FundDealButton dealId={deal.id} sellerReady={sellerReady} />
+                )}
+                {deal?.payment_status === "funded" && (
+                  <p className="text-sm mt-3 font-medium text-primary-deep">
+                    Paid ✓ — your payment is held safely until you confirm the
+                    card arrived.
+                  </p>
+                )}
+                {deal &&
+                  ["shipped", "released", "refunded", "disputed"].includes(
+                    deal.payment_status,
+                  ) && (
+                    <p className="text-sm mt-3 text-muted-foreground">
+                      Payment status: {deal.payment_status}
+                    </p>
+                  )}
               </div>
             )}
 

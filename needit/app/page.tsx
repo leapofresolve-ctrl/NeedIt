@@ -94,10 +94,9 @@ export default async function Home({
             <p className="text-sm text-muted-foreground">
               Post a need. Watch sellers race to fill it.
             </p>
-            <Button
-              asChild
-              className="w-fit mt-2 bg-foreground text-background hover:bg-foreground/90"
-            >
+            {/* 3b: the door is the target, the button is the affordance.
+                Full-width + lg = a 48px control inside a large hit area. */}
+            <Button asChild size="lg" className="w-full mt-auto">
               <Link href="/auth/sign-up">Post a need</Link>
             </Button>
           </div>
@@ -111,7 +110,11 @@ export default async function Home({
             <p className="text-sm text-muted-foreground">
               Browse open needs. Be first to strike the deal.
             </p>
-            <Button asChild className="w-fit mt-2">
+            {/* One primary per screen (3b §1.2): "Post a need" is the primary,
+                so the Sell door is secondary — same size, quieter weight.
+                TODO Block B: point this at /board once anon RLS lands, so
+                browsing no longer requires an account. */}
+            <Button asChild size="lg" variant="outline" className="w-full mt-auto">
               <Link href="/auth/login">Browse the board</Link>
             </Button>
           </div>

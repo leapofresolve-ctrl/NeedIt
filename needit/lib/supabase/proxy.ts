@@ -54,7 +54,10 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith("/auth") &&
     // Server-to-server webhook (Supabase → Resend email); authenticates
     // itself via the x-webhook-secret header, so never redirect it to login.
-    !request.nextUrl.pathname.startsWith("/api/notifications/email")
+    !request.nextUrl.pathname.startsWith("/api/notifications/email") &&
+    // Stripe webhook: authenticates via Stripe signature, no user session.
+    // Must never be redirected to login or events can't mark deals paid.
+    !request.nextUrl.pathname.startsWith("/api/stripe/webhook")
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();

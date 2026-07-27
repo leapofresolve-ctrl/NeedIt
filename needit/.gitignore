@@ -33,6 +33,12 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*.local
 .env
+# Catch-all: `.env*.local` does NOT match backups like `.env.local.bak`, and one
+# of those was sitting untracked with the Supabase service-role key and the
+# Stripe secret key in it — one `git add -A` from being public. Belt and braces.
+.env*
+!.env.example
+*.bak
 
 # vercel
 .vercel

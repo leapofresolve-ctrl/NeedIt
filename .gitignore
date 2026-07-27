@@ -1,0 +1,18 @@
+# Repo-root ignores. The app has its own .gitignore in needit/.
+
+# macOS clutter — these were showing up as changes on every commit.
+.DS_Store
+**/.DS_Store
+
+# Never commit environment files or backups of them, anywhere in the repo.
+# (The app's own rule `.env*.local` did NOT catch `.env.local.bak`, which was
+# sitting untracked with live Supabase and Stripe secret keys in it.)
+.env
+.env.*
+!.env.example
+*.bak
+
+# Editor / OS noise
+.vscode/
+.idea/
+Thumbs.db

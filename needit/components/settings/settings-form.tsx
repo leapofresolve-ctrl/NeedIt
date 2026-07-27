@@ -39,10 +39,10 @@ export function SettingsForm({
           {pending ? "Saving…" : "Save settings"}
         </Button>
         {state.saved && (
-          <span className="text-sm text-green-600">Saved ✓</span>
+          <span className="text-sm text-primary-deep">Saved ✓</span>
         )}
         {state.error && (
-          <span className="text-sm text-red-500">{state.error}</span>
+          <span className="text-sm text-destructive">{state.error}</span>
         )}
       </div>
     </form>

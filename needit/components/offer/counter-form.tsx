@@ -62,7 +62,7 @@ export function CounterForm({
           Cancel
         </Button>
       </div>
-      {state.error && <p className="text-xs text-red-500">{state.error}</p>}
+      {state.error && <p className="text-xs text-destructive">{state.error}</p>}
     </form>
   );
 }

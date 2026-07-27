@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
 import { SettingsForm } from "@/components/settings/settings-form";
+import { StripeConnectButton } from "@/components/settings/stripe-connect-button";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -39,6 +40,14 @@ export default async function SettingsPage() {
         <section className="border rounded-lg p-5">
           <h2 className="text-lg font-semibold mb-4">Notifications</h2>
           <SettingsForm emailDefault={profile.email_notifications ?? true} />
+        </section>
+
+        <section className="border rounded-lg p-5">
+          <h2 className="text-lg font-semibold mb-1">Payments</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Connect a Stripe account so buyers can pay you on Exprifi.
+          </p>
+          <StripeConnectButton />
         </section>
       </div>
     </main>

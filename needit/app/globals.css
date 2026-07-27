@@ -13,14 +13,26 @@
     --popover-foreground: 210 21% 5%;
     --primary: 157 100% 33%;           /* #00A968 */
     --primary-foreground: 0 0% 100%;
+    /* ACCENT DISCIPLINE (3b): green is a DATA color — money, live counts,
+       positive state. It is not the button color. White on #00A968 measures
+       3.05:1 and fails WCAG AA for normal text; ink measures 19.35:1.
+       Exactly one green button survives in the app: the match panel CTA
+       (variant="success"), where green finally means something. */
+    --cta: 210 21% 5%;                 /* #0B0E11 — ink, the primary button */
+    --cta-foreground: 0 0% 100%;
+    --cta-hover: 213 10% 15%;          /* #23272C */
     --secondary: 200 7% 94%;           /* #EEF0F1 */
     --secondary-foreground: 210 21% 5%;
     --muted: 200 7% 94%;               /* #EEF0F1 */
     --muted-foreground: 210 4% 45%;    /* #6E7378 */
     --accent: 200 7% 94%;
     --accent-foreground: 210 21% 5%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
+    /* 3b: darkened from the shadcn default 0 84.2% 60.2% (#EF4444), which
+       measured 3.61:1 on #FAFAFA as text and 3.76:1 under white as a button —
+       both fail AA. #B4222A is 6.28:1 as text and 6.56:1 under white, so one
+       token now serves error text AND destructive buttons. */
+    --destructive: 357 68% 42%;        /* #B4222A */
+    --destructive-foreground: 0 0% 100%;
     --border: 220 6% 91%;              /* #E6E7E9 */
     --input: 220 6% 91%;
     --ring: 157 100% 33%;
@@ -37,7 +49,9 @@
     --board-foreground: 220 13% 95%;   /* #F2F3F5 */
     --board-secondary: 216 10% 80%;    /* #C6CAD0 */
     --board-muted: 215 5% 56%;         /* #8A8F96 */
-    --board-faint: 216 6% 38%;         /* #5C6167 */
+    --board-faint: 214 6% 52%;         /* #7D848C — lifted from #5C6167 (3b).
+                                          Old value measured 3.02:1 on #101114
+                                          and failed AA for text; this is 4.99:1. */
     --cat-tcg: 269 66% 73%;            /* #B78AE8 */
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
