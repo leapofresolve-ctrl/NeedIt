@@ -2,9 +2,14 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { hasEnvVars } from "@/lib/utils";
+import { X } from "lucide-react";
+
+import { isSport } from "@/lib/board-filters";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Countdown } from "@/components/exchange/countdown";
+import { RefinePanel } from "@/components/exchange/refine-panel";
+import { SortSelect } from "@/components/exchange/sort-select";
 
 type RequestRow = {
   id: string;
@@ -19,25 +24,6 @@ type RequestRow = {
   created_at: string;
   offer_count: number;
 };
-
-const SPORTS = [
-  "Basketball",
-  "Football",
-  "Baseball",
-  "Hockey",
-  "Soccer",
-  "Pokémon",
-  "Other",
-];
-
-const SORTS = [
-  { value: "newest", label: "Newest" },
-  { value: "expiring", label: "Ending soon" },
-  { value: "budget", label: "Highest budget" },
-] as const;
-
-const fieldClass =
-  "flex rounded-sm border border-input bg-card px-2 py-1.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
 function formatBudget(cents: number | null) {
   if (cents == null) return "Open";
@@ -150,6 +136,39 @@ export default async function Home({
   const sort = one(params.sort) ?? "newest";
   const hasFilters = !!(fType || fSport || fCondition || fMin || fMax);
 
+  // ----- Active-filter chips (3b) -----
+  // Each active filter renders as a removable chip. `sort` is deliberately
+  // excluded — it isn't a filter, it has its own always-visible control, and
+  // it's never "removable".
+  const money = (v: string) => `$${Number(v).toLocaleString("en-US")}`;
+  const activeFilters: { key: string; label: string }[] = [
+    fType && {
+      key: "type",
+      label: fType === "bulk" ? "Bulk lots" : "Single cards",
+    },
+    fSport && { key: "sport", label: fSport },
+    fCondition && { key: "condition", label: `Condition: ${fCondition}` },
+    fMin && { key: "min", label: `Min ${money(fMin)}` },
+    fMax && { key: "max", label: `Max ${money(fMax)}` },
+  ].filter(Boolean) as { key: string; label: string }[];
+
+  /** Current URL with one filter dropped — powers the chip "×" links. */
+  const urlWithout = (dropKey: string) => {
+    const next = new URLSearchParams();
+    for (const [k, v] of Object.entries({
+      type: fType,
+      sport: fSport,
+      condition: fCondition,
+      min: fMin,
+      max: fMax,
+      sort: sort === "newest" ? undefined : sort,
+    })) {
+      if (v && k !== dropKey) next.set(k, v);
+    }
+    const qs = next.toString();
+    return qs ? `/?${qs}` : "/";
+  };
+
   let query = supabase
     .from("requests")
     .select(
@@ -159,7 +178,7 @@ export default async function Home({
     .eq("visibility", "public");
 
   if (fType === "single" || fType === "bulk") query = query.eq("type", fType);
-  if (fSport && SPORTS.includes(fSport)) query = query.eq("sport", fSport);
+  if (fSport && isSport(fSport)) query = query.eq("sport", fSport);
   if (fCondition) query = query.ilike("condition_pref", `%${fCondition}%`);
   const minCents = fMin ? Math.round(parseFloat(fMin) * 100) : NaN;
   const maxCents = fMax ? Math.round(parseFloat(fMax) * 100) : NaN;
@@ -222,66 +241,56 @@ export default async function Home({
           </span>
         </div>
 
-        {/* Quiet filter row (functional GET form) */}
-        <form
-          method="get"
-          className="flex flex-wrap items-end gap-2 bg-card border rounded-sm p-3"
-        >
-          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-            Type
-            <select name="type" defaultValue={fType ?? ""} className={fieldClass}>
-              <option value="">All</option>
-              <option value="single">Single</option>
-              <option value="bulk">Bulk lot</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-            Sport
-            <select name="sport" defaultValue={fSport ?? ""} className={fieldClass}>
-              <option value="">All</option>
-              {SPORTS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-            Condition
-            <input
-              name="condition"
-              defaultValue={fCondition ?? ""}
-              placeholder="e.g. psa 9"
-              className={`${fieldClass} w-24`}
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-            $ min
-            <input name="min" type="number" min="0" defaultValue={fMin ?? ""} className={`${fieldClass} w-20`} />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-            $ max
-            <input name="max" type="number" min="0" defaultValue={fMax ?? ""} className={`${fieldClass} w-20`} />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-            Sort
-            <select name="sort" defaultValue={sort} className={fieldClass}>
-              {SORTS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Button type="submit" size="sm">
-            Apply
-          </Button>
-          {hasFilters && (
-            <Button asChild size="sm" variant="ghost">
-              <Link href="/">Clear</Link>
+        {/* 3b: the six-select facet bar is gone. At rest this is TWO controls —
+            "Refine" and "Sort" — with any active filters shown as removable
+            chips between them. The searchParams contract is unchanged. */}
+        <div className="flex flex-wrap items-center gap-2 px-1">
+          <RefinePanel
+            values={{
+              type: fType,
+              sport: fSport,
+              condition: fCondition,
+              min: fMin,
+              max: fMax,
+              sort: sort === "newest" ? undefined : sort,
+            }}
+            activeCount={activeFilters.length}
+          />
+
+          {activeFilters.map((f) => (
+            <Link
+              key={f.key}
+              href={urlWithout(f.key)}
+              className="group inline-flex min-h-11 items-center gap-2 rounded-sm border bg-card px-3 text-sm font-medium transition-colors hover:border-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              {f.label}
+              <X
+                className="size-3.5 text-muted-foreground group-hover:text-foreground"
+                aria-hidden
+              />
+              <span className="sr-only">Remove this filter</span>
+            </Link>
+          ))}
+
+          {activeFilters.length > 1 && (
+            <Button asChild variant="ghost">
+              <Link href="/">Clear all</Link>
             </Button>
           )}
-        </form>
+
+          <div className="ml-auto">
+            <SortSelect
+              value={sort}
+              filters={{
+                type: fType,
+                sport: fSport,
+                condition: fCondition,
+                min: fMin,
+                max: fMax,
+              }}
+            />
+          </div>
+        </div>
 
         {/* THE LIVE BOARD — dark exchange panel, hairline rows */}
         <section className="notched bg-board border border-board rounded-sm">
