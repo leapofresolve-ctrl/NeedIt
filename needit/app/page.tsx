@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Countdown } from "@/components/exchange/countdown";
 import { RefinePanel } from "@/components/exchange/refine-panel";
 import { SortSelect } from "@/components/exchange/sort-select";
+import { BoardEmptyState } from "@/components/exchange/board-empty-state";
 
 type RequestRow = {
   id: string;
@@ -305,22 +306,7 @@ export default async function Home({
           </div>
 
           {rows.length === 0 ? (
-            <div className="p-10 flex flex-col items-center gap-3 text-center">
-              <p className="text-board-muted text-sm">
-                {hasFilters
-                  ? "Nothing matches these filters."
-                  : "The demand exchange — post what you want, sellers come to you."}
-              </p>
-              {hasFilters ? (
-                <Button asChild variant="outline">
-                  <Link href="/">Clear filters</Link>
-                </Button>
-              ) : (
-                <Button asChild>
-                  <Link href="/post">Post a need</Link>
-                </Button>
-              )}
-            </div>
+            <BoardEmptyState filtered={hasFilters} />
           ) : (
             <ul>
               {rows.map((r, i) => {

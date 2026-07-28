@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Instrument_Sans, Spline_Sans_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
+import { SiteFooter } from "@/components/site-footer";
 import "./globals.css";
 
 const defaultUrl = process.env.VERCEL_URL
@@ -35,7 +36,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${instrument.className} ${splineMono.variable} antialiased`}
+        className={`${instrument.className} ${splineMono.variable} flex min-h-screen flex-col antialiased`}
       >
         <ThemeProvider
           attribute="class"
@@ -43,6 +44,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
+          <SiteFooter />
         </ThemeProvider>
       </body>
     </html>
