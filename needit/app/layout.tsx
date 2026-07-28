@@ -10,9 +10,28 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Exprifi — the marketplace that hunts for you",
+  title: {
+    default: "Exprifi — the marketplace that hunts for you",
+    // Sub-pages set their own title; this keeps the brand on every tab.
+    template: "%s · Exprifi",
+  },
   description:
-    "The demand exchange — post what you want, sellers come to you.",
+    "A reverse marketplace for sports cards. Post the card or lot you want, set your budget, and sellers bring it to you.",
+  applicationName: "Exprifi",
+  openGraph: {
+    type: "website",
+    siteName: "Exprifi",
+    title: "Exprifi — the marketplace that hunts for you",
+    description:
+      "Post what you want. Sellers race to fill it. A reverse marketplace for sports cards.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Exprifi — the marketplace that hunts for you",
+    description:
+      "Post what you want. Sellers race to fill it. A reverse marketplace for sports cards.",
+  },
+  robots: { index: true, follow: true },
 };
 
 // Brand type system (3a): Instrument Sans display+body, Spline Sans Mono numerals.
