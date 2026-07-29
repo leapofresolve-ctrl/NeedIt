@@ -342,7 +342,7 @@ export async function closeAccount(
     })
     .eq("id", userId);
   if (error) {
-    return { error: "Couldn't close your account. Email support@exprifi.com." };
+    return { error: "Couldn't close your account. Try again, or get in touch." };
   }
 
   // Pull their open needs off the board straight away.

@@ -1,0 +1,471 @@
+<!DOCTYPE html><script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Exprifi Launch Command Center",
+  "schemaVersion": 1,
+  "description": "Exprifi launch tracker, replanned Jul 27 2026 and updated Jul 29 with Phase 1 shipped: countdown to Sep 26, four-phase plan (Kyle/Claude split, progress persisted locally), the 3b facelift build blocks and eBay diagnosis, north-star metrics with the hard gate at Sep 14, Claude agent lineup, resolved + open decisions, and risk register. Mirrors exprifi-launch-roadmap.md and exprifi-3b-facelift-and-access-spec.md."
+}
+</script>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exprifi Launch Command Center</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #FAFAFA; --fg: #0B0E11; --card: #FFFFFF; --border: #E6E7E9;
+    --board: #101114; --board-border: #24262B; --board-fg: #F2F3F5; --board-muted: #8A8F96;
+    --board-card: #15171C; --board-hairline: #1C1E23; --board-secondary: #C6CAD0;
+    --primary: #00A968; --primary-live: #2ED98A; --primary-deep: #00794B;
+    --warn: #F5A623; --danger: #B4232A; --muted: #6E7378; --radius: 2px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: 'Instrument Sans', -apple-system, 'Segoe UI', sans-serif; font-size: 15px; line-height: 1.6; padding: 20px; }
+  .mono { font-family: 'Spline Sans Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-variant-numeric: tabular-nums; }
+  .wordmark { font-weight: 700; font-size: 20px; letter-spacing: -0.02em; display: inline-flex; align-items: baseline; gap: 3px; }
+  .wordmark::after { content: ""; width: 8px; height: 3px; background: var(--primary); border-radius: 1px; }
+
+  header { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+  .alert { border: 1px solid var(--danger); border-left-width: 4px; background: #FFF6F6; padding: 14px 16px; margin-bottom: 16px; border-radius: var(--radius); }
+  .alert h2 { font-size: 15px; color: var(--danger); margin-bottom: 4px; }
+  .alert p { font-size: 13.5px; color: #4A2225; }
+  .alert .figs { margin-top: 8px; display: flex; gap: 18px; flex-wrap: wrap; }
+  .alert .fig { font-size: 12px; color: var(--muted); }
+  .alert .fig b { display: block; font-size: 19px; color: var(--danger); font-family: 'Spline Sans Mono', ui-monospace, monospace; }
+
+  .shipped { border: 1px solid var(--primary); border-left-width: 4px; background: #F4FBF8; padding: 14px 16px; margin-bottom: 16px; border-radius: var(--radius); }
+  .shipped h2 { font-size: 15px; color: var(--primary-deep); margin-bottom: 4px; }
+  .shipped p { font-size: 13.5px; color: #1F3B31; }
+  .shipped ul { margin: 8px 0 0 18px; font-size: 13px; color: #1F3B31; }
+  .shipped li { margin-bottom: 2px; }
+
+  .hero { background: var(--board); border: 1px solid var(--board-border); color: var(--board-fg); padding: 18px 20px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%); }
+  .hero .label { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--board-muted); display: flex; align-items: center; gap: 6px; }
+  .livedot { width: 6px; height: 6px; background: var(--primary-live); border-radius: 1px; display: inline-block; }
+  .count { font-size: 34px; font-weight: 700; color: var(--primary-live); }
+  .count small { font-size: 13px; font-weight: 500; color: var(--board-secondary); margin-left: 6px; }
+  .hero .phase { text-align: right; }
+  .hero .phase .name { font-size: 16px; font-weight: 700; color: var(--board-fg); }
+  .heroStat { text-align: right; }
+  .heroStat .v { font-size: 20px; font-weight: 700; color: var(--board-fg); }
+  .heroStat .k { font-size: 10px; color: var(--board-muted); text-transform: uppercase; letter-spacing: 0.1em; }
+
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 14px; flex-wrap: wrap; }
+  .tab { background: none; border: none; padding: 10px 14px; font: inherit; font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; min-height: 44px; }
+  .tab.active { color: var(--fg); border-bottom-color: var(--primary); }
+  .tab:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .panel { display: none; } .panel.active { display: block; }
+
+  .progressWrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 14px; }
+  .bar { height: 8px; background: #EDEEF0; border-radius: 1px; overflow: hidden; margin-top: 6px; }
+  .bar > div { height: 100%; background: linear-gradient(90deg, var(--primary-deep), var(--primary)); width: 0%; transition: width .3s; }
+
+  .week { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 12px; overflow: hidden; }
+  .week.gate { border-color: var(--warn); border-left-width: 4px; }
+  .week > summary { list-style: none; cursor: pointer; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 44px; }
+  .week > summary::-webkit-details-marker { display: none; }
+  .week > summary:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+  .wTitle { font-weight: 700; }
+  .wDates { color: var(--muted); font-size: 12.5px; }
+  .wCount { font-size: 12.5px; color: var(--primary-deep); font-weight: 600; white-space: nowrap; }
+  .wNote { font-size: 12.5px; color: var(--muted); padding: 8px 14px 0; }
+  .items { border-top: 1px solid var(--border); }
+  .item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-bottom: 1px solid #F0F1F3; }
+  .item:last-child { border-bottom: none; }
+  .item input { margin-top: 4px; accent-color: var(--primary); width: 17px; height: 17px; flex-shrink: 0; }
+  .item input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .item.done label { color: var(--muted); text-decoration: line-through; }
+  .who { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 1px; flex-shrink: 0; margin-top: 3px; letter-spacing: 0.05em; }
+  .who.k { background: #FFF3DD; color: #8A5B00; }
+  .who.c { background: #E2F7EE; color: var(--primary-deep); }
+  .item label { cursor: pointer; flex: 1; font-size: 14px; }
+  .item.hard label { font-weight: 700; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--border); font-size: 13.5px; }
+  th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 12px; border-bottom: 1px solid #F0F1F3; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .tv { font-weight: 700; color: var(--primary-deep); white-space: nowrap; }
+  .bad { color: var(--danger); font-weight: 700; }
+  .ok { color: var(--primary-deep); font-weight: 700; }
+
+  .cardGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .aCard { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%); }
+  .aCard h3 { font-size: 14.5px; margin-bottom: 4px; }
+  .aCard .when { font-size: 11px; color: var(--primary-deep); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .aCard p { color: var(--muted); font-size: 13px; }
+  .pill { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; padding: 3px 7px; border-radius: 1px; margin-top: 8px; }
+  .pill.wait { background: #FFF3DD; color: #8A5B00; }
+  .pill.ready { background: #E2F7EE; color: var(--primary-deep); }
+
+  .risk { border-left: 3px solid var(--warn); }
+  .risk.hot { border-left-color: var(--danger); }
+  .risk.cool { border-left-color: var(--primary); }
+  .decision { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 10px; display: flex; gap: 10px; align-items: flex-start; }
+  .decision input { margin-top: 4px; accent-color: var(--primary); width: 17px; height: 17px; }
+  .decision input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .decision .due { font-size: 11px; color: var(--warn); font-weight: 700; white-space: nowrap; }
+  .decision.done label { color: var(--muted); text-decoration: line-through; }
+  .decision label { font-size: 14px; }
+  .lean { color: var(--muted); font-size: 12.5px; display: block; }
+  .resolved { background: #F4FBF8; border-color: #CBEBDD; }
+  .resolved .tagOK { font-size: 10px; font-weight: 700; letter-spacing: .06em; color: var(--primary-deep); background: #E2F7EE; padding: 2px 6px; border-radius: 1px; white-space: nowrap; }
+  .note { font-size: 12.5px; color: var(--muted); margin: 10px 2px; }
+  h2.sec { font-size: 13px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin: 18px 2px 8px; }
+  @media (max-width: 560px) { .hero { flex-direction: column; align-items: flex-start; } .hero .phase, .heroStat { text-align: left; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <span class="wordmark">exprifi</span>
+    <div class="sub">Launch Command Center · <strong>replanned Jul 27</strong> · <strong>Phase 1 shipped Jul 29</strong> · Jul 28 → Sep 26, 2026 · plan in <span class="mono">exprifi-launch-roadmap.md</span> · facelift in <span class="mono">exprifi-3b-facelift-and-access-spec.md</span></div>
+  </div>
+</header>
+
+<div class="shipped">
+  <h2>Jul 29 — Phase 1 build complete. The doors are open.</h2>
+  <p><strong>exprifi.com is live on Vercel</strong> (Kyle's DNS cutover landed) and the Claude-lane Phase 1 work shipped in one pass: the auth gate flipped from allowlist to denylist, so the board, every need page and every public profile now render for a logged-out visitor. That is the change the whole acquisition funnel was waiting on — nobody has to create an account to find out whether anyone is inside.</p>
+  <ul>
+    <li><strong>Public browsing</strong> + auth-wall pattern (the offer form renders inert with a sign-in bar; <span class="mono">?next=</span> returns you to the exact need)</li>
+    <li><strong>Rate limiting + full CSP / security header set</strong> — shipped <em>with</em> public access, not after it</li>
+    <li><strong>Migration 0015</strong>: explicit anon RLS, column privileges on <span class="mono">profiles</span>, and a runnable deny-test block</li>
+    <li><strong>Canonical domain</strong> pinned — OG images were pointing at a preview URL, so every shared link had a broken card</li>
+    <li><strong>sitemap + robots + per-need metadata</strong> — need pages are indexable for the first time</li>
+    <li><strong>Legal pages</strong> built at <span class="mono">/legal/*</span>, held unlinked pending Kyle's read · <strong>/help</strong> · utility strip · footer</li>
+    <li><strong>/api/health</strong> (real DB check) · Sentry-compatible error reporting, zero new dependencies · secret-rotation runbook</li>
+  </ul>
+  <p style="margin-top:8px"><strong>Four things now need Kyle</strong>, and public browsing is not safe until the first one is done: run migration 0015 · read the legal pages · rotate the secrets · point Supabase Auth at exprifi.com. They're the ▶ items in Phase 1 below.</p>
+</div>
+
+<div class="alert">
+  <h2>Jul 27 gate check — MISSED. Launch moved to Sep 26.</h2>
+  <p>The W2 checkpoint required ≥50 users, ≥20 needs, ≥40% offer rate. Verified live that day: the board reads <span class="mono">0 open · 0 offers in play</span>. The gate wasn't missed — it wasn't attempted; the soft launch and buy-list seeding never ran. Per the pre-agreed cutline, <strong>Stripe drops to test-mode only</strong> and seeding becomes its own protected phase. Every other workstream is polish on a room nobody has entered — which is exactly why Phase 1 was about opening the door and Phase 3 is about filling the room.</p>
+  <div class="figs">
+    <div class="fig"><b>0</b> open needs (target 20)</div>
+    <div class="fig"><b>~2</b> users (target 50)</div>
+    <div class="fig"><b>n/a</b> offer rate (target 40%)</div>
+  </div>
+</div>
+
+<div class="hero">
+  <div>
+    <div class="label"><span class="livedot"></span> COUNTDOWN TO LAUNCH</div>
+    <div class="count mono" id="countdown">—</div>
+  </div>
+  <div class="heroStat">
+    <div class="v mono" id="pctDone">0%</div>
+    <div class="k">plan complete</div>
+  </div>
+  <div class="phase">
+    <div class="label">CURRENT PHASE</div>
+    <div class="name" id="phaseName">—</div>
+    <div class="sub" style="color:var(--board-muted)" id="phaseFocus"></div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-panel="plan">4-Phase Plan</button>
+  <button class="tab" data-panel="facelift">3b Facelift</button>
+  <button class="tab" data-panel="metrics">North Stars</button>
+  <button class="tab" data-panel="agents">Claude Agents</button>
+  <button class="tab" data-panel="decisions">Your Decisions</button>
+  <button class="tab" data-panel="risks">Risks</button>
+</div>
+
+<div class="panel active" id="plan">
+  <div class="progressWrap">
+    <div style="display:flex;justify-content:space-between;font-size:13px;"><strong>Overall progress</strong><span class="mono" id="progText">0 / 0</span></div>
+    <div class="bar"><div id="progBar"></div></div>
+  </div>
+  <div id="weeks"></div>
+  <p class="note">Checkboxes persist on this computer; items shipped Jul 29 are pre-checked once. <span class="who k" style="margin:0 2px">KYLE</span> = yours · <span class="who c" style="margin:0 2px">CLAUDE</span> = mine (start a session and say go). Items marked <strong>▶</strong> are handoffs that only you can do. <em>The Cowork mount blocker is resolved — the app repo at <span class="mono">~/Desktop/NeedIt</span> is connected.</em></p>
+</div>
+
+<div class="panel" id="facelift">
+  <p class="note">Kyle's Jul 27 read: "too many similarities to eBay · needs to feel more official, less tacky · not overwhelming for the older crowd." Diagnosis and full spec in <span class="mono">exprifi-3b-facelift-and-access-spec.md</span>. <strong>3a stays locked</strong> — this changes how the tokens are deployed, not the tokens.</p>
+  <h2 class="sec">The five things reading "eBay"</h2>
+  <table>
+    <thead><tr><th>The tell</th><th>Why it reads cheap</th><th>Fix</th></tr></thead>
+    <tbody>
+      <tr><td><strong>The inline facet bar</strong> — six raw selects + Apply</td><td>Literally eBay/Craigslist chrome, and the most moving parts on screen — what the older crowd bounces off</td><td>One <strong>Refine</strong> button → slide-over sheet; active filters as removable chips</td></tr>
+      <tr><td><strong>Green as the button color</strong></td><td>Green means "click me," so it stops meaning money and live. Saturated accent on every CTA is the template-site tell.</td><td><strong>Green becomes a data color only.</strong> Buttons go ink #0B0E11. One green button in the app: the match CTA.</td></tr>
+      <tr><td><strong>No institutional frame</strong></td><td>No footer, no policies, no entity line, no support. Officialness is furniture, not styling.</td><td>Utility strip + real footer + "a service of VoloksVault Sports Card LLC · not a party to any sale" — <strong>shipped Jul 29</strong></td></tr>
+      <tr><td><strong>14px type, tight leading, low contrast</strong></td><td>Dense and genuinely hard for the 45+ collector</td><td>16px base, 1.6 leading, 4.5:1 minimum, 44px targets, visible focus rings</td></tr>
+      <tr><td><strong>Two competing primaries</strong></td><td>Nothing is the main action, so everything feels like an ad</td><td>One primary per screen</td></tr>
+    </tbody>
+  </table>
+  <h2 class="sec">Build blocks</h2>
+  <table>
+    <thead><tr><th>Block</th><th>What ships</th><th>Verify by</th></tr></thead>
+    <tbody>
+      <tr><td><strong>A — Legitimacy</strong> <span class="ok">✓ Jul 29</span><br><span class="note">cheapest officialness per hour</span></td><td>exprifi.com cutover · footer + utility strip + entity line · legal pages built (unlinked pending review) · branded 404/500 · favicon + OG · /how-it-works · /help</td><td>Every footer link resolves; no dead ends</td></tr>
+      <tr><td><strong>B — Public access</strong> <span class="ok">✓ Jul 29</span></td><td>Logged-out browsing · middleware allowlist→denylist · anon RLS + deny-tests (0015) · auth-wall pattern (never redirect) · <strong>rate limiting shipped WITH this, not after</strong> · security headers · indexable needs</td><td>Signed out, by direct API call: can read board + needs, cannot read offers, private wants, or any email — <strong>run the 0015 deny-test block to confirm</strong></td></tr>
+      <tr><td><strong>C — Visual pass</strong></td><td>Accent discipline · one primary per screen · Refine sheet · 16px + focus rings + 44px · contrast fix on --board-faint · bigger first screen, door-sized hit targets · empty-state rebuild · "1 offers" fix</td><td>Before/after at 390px and 1440px; re-check prefers-reduced-motion</td></tr>
+      <tr><td><strong>D — Accounts</strong></td><td>Username-or-email sign-in (uniform failures, revoked resolver, <span class="ok">rate limited ✓</span>) · signup path selection (<span class="mono">is_seller</span> boolean) · Settings: Account + Notifications + Selling toggle · password reset verified E2E</td><td>Username enumeration attempt returns identical response + timing</td></tr>
+      <tr><td><strong>E — Plans</strong></td><td>/plans public page · worked fee examples · "free during founding" banner · Pro waitlist. <strong>No billing code.</strong></td><td>Nothing on the page describes an unbuilt feature without labeling it</td></tr>
+      <tr><td><strong>F — Trust + rest</strong></td><td>Privacy/Security/Support settings · report affordance · watch/save needs · <span class="mono">published_at</span> migration (TTFO is currently measured wrong)</td><td>North-star metric recomputes correctly</td></tr>
+    </tbody>
+  </table>
+  <h2 class="sec">First screen &amp; access — Kyle's asks, answered</h2>
+  <table>
+    <thead><tr><th>Ask</th><th>How it's built</th></tr></thead>
+    <tbody>
+      <tr><td>"First screen should be larger, buttons more accessible"</td><td>Full-viewport hero. The two intent doors <em>are</em> the buttons — 180px tall click targets with a 56px button inside as the affordance. Above the fold at 375px and 1440px. Real live counts, never faked.</td></tr>
+      <tr><td>"Shouldn't need an account to see the site"</td><td><span class="ok">✓ Shipped Jul 29.</span> Public: / · need pages · /u/[username] · /how-it-works · /help · legal. The "Browse the board" door is now an anchor to the live board sitting directly below the hero, not a login redirect. Also unlocks the SEO the plan already wanted — need pages can't be indexed behind a login.</td></tr>
+      <tr><td>"Must have an account to interact"</td><td><span class="ok">✓ Shipped Jul 29.</span> Protected: post · offer · counter · accept · alerts · settings · notifications · Stripe. <strong>Never redirect to /login</strong> — the need page renders, the offer form shows its real structure inert, and a "Sign in to make an offer" bar carries <span class="mono">?next=</span> back to the same need.</td></tr>
+      <tr><td>"Sign in with username, not just email"</td><td>One "Email or username" field. Non-email input hits a SECURITY DEFINER resolver that is <strong>REVOKEd from anon and authenticated</strong> — otherwise it's a username→email enumeration endpoint. Uniform failure message and timing. <span class="ok">Rate limited per IP and per identifier ✓ Jul 29.</span></td></tr>
+      <tr><td>"Buyer-only vs both, with 'recommended'"</td><td>Soft split: both choices create the same account row; the difference is one <span class="mono">is_seller</span> boolean and reversible in one click from Settings. Recommended = ink border + chip, pre-selected. <em>Not</em> a shiny "MOST POPULAR" ribbon — that's the tacky failure mode for this exact element.</td></tr>
+      <tr><td>"Little to no options in personal settings"</td><td>Correct — it was <strong>one checkbox</strong>. Expands to seven sections: Account · Notifications (a per-event × in-app/email grid) · Buying · Selling · Privacy &amp; safety · Security (MFA, sessions) · Support.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="panel" id="metrics">
+  <table>
+    <thead><tr><th>Metric</th><th>Actual (Jul 27)</th><th>Gate — Sep 14</th><th>Launch day — Sep 26</th></tr></thead>
+    <tbody>
+      <tr><td>Registered users</td><td class="mono bad">~2 (test)</td><td class="tv mono">50</td><td class="mono">100</td></tr>
+      <tr><td>Open needs on board</td><td class="mono bad">0</td><td class="tv mono">20</td><td class="mono">30+</td></tr>
+      <tr><td><strong>% needs with ≥1 offer</strong> (north star)</td><td class="mono bad">n/a — no needs</td><td class="tv mono">≥40%</td><td class="mono">≥60%</td></tr>
+      <tr><td><strong>Median time-to-first-offer</strong> (north star)</td><td class="mono">21h (stale, n=4)</td><td class="tv mono">&lt;24h</td><td class="mono">&lt;12h</td></tr>
+      <tr><td>Matches / week</td><td class="mono bad">0</td><td class="tv mono">2+</td><td class="mono">5+</td></tr>
+      <tr><td>Founding breakers committed</td><td class="mono bad">0</td><td class="tv mono">10</td><td class="mono">10</td></tr>
+      <tr><td>% matches funded via checkout</td><td class="mono">—</td><td class="mono">— (test mode)</td><td class="mono">— (test mode)</td></tr>
+      <tr><td>Support first response</td><td class="mono">—</td><td class="mono">&lt;24h</td><td class="tv mono">&lt;24h</td></tr>
+    </tbody>
+  </table>
+  <p class="note"><strong>The Sep 14 gate is a real stop condition.</strong> If it misses again, we do not launch on Sep 26 — we diagnose demand. No amount of shipping fixes an empty board. Payments metrics are intentionally blank: Stripe is test-mode-only until the gate passes. TTFO is currently measured from <span class="mono">created_at</span> rather than publish time — Block F's <span class="mono">published_at</span> migration fixes the north star itself.</p>
+  <p class="note"><strong>New since Jul 29:</strong> logged-out traffic is now measurable for the first time. Once real visitors arrive, the number that matters most before the gate is <em>visitor → signup</em>, because the whole Phase 1 thesis is that a stranger who can see the board converts better than one who hits a login wall. If that ratio is poor with a working board, the problem is the pitch, not the plumbing.</p>
+</div>
+
+<div class="panel" id="agents">
+  <div class="cardGrid">
+    <div class="aCard"><div class="when">Daily during seeding</div><h3>Concierge Scout</h3><p>The one that matters most right now: zero-offer needs nearing expiry → target-seller list + DM drafts for you. This agent IS the seeding sprint's engine.</p><span class="pill ready">START IN PHASE 3</span></div>
+    <div class="aCard"><div class="when">Weekly · Sunday</div><h3>Content Studio</h3><p>Drafts your 7-day calendar: 3 post scripts + captions + hooks in your voice. The facelift itself is content — build-in-public clips.</p><span class="pill ready">CAN START NOW</span></div>
+    <div class="aCard"><div class="when">Daily · 8am</div><h3>Morning Metrics Brief</h3><p>CEO digest: users, needs, offer rate, TTFO, matches, deltas, one recommended action. Pointless until the board has data — turn on with Phase 3.</p><span class="pill wait">NEEDS: METRICS ENDPOINT</span></div>
+    <div class="aCard"><div class="when">Daily · 9am + 3pm</div><h3>Support Desk</h3><p>Reads support@ via Gmail, drafts replies per the CS protocol + macros, labels threads, sends an escalation digest.</p><span class="pill ready">UNBLOCKED — INBOX IS LIVE</span></div>
+    <div class="aCard"><div class="when">Daily</div><h3>Leak Patrol</h3><p>Reviews the contact-info flag queue, drafts warnings, tracks repeat offenders. Also the natural home for credential-stuffing alerts now that username login is rate limited and failures are countable.</p><span class="pill wait">NEEDS: FLAG QUEUE</span></div>
+  </div>
+  <p class="note">Every agent drafts — you approve sends until each one earns autonomy.</p>
+</div>
+
+<div class="panel" id="decisions">
+  <h2 class="sec">Resolved Jul 27</h2>
+  <div id="resolvedList"></div>
+  <h2 class="sec">Still open</h2>
+  <div id="decisionList"></div>
+</div>
+
+<div class="panel" id="risks">
+  <table>
+    <thead><tr><th>Risk</th><th>Odds</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr class="risk hot"><td><strong>Liquidity fails — the board stays empty</strong><br><span class="note">No longer a risk. It happened.</span></td><td class="bad">REALIZED</td><td>Phase 3 is a dedicated 3-week seeding sprint with nothing else in it · Concierge Scout · Kyle posts his own buy-list first · hard gate at Sep 14</td></tr>
+      <tr class="risk hot"><td>Second gate misses too and we launch anyway</td><td>Med</td><td>Sep 14 is written down as a stop condition, not a checkpoint. If it misses, diagnose demand — do not ship harder.</td></tr>
+      <tr class="risk hot"><td><strong>0015 never gets run and the doors are open anyway</strong><br><span class="note">New Jul 29. The proxy no longer blocks anonymous traffic; the database is now the only boundary.</span></td><td class="bad">HIGH until run</td><td>Migration 0015 ships with a deny-test block that fails loudly rather than passing quietly. Run it in the Supabase SQL editor and read the NOTICEs — every one must say "pass". Until then, treat the site as open with unverified access control.</td></tr>
+      <tr class="risk cool"><td>Public access opens an attack surface</td><td class="ok">MITIGATED</td><td>Rate limiting and the full header/CSP set shipped <em>with</em> Block B, not after · anon deny-tests written into 0015 · middleware is explicitly never the only auth check (documented at the top of the file that does it)</td></tr>
+      <tr class="risk"><td>Rate limiter runs in fallback mode indefinitely</td><td>Med</td><td>In-memory limiting is per-instance, so a distributed spray walks around it. <span class="mono">/api/health</span> reports <span class="mono">"rateLimiter":"memory"</span> so this can't be forgotten — create the Upstash database and it upgrades with no code change.</td></tr>
+      <tr class="risk"><td>Username login becomes an enumeration endpoint</td><td>Med</td><td>Resolver REVOKEd from anon/authenticated · uniform failure message and timing · <span class="ok">per-IP and per-identifier rate limits live ✓</span> · failures logged to the flag queue</td></tr>
+      <tr class="risk"><td>Facelift scope creeps into a redesign</td><td>Med</td><td>3a tokens are locked and the spec never overrides them · six discrete blocks, each independently shippable and verifiable</td></tr>
+      <tr class="risk"><td>Kyle bandwidth across an 8-week plan</td><td>Med</td><td>Phases 1–2 are Claude-heavy · Kyle's heavy lift is concentrated in Phase 3 where it belongs · cut from Phase 4, never from seeding</td></tr>
+      <tr class="risk"><td>Scam / counterfeit in launch week</td><td>Med</td><td>Mandatory single photos · watermarks · guarantee + dispute runbook · Leak Patrol · your eye on every early deal</td></tr>
+      <tr class="risk"><td>Security incident</td><td>Low</td><td>Hardening executed + verified · <strong>secrets still unrotated since July debugging — runbook written Jul 29, 20 minutes of your time</strong> · freeze Sep 21</td></tr>
+      <tr class="risk"><td>Off-platform leakage normalizes</td><td>High by design</td><td>Acceptable in M1 · funded-deal perks + post-funding chat make paying the better deal, not just the safer one</td></tr>
+      <tr class="risk"><td>Follower reach ≠ signups</td><td>Med</td><td>Phase 3 soft-open data warns early · partner breakers de-risk reach · facelift + public browsing land <em>before</em> the audience arrives (one first impression)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+// Item tuple: [owner, text, urgent?, shippedJul29?]
+const WEEKS = [
+  { id:"p1", title:"Phase 1 — Legitimacy + doors open", dates:"Jul 28 – Aug 10", note:"Nothing here is cosmetic. A vercel.app URL with no footer and no policies is the loudest 'side project' signal we have. Claude-lane work completed Jul 29; the ▶ items are handoffs only Kyle can do.", items:[
+    ["k","RECONNECT COWORK to ~/Desktop/NeedIt — blocks every CLAUDE item below",1,1],
+    ["k","Namecheap DNS cutover → exprifi.com (highest legitimacy-per-hour item in the plan)",1,1],
+    ["k","Google Workspace + support@exprifi.com receives mail",0,1],
+    ["k","Write your real buy-list (10–15 needs). Don't post yet — write it.",0,1],
+    ["c","Domain cutover code: canonical origin pinned, 301 from need-it.vercel.app, OG images fixed",0,1],
+    ["c","Block A: footer + utility strip + entity line + 'not a party to any sale' disclosure",0,1],
+    ["c","Block A: branded 404/500 · favicon · OG · /how-it-works · /help (real FAQ, not a stub)",0,1],
+    ["c","Block A: ToS, Privacy, Prohibited Items, Off-Platform written and live at /legal/* — UNLINKED pending your read",0,1],
+    ["c","Block B: middleware allowlist→denylist · safe ?next= return after sign-in",0,1],
+    ["c","Block B: auth-wall pattern (never redirect to /login) — logged-out board, need pages, profiles",0,1],
+    ["c","Block B: rate limiting + full security header set / CSP — shipped WITH public access",1,1],
+    ["c","Block B: anon RLS policies + column privileges + deny-tests (migration 0015)",0,1],
+    ["c","Block B: sitemap + robots + per-need metadata (indexable need pages)",0,1],
+    ["c","/api/health (real DB check) + Sentry-compatible error reporting, zero new dependencies",0,1],
+    ["c","Secret-rotation runbook written — see secret-rotation-runbook.md",0,1],
+    ["k","▶ RUN migration 0015 in Supabase and read every deny-test NOTICE. Public browsing is NOT verified until they all say pass.",1],
+    ["k","▶ READ the four pages at /legal/terms, /privacy, /prohibited-items, /off-platform — then flip LEGAL_PUBLISHED to true",1],
+    ["k","▶ ROTATE service-role key + NOTIFY_WEBHOOK_SECRET + METRICS_API_TOKEN (runbook, ~20 min)",1],
+    ["k","▶ Supabase → Auth → URL Configuration: Site URL + redirect allowlist → https://exprifi.com",1],
+    ["k","▶ Set the LLC's postal address for the Terms contact block (LEGAL_ADDRESS)"],
+    ["k","Upstash Redis + Sentry accounts — until Upstash exists the limiter runs per-instance only"],
+    ["k","Uptime monitor pointed at https://exprifi.com/api/health"],
+    ["k","Confirm the offer-photos storage bucket is NOT public (Supabase → Storage)"]
+  ]},
+  { id:"p2", title:"Phase 2 — The facelift", dates:"Aug 11 – Aug 24", note:"You get one first impression with your following. This is the phase that makes it count.", items:[
+    ["c","Block C: accent discipline — green becomes a data color, buttons go ink"],
+    ["c","Block C: one primary per screen · Refine sheet replaces the facet bar"],
+    ["c","Block C: 16px type, 1.6 leading, focus rings, 44px targets, contrast fix"],
+    ["c","Block C: larger first screen — door-sized hit targets, verified at 375px and 1440px"],
+    ["c","Block C: empty-state rebuild (how-it-works + sample card) · '1 offers' pluralization"],
+    ["c","Block D: username-or-email sign-in + full security list (revoked resolver, uniform failures, rate limits)"],
+    ["c","Block D: signup path selection — is_seller boolean, reversible in Settings"],
+    ["c","Block D: Settings — Account + Notifications grid + Selling toggle"],
+    ["c","Block D: password reset / change email / change password verified end-to-end"],
+    ["c","Block E: /plans public page with worked fee examples — NO billing code"],
+    ["c","/post composes first, commits second (auth wall at the submit step, not the route)"],
+    ["k","Set the three /plans numbers: high-end threshold · Pro price · free alert cap",1],
+    ["k","Content: build-in-public clips of the facelift — the redesign IS content"]
+  ]},
+  { id:"p3", title:"Phase 3 — THE SEEDING SPRINT", dates:"Aug 25 – Sep 14", note:"This is the whole ballgame and the phase the original plan never actually gave time to. If something has to be cut, cut from Phase 4 — never from here.", gate:true, items:[
+    ["k","Post 10–15 real needs from your own buy-list. You are buyer #1.",1],
+    ["k","Recruit 10 founding breakers: each commits 3 needs posted + 5 needs answered",1],
+    ["k","Soft-open to the inner 50",1],
+    ["k","Concierge EVERY need to ≥1 offer in <12h — recruit the seller yourself if you have to",1],
+    ["k","Daily: work the Concierge Scout's zero-offer list"],
+    ["c","Concierge Scout + Morning Metrics agents live on schedule"],
+    ["c","Structured Q&A on offers (leak-safe canned messaging)"],
+    ["c","Realtime board + bell (replaces the 15s poll)"],
+    ["c","Dynamic OG share cards per need — every shared need is an ad"],
+    ["c","Block F: Privacy/Security/Support settings · report affordance · watch/save needs"],
+    ["c","Block F: published_at migration — the north-star metric is currently measured wrong"],
+    ["c","Mandatory offer photos for singles (open since Jun 27)"],
+    ["k","GATE — Sep 14: ≥50 users · ≥20 needs · ≥40% offer rate · TTFO <24h. MISS = DO NOT LAUNCH.",1]
+  ]},
+  { id:"p4", title:"Phase 4 — Launch prep", dates:"Sep 15 – Sep 25", items:[
+    ["c","Security pass 2: advisors, deny-tests on all new tables, npm audit, dispute drill"],
+    ["c","CSP tightening: nonce-based script-src, drop 'unsafe-inline' (deferred from Phase 1)"],
+    ["c","Load/perf pass · analytics final · war-room checklist"],
+    ["c","FEATURE FREEZE Sep 21 — bug-fix only after",1],
+    ["k","Launch video + 3 posts + partner content queued"],
+    ["k","Pre-seed: board shows 30+ live needs before launch morning",1],
+    ["k","Dry-run the runbooks: one ticket, one dispute, one leak flag"]
+  ]},
+  { id:"pL", title:"Launch — LIVE", dates:"Sep 26", items:[
+    ["k","SAT SEP 26: launch video + partner posts + all-day comments/DMs",1],
+    ["c","War room: metrics + Sentry + concierge sprint on every new need"],
+    ["c","W+1: retention emails · weekly hot-needs digest · metrics review → next roadmap"],
+    ["k","Only after liquidity holds: revisit Stripe live mode, then M4 monetization"]
+  ]}
+];
+const RESOLVED = [
+  ["Fee model", "Seller sub gates <em>features</em>, not access. Buyer 5% on high-end singles only — never bulk. Sellers keep 100%. Preserves the anti-eBay headline and protects the beachhead."],
+  ["Account model", "One account. Buyer is the free default, Seller is a reversible upgrade toggle (<span class='mono'>is_seller</span>). Signup shows both with 'recommended' — same row either way."],
+  ["Launch date", "Moved back from Aug 15. Proposed <strong>Sat Sep 26</strong> — Kyle to confirm; Sep 12 is the alternate if seeding moves fast."],
+  ["Stripe sequencing", "Test mode only until the Sep 14 gate passes. The pre-agreed cutline, working as designed. Foundation is built and waiting — costs nothing to hold."],
+  ["Entity", "VoloksVault Sports Card LLC d/b/a Exprifi. Goes in the footer verbatim."],
+  ["Checkout", "Hosted Stripe Checkout for MVP."],
+  ["Legal decisions (Jul 29)", "Connecticut law · individual arbitration + class waiver, with a small-claims carve-out and a 30-day opt-out · 18+ · 14-day grace then anonymise, deal records kept as the ledger · high-end single = <span class='mono'>$250</span>. Encoded in <span class='mono'>lib/legal.ts</span> so the policy text and the product can't drift."]
+];
+const DECISIONS = [
+  ["Confirm Sat Sep 26 as the launch date (alternate: Sep 12)", "It's still marked 'proposed'. Everything downstream keys off it.", "NOW"],
+  ["Pro price, high-end threshold, free alert cap", "The three numbers /plans can't be written without.", "PHASE 2"],
+  ["Mandatory offer photos for singles?", "My lean: required for singles, optional for bulk — trust where it matters, no friction where it would suppress liquidity.", "PHASE 3"],
+  ["Discord at launch (my lean: no — leak surface before we have moderation muscle)","","PHASE 4"]
+];
+const KEY = "exprifi-launch-v2";
+let state = {};
+try { state = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch(e) { state = {}; }
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
+
+// One-time seed: pre-check everything that actually shipped on Jul 29. Guarded
+// by a marker so unchecking an item later sticks instead of being re-seeded on
+// the next load.
+const SEED_MARK = "__seeded_jul29";
+if (!state[SEED_MARK]) {
+  WEEKS.forEach(w => w.items.forEach((it, ii) => { if (it[3]) state[`${w.id}-${ii}`] = true; }));
+  state[SEED_MARK] = true;
+  save();
+}
+
+const weeksEl = document.getElementById("weeks");
+WEEKS.forEach((w, wi) => {
+  const d = document.createElement("details");
+  d.className = "week" + (w.gate ? " gate" : ""); d.open = wi < 2;
+  d.innerHTML = `<summary><span><span class="wTitle">${w.title}</span> <span class="wDates mono">${w.dates}</span></span><span class="wCount mono" id="cnt-${w.id}"></span></summary><div id="items-${w.id}"></div>`;
+  weeksEl.appendChild(d);
+  const box = d.querySelector(`#items-${w.id}`);
+  if (w.note) { const n = document.createElement("p"); n.className = "wNote"; n.textContent = w.note; box.appendChild(n); }
+  const list = document.createElement("div"); list.className = "items"; box.appendChild(list);
+  w.items.forEach((it, ii) => {
+    const id = `${w.id}-${ii}`;
+    const row = document.createElement("div");
+    row.className = "item" + (state[id] ? " done" : "") + (it[2] ? " hard" : "");
+    row.innerHTML = `<input type="checkbox" id="${id}" ${state[id] ? "checked" : ""}><span class="who ${it[0]}">${it[0]==="k"?"KYLE":"CLAUDE"}</span><label for="${id}"></label>`;
+    row.querySelector("label").textContent = it[1];
+    row.querySelector("input").addEventListener("change", e => {
+      state[id] = e.target.checked; if(!e.target.checked) delete state[id];
+      row.classList.toggle("done", e.target.checked); save(); refresh();
+    });
+    list.appendChild(row);
+  });
+});
+
+function refresh(){
+  let total = 0, done = 0;
+  WEEKS.forEach(w => {
+    let wd = 0;
+    w.items.forEach((_, ii) => { total++; if(state[`${w.id}-${ii}`]){ done++; wd++; } });
+    document.getElementById(`cnt-${w.id}`).textContent = `${wd}/${w.items.length}`;
+  });
+  const pct = total ? Math.round(done/total*100) : 0;
+  document.getElementById("progBar").style.width = pct + "%";
+  document.getElementById("progText").textContent = `${done} / ${total}`;
+  document.getElementById("pctDone").textContent = pct + "%";
+}
+
+const resEl = document.getElementById("resolvedList");
+RESOLVED.forEach(r => {
+  const div = document.createElement("div");
+  div.className = "decision resolved";
+  div.innerHTML = `<div style="flex:1"><strong>${r[0]}</strong><span class="lean">${r[1]}</span></div><span class="tagOK">RESOLVED</span>`;
+  resEl.appendChild(div);
+});
+
+const decEl = document.getElementById("decisionList");
+DECISIONS.forEach((dc, i) => {
+  const id = `dec-${i}`;
+  const div = document.createElement("div");
+  div.className = "decision" + (state[id] ? " done" : "");
+  div.innerHTML = `<input type="checkbox" id="${id}" ${state[id] ? "checked" : ""}><div style="flex:1"><label for="${id}">${dc[0]}</label>${dc[1] ? `<span class="lean">${dc[1]}</span>` : ""}</div><span class="due mono">${dc[2]}</span>`;
+  div.querySelector("input").addEventListener("change", e => {
+    state[id] = e.target.checked; if(!e.target.checked) delete state[id];
+    div.classList.toggle("done", e.target.checked); save();
+  });
+  decEl.appendChild(div);
+});
+
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+  document.querySelectorAll(".panel").forEach(x => x.classList.remove("active"));
+  t.classList.add("active");
+  document.getElementById(t.dataset.panel).classList.add("active");
+}));
+
+const LAUNCH = new Date(2026, 8, 26); // Sep 26, 2026
+function phaseFor(now){
+  const d = (m,day) => new Date(2026, m, day);
+  if (now < d(7,11)) return ["Phase 1 — Legitimacy + doors open","domain · policies · public browsing · security"];
+  if (now < d(7,25)) return ["Phase 2 — The facelift","official touch · accounts · plans page"];
+  if (now < d(8,15)) return ["Phase 3 — THE SEEDING SPRINT","the whole ballgame · gate Sep 14"];
+  if (now < d(8,26)) return ["Phase 4 — Launch prep","hardening · freeze Sep 21 · pre-seed to 30 needs"];
+  if (now < d(8,28)) return ["LAUNCH WINDOW","Sat Sep 26 — war room"];
+  return ["POST-LAUNCH","retention · iterate · M1 readout"];
+}
+function tick(){
+  const now = new Date();
+  const days = Math.ceil((LAUNCH - now) / 86400000);
+  document.getElementById("countdown").innerHTML = days > 0 ? `${days}<small>days to Sep 26</small>` : (days > -2 ? `LAUNCH DAY` : `LIVE<small>since Sep 26</small>`);
+  const [name, focus] = phaseFor(now);
+  document.getElementById("phaseName").textContent = name;
+  document.getElementById("phaseFocus").textContent = focus;
+}
+tick(); refresh(); setInterval(tick, 60000);
+</script>
+</body>
+</html>

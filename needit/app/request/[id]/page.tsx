@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { AuthWall } from "@/components/auth/auth-wall";
 import { SiteHeader } from "@/components/site-header";
 import { Badge } from "@/components/ui/badge";
 import { OfferForm } from "@/components/offer/offer-form";
@@ -168,6 +170,62 @@ function OfferListItem({
   );
 }
 
+/**
+ * Per-need metadata (Block B: "indexable need pages").
+ *
+ * A reverse marketplace's SEO asset is its demand, not its supply. "WTB 1990s
+ * basketball bulk, $200" is a page nobody else on the internet can write,
+ * because it isn't a listing — it's a buyer. Until Jul 29 every one of these
+ * pages was behind a login and therefore invisible; giving each a real title,
+ * description and canonical URL is what turns the board into an acquisition
+ * channel rather than an app screen.
+ *
+ * `robots` is set per-need: a matched or expired need still renders for anyone
+ * with the link (deliberate — see migration 0015) but is marked noindex so
+ * search results don't fill with dead demand.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data: r } = await supabase
+    .from("requests")
+    .select("title, description, type, sport, budget_cents, status, visibility")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!r) return { title: "Need not found", robots: { index: false } };
+
+  const budget = r.budget_cents
+    ? `$${(r.budget_cents / 100).toLocaleString("en-US")}`
+    : "an open budget";
+  const kind = r.type === "bulk" ? "bulk lot" : "single card";
+
+  const indexable = r.visibility === "public" && r.status === "open";
+
+  return {
+    title: `${r.title} — wanted for ${budget}`,
+    description:
+      r.description?.slice(0, 155) ||
+      `A buyer on Exprifi wants this ${kind}${
+        r.sport ? ` (${r.sport})` : ""
+      } for ${budget}. Make an offer — sellers come to the buyer here.`,
+    alternates: { canonical: `/request/${id}` },
+    robots: indexable
+      ? { index: true, follow: true }
+      : { index: false, follow: true },
+    openGraph: {
+      type: "article",
+      title: `Wanted: ${r.title}`,
+      description: `Budget ${budget}. Offer on Exprifi.`,
+      url: `/request/${id}`,
+    },
+  };
+}
+
 export default async function RequestDetail({
   params,
 }: {
@@ -178,14 +236,19 @@ export default async function RequestDetail({
 
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims?.sub;
-  if (!userId) redirect("/auth/login");
 
-  const { data: me } = await supabase
-    .from("profiles")
-    .select("username")
-    .eq("id", userId)
-    .maybeSingle();
-  if (!me?.username) redirect("/onboarding");
+  // Jul 29 (3b §3.3): a logged-out visitor is NOT bounced to /auth/login. The
+  // need renders in full — it's public data, it's the page we ask people to
+  // share, and it's the page search engines index. Only the *act* of offering
+  // is gated, and it's gated in place by <AuthWall> rather than by a redirect.
+  if (userId) {
+    const { data: me } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", userId)
+      .maybeSingle();
+    if (!me?.username) redirect("/onboarding");
+  }
 
   const { data: request } = await supabase
     .from("requests")
@@ -205,15 +268,21 @@ export default async function RequestDetail({
     .eq("id", request.buyer_id)
     .maybeSingle();
 
-  // Fetch offers: the buyer sees all; a seller sees only their own.
-  let offerQuery = supabase
-    .from("offers")
-    .select(OFFER_SELECT)
-    .eq("request_id", id)
-    .order("created_at", { ascending: false });
-  if (!isBuyer) offerQuery = offerQuery.eq("seller_id", userId);
-  const { data: offerRows } = await offerQuery;
-  const baseOffers = (offerRows ?? []) as Omit<OfferRow, "sellerName">[];
+  // Fetch offers: the buyer sees all; a seller sees only their own; a
+  // logged-out visitor sees none and we don't even ask. RLS would deny it
+  // anyway (migration 0015) — not asking just saves a round trip and keeps the
+  // intent obvious to the next reader.
+  let baseOffers: Omit<OfferRow, "sellerName">[] = [];
+  if (userId) {
+    let offerQuery = supabase
+      .from("offers")
+      .select(OFFER_SELECT)
+      .eq("request_id", id)
+      .order("created_at", { ascending: false });
+    if (!isBuyer) offerQuery = offerQuery.eq("seller_id", userId);
+    const { data: offerRows } = await offerQuery;
+    baseOffers = (offerRows ?? []) as Omit<OfferRow, "sellerName">[];
+  }
 
   // Attach seller usernames.
   const sellerIds = [...new Set(baseOffers.map((o) => o.seller_id))];
@@ -313,6 +382,32 @@ export default async function RequestDetail({
           </p>
         </div>
 
+        {/* ===== Logged-out view: the auth wall, not a redirect ===== */}
+        {!userId && (
+          <section className="flex flex-col gap-4">
+            {requestOpen ? (
+              <>
+                <h2 className="text-lg font-semibold">Make an offer</h2>
+                <AuthWall action="make an offer" next={`/request/${request.id}`}>
+                  <OfferForm requestId={request.id} />
+                </AuthWall>
+                <p className="text-sm text-muted-foreground">
+                  Offers are private between you and the buyer. There is no
+                  public chat and no contact details are exchanged until a deal
+                  is agreed.
+                </p>
+              </>
+            ) : (
+              <p className="rounded-sm border p-5 text-sm text-muted-foreground">
+                This need is no longer open for offers.{" "}
+                <Link href="/" className="underline underline-offset-4">
+                  See what else buyers are looking for →
+                </Link>
+              </p>
+            )}
+          </section>
+        )}
+
         {/* ===== Buyer view ===== */}
         {isBuyer && (
           <section className="flex flex-col gap-4">
@@ -366,7 +461,7 @@ export default async function RequestDetail({
         )}
 
         {/* ===== Seller view ===== */}
-        {!isBuyer && accepted && (
+        {userId && !isBuyer && accepted && (
           <div className="border rounded-lg p-5 bg-accent">
             <h2 className="text-xl font-bold">It&apos;s a match! 🎉</h2>
             <p className="text-sm mt-1">
@@ -380,7 +475,7 @@ export default async function RequestDetail({
           </div>
         )}
 
-        {!isBuyer && !accepted && (
+        {userId && !isBuyer && !accepted && (
           <section className="flex flex-col gap-4">
             {offers.length > 0 && (
               <>

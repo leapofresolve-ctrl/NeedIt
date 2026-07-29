@@ -28,8 +28,9 @@ const initialState: LoginState = {};
  */
 export function LoginForm({
   className,
+  next,
   ...props
-}: React.ComponentPropsWithoutRef<"div">) {
+}: React.ComponentPropsWithoutRef<"div"> & { next?: string }) {
   const [state, formAction, pending] = useActionState(signIn, initialState);
 
   return (
@@ -43,6 +44,9 @@ export function LoginForm({
         </CardHeader>
         <CardContent>
           <form action={formAction}>
+            {/* Where to land after sign-in. Set by the proxy redirect (?next=)
+                and re-validated server-side in signIn() — never trusted here. */}
+            {next && <input type="hidden" name="next" value={next} />}
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">
                 <Label htmlFor="identifier">Username or email</Label>

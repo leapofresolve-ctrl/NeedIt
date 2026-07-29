@@ -12,6 +12,7 @@ import {
   updateUsername,
 } from "@/app/settings/actions";
 import { SPORTS } from "@/lib/board-filters";
+import { SUPPORT_EMAIL, SUPPORT_INBOX_LIVE } from "@/lib/contact";
 import {
   Field,
   SettingsSection,
@@ -340,7 +341,11 @@ export function CloseAccountPanel({ username }: { username: string }) {
     <SettingsSection
       id="close"
       title="Close your account"
-      description="Your profile is hidden and your open needs come off the board straight away. Completed deals are kept as a record for the people you traded with. Email support@exprifi.com within 14 days if you change your mind."
+      description={`Your profile is hidden and your open needs come off the board straight away. Completed deals are kept as a record for the people you traded with. Nothing is deleted for 14 days — ${
+        SUPPORT_INBOX_LIVE
+          ? `email ${SUPPORT_EMAIL} within that window`
+          : "get in touch within that window"
+      } if you change your mind.`}
       action={closeAccount}
       saveLabel="Close my account"
       tone="danger"

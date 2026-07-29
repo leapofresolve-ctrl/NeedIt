@@ -2,14 +2,16 @@ import type { Metadata } from "next";
 import { Instrument_Sans, Spline_Sans_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { SiteFooter } from "@/components/site-footer";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
-const defaultUrl = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : "http://localhost:3000";
-
 export const metadata: Metadata = {
-  metadataBase: new URL(defaultUrl),
+  // Was derived from VERCEL_URL, which on Vercel is the *deployment* hostname,
+  // not the domain. Every OG and Twitter image on exprifi.com was therefore
+  // pointing at a preview URL — broken share cards everywhere, and two hosts
+  // serving identical content to crawlers. See lib/site.ts.
+  metadataBase: new URL(SITE_URL),
+  alternates: { canonical: "/" },
   title: {
     default: "Exprifi — the marketplace that hunts for you",
     // Sub-pages set their own title; this keeps the brand on every tab.

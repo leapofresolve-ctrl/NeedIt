@@ -51,11 +51,30 @@ export default async function Home({
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims?.sub;
 
-  // Logged-out: split landing — hero tagline + the two intent doors.
-  if (!userId) {
-    return (
-      <main className="min-h-screen flex flex-col items-center justify-center gap-10 p-6">
-        <div className="flex flex-col gap-4 max-w-2xl text-center items-center">
+  // Logged-in: require a username before showing the board.
+  if (userId) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", userId)
+      .maybeSingle();
+    if (!profile?.username) {
+      redirect("/onboarding");
+    }
+  }
+
+  // ── The logged-out hero ───────────────────────────────────────────────────
+  // Jul 29: this used to be an early `return` — a logged-out visitor saw the
+  // two doors and nothing else, because the board itself was behind the login
+  // gate. That is the single worst thing a marketplace can do to a stranger:
+  // ask them to take it on faith that anyone is inside.
+  //
+  // Now the hero renders ABOVE the live board rather than instead of it. The
+  // pitch and the proof arrive in the same scroll. This is also what makes the
+  // board indexable — see app/sitemap.ts.
+  const heroForLoggedOut = !userId ? (
+    <section className="flex w-full flex-col items-center gap-8 px-6 pb-4 pt-10">
+      <div className="flex flex-col gap-4 max-w-2xl text-center items-center">
           <span className="text-2xl font-bold tracking-[-0.04em]">
             exprifi
             <span className="wordmark-tick" aria-hidden />
@@ -99,30 +118,20 @@ export default async function Home({
             </p>
             {/* One primary per screen (3b §1.2): "Post a need" is the primary,
                 so the Sell door is secondary — same size, quieter weight.
-                TODO Block B: point this at /board once anon RLS lands, so
-                browsing no longer requires an account. */}
+                Block B landed Jul 29: this is now an anchor to the live board
+                sitting directly below, not a login redirect. Nobody has to
+                create an account to find out whether anyone is here. */}
             <Button asChild size="lg" variant="outline" className="w-full mt-auto">
-              <Link href="/auth/login">Browse the board</Link>
+              <Link href="#board">Browse the board</Link>
             </Button>
           </div>
         </div>
 
-        <p className="num text-xs text-muted-foreground">
-          every account does both — intent, not identity
-        </p>
-      </main>
-    );
-  }
-
-  // Logged-in: require a username.
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("username")
-    .eq("id", userId)
-    .maybeSingle();
-  if (!profile?.username) {
-    redirect("/onboarding");
-  }
+      <p className="num text-xs text-muted-foreground">
+        every account does both — intent, not identity
+      </p>
+    </section>
+  ) : null;
 
   // ----- Filters + sort from the URL -----
   const params = await searchParams;
@@ -216,7 +225,11 @@ export default async function Home({
   return (
     <main className="min-h-screen flex flex-col items-center">
       <SiteHeader />
-      <div className="w-full max-w-5xl flex flex-col gap-4 px-2.5 sm:px-5 py-4">
+      {heroForLoggedOut}
+      <div
+        id="board"
+        className="w-full max-w-5xl flex flex-col gap-4 px-2.5 sm:px-5 py-4 scroll-mt-28"
+      >
         {/* Category pills — sports cards live; the platform is category-agnostic */}
         <div className="flex flex-wrap gap-2 px-1">
           <span className="rounded-sm bg-foreground text-background text-xs font-semibold px-3 py-1.5">
@@ -233,14 +246,34 @@ export default async function Home({
           </span>
         </div>
 
-        {/* H1 + stats */}
+        {/* H1 + stats. When logged out the H1 is already spent on the hero, so
+            this drops to an h2 — one h1 per document, and screen-reader users
+            shouldn't hit two competing page titles. */}
         <div className="flex items-baseline justify-between gap-3 px-1">
-          <h1 className="text-2xl font-bold tracking-[-0.03em]">Open demand</h1>
+          {userId ? (
+            <h1 className="text-2xl font-bold tracking-[-0.03em]">
+              Open demand
+            </h1>
+          ) : (
+            <h2 className="text-2xl font-bold tracking-[-0.03em]">
+              Open demand
+            </h2>
+          )}
           <span className="num text-xs text-muted-foreground">
             {rows.length} open · {totalOffers}{" "}
             {totalOffers === 1 ? "offer" : "offers"} in play
           </span>
         </div>
+
+        {/* Trust strip (3b §1.5d). One line, static, no decorative icons. It
+            sits under the H1 because that is where a cautious buyer's eye
+            lands after the headline, and because these three sentences are the
+            actual product differences — not marketing claims we'd have to
+            defend later. */}
+        <p className="px-1 text-sm text-muted-foreground">
+          Structured offers only · No public contact sharing · Identities stay
+          private until a deal is agreed
+        </p>
 
         {/* 3b: the six-select facet bar is gone. At rest this is TWO controls —
             "Refine" and "Sort" — with any active filters shown as removable

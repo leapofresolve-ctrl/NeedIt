@@ -4,6 +4,11 @@ import { useEffect } from "react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import {
+  SUPPORT_EMAIL,
+  SUPPORT_INBOX_LIVE,
+  supportMailto,
+} from "@/lib/contact";
 
 /**
  * 3b: branded 500. Deliberately does NOT print the error message or digest to
@@ -35,7 +40,7 @@ export default function GlobalError({
         <p className="text-sm text-board-secondary">
           Something went wrong loading this page. Nothing you did caused it, and
           no deal or offer was affected. Try again — if it keeps happening,
-          email us and we&apos;ll sort it out.
+          let us know and we&apos;ll sort it out.
         </p>
         <div className="flex flex-wrap gap-3">
           <Button size="lg" onClick={reset}>
@@ -45,12 +50,14 @@ export default function GlobalError({
             <Link href="/">Back to the board</Link>
           </Button>
         </div>
-        <a
-          href="mailto:support@exprifi.com?subject=Something%20broke%20on%20Exprifi"
-          className="text-xs text-board-secondary underline underline-offset-4"
-        >
-          support@exprifi.com
-        </a>
+        {SUPPORT_INBOX_LIVE && (
+          <a
+            href={supportMailto("Something broke on Exprifi")}
+            className="text-xs text-board-secondary underline underline-offset-4"
+          >
+            {SUPPORT_EMAIL}
+          </a>
+        )}
       </div>
     </main>
   );

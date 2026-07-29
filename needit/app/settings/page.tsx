@@ -3,6 +3,11 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
+import {
+  SUPPORT_EMAIL,
+  SUPPORT_INBOX_LIVE,
+  supportMailto,
+} from "@/lib/contact";
 import { SiteHeader } from "@/components/site-header";
 import { StripeConnectButton } from "@/components/settings/stripe-connect-button";
 import {
@@ -96,14 +101,21 @@ export default async function SettingsPage() {
             <strong className="font-semibold">
               This account is scheduled to close.
             </strong>{" "}
-            Your profile is hidden and your needs are off the board. Email{" "}
-            <a
-              className="underline"
-              href="mailto:support@exprifi.com?subject=Reopen%20my%20account"
-            >
-              support@exprifi.com
-            </a>{" "}
-            to reverse it.
+            Your profile is hidden and your needs are off the board.{" "}
+            {SUPPORT_INBOX_LIVE ? (
+              <>
+                Email{" "}
+                <a className="underline" href={supportMailto("Reopen my account")}>
+                  {SUPPORT_EMAIL}
+                </a>{" "}
+                within 14 days to reverse it.
+              </>
+            ) : (
+              <>
+                Get in touch within 14 days and we&apos;ll reverse it — nothing
+                is deleted before then.
+              </>
+            )}
           </div>
         )}
 
@@ -158,19 +170,24 @@ export default async function SettingsPage() {
                     How Exprifi works
                   </Link>
                 </li>
-                <li>
-                  <a href="mailto:support@exprifi.com" className="underline">
-                    Email support@exprifi.com
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="mailto:support@exprifi.com?subject=Reporting%20a%20problem"
-                    className="underline"
-                  >
-                    Report a member or a listing
-                  </a>
-                </li>
+                {/* Only shown once the mailbox actually receives — lib/contact.ts */}
+                {SUPPORT_INBOX_LIVE && (
+                  <>
+                    <li>
+                      <a href={supportMailto()} className="underline">
+                        Email {SUPPORT_EMAIL}
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href={supportMailto("Reporting a problem")}
+                        className="underline"
+                      >
+                        Report a member or a listing
+                      </a>
+                    </li>
+                  </>
+                )}
               </ul>
             </section>
 

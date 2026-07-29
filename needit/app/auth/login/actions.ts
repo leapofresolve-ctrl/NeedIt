@@ -1,7 +1,9 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { LIMITS, clientIp, rateLimit } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -24,16 +26,39 @@ export type LoginState = { error?: string };
  *    password verification before answering, otherwise "fast = no such user"
  *    leaks the same information the identical message was hiding.
  *
- *  * RATE LIMITING. Not yet wired — Upstash is on Kyle's setup list. Until it
- *    lands, Supabase's own auth rate limits are the only brake, which is thin
- *    for credential stuffing. See TODO below; this must not ship to a public,
- *    unauthenticated site without it.
+ *  * RATE LIMITING. Wired Jul 29, alongside public browsing. Two independent
+ *    limits: per IP (one source spraying many identifiers = credential
+ *    stuffing) and per identifier (many sources hammering one known account).
+ *    Either alone is easy to walk around. See lib/rate-limit.ts — it runs on
+ *    Upstash when configured and an in-process fallback when not.
+ *
+ *  * SAFE RETURN. `next` comes from the proxy's redirect and lands the user on
+ *    the exact page they were trying to reach. It is validated here, not
+ *    trusted: a value that isn't a same-site path is discarded, because an
+ *    unchecked redirect target on a login page is a phishing primitive.
  */
 
 const GENERIC_FAILURE =
   "That username/email and password don't match. Check both and try again.";
 
+const RATE_LIMITED =
+  "Too many sign-in attempts. Wait a minute and try again.";
+
 const looksLikeEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+
+/**
+ * Accept only same-site absolute paths.
+ *
+ * Rejects "https://evil.com" (absolute), "//evil.com" (protocol-relative — the
+ * one people forget, since it starts with "/" and passes a naive check), and
+ * anything with a backslash, which some browsers normalise to "/".
+ */
+function safeNext(value: FormDataEntryValue | null): string {
+  if (typeof value !== "string") return "/";
+  if (!value.startsWith("/")) return "/";
+  if (value.startsWith("//") || value.includes("\\")) return "/";
+  return value;
+}
 
 export async function signIn(
   _prev: LoginState,
@@ -45,14 +70,27 @@ export async function signIn(
       : "";
   const password = formData.get("password");
 
+  const next = safeNext(formData.get("next"));
+
   if (!identifier || typeof password !== "string" || !password) {
     return { error: GENERIC_FAILURE };
   }
 
-  // TODO(rate-limit): per-IP (10/min) and per-identifier (5/min) via Upstash,
-  // before public browsing opens. Log repeated failures to the flag queue —
-  // one IP failing fifty identifiers is a credential-stuffing run, and that's
-  // exactly what the Leak Patrol agent should be reading.
+  // Two limits, checked before any database work so a flood costs us nothing.
+  // Lowercased identifier key: "VoloksVault" and "voloksvault" are the same
+  // target and must share a budget.
+  const ip = clientIp(await headers());
+  const [byIp, byIdentifier] = await Promise.all([
+    rateLimit(`login:ip:${ip}`, LIMITS.loginPerIp),
+    rateLimit(`login:id:${identifier.toLowerCase()}`, LIMITS.loginPerIdentifier),
+  ]);
+  if (!byIp.ok || !byIdentifier.ok) {
+    // Distinct from GENERIC_FAILURE on purpose. It reveals nothing about
+    // whether the account exists — only that *this caller* is going too fast —
+    // and telling a real person who fat-fingered their password five times
+    // that they're throttled is far kinder than a sixth "wrong password".
+    return { error: RATE_LIMITED };
+  }
 
   let email: string | null = null;
 
@@ -85,5 +123,5 @@ export async function signIn(
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { error: GENERIC_FAILURE };
 
-  redirect("/");
+  redirect(next);
 }
