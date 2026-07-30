@@ -268,3 +268,19 @@ Also: `update-password-form` redirected to the scaffold's `/protected` on succes
 `tsc --noEmit` and eslint clean on all touched files.
 
 **⚠ One item left:** the **Confirm sign up** template still uses `{{ .ConfirmationURL }}`. Dormant — email confirmation is off — but it must be switched to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/onboarding` **before** confirmation is flipped on for launch, or signups inherit the same PKCE dead-end this session just fixed. The Supabase dashboard started rendering blank mid-session, so it was left rather than half-edited. Note the editor auto-closes tags: type `</p` and let it supply the `>`, or you get `</p>>`.
+
+### ❌→✅ Jul 29, 11:27 PM — second reset test FAILED, real root cause found
+Sent a second reset after `a8e015c` deployed. Delivered again (11:27 PM), and the link was correctly on our domain:
+`https://exprifi.com/auth/confirm?token_hash=pkce_9be4…&type=recovery&next=/auth/update-password`
+
+Followed it: **"That link has expired or was already used"** on the very first click. Note the token: **`pkce_`-prefixed**. The browser Supabase client runs the PKCE flow, so `resetPasswordForEmail` made GoTrue mint a PKCE-style token, `{{ .TokenHash }}` inherited the prefix, and server-side `verifyOtp()` rejects it outright. The template change was necessary but not sufficient — the *request* side had to change too.
+
+**Fix — originate the reset server-side in implicit mode:**
+- **`app/auth/forgot-password/actions.ts` (new)** — server action using `createServerClient` with `auth: { flowType: "implicit" }`. Implicit produces a plain token hash that `verifyOtp` accepts, from any device. No `redirectTo` passed: the email template owns the destination, so there's one place to change it instead of two that can disagree.
+- Rate limited with **`LIMITS.passwordResetPerIp`** — which already existed in `lib/rate-limit.ts` and had never been wired to anything. Per-IP only, deliberately: a per-address limit leaks which addresses exist.
+- Response is always the same ("if that address has an account…") whether or not the user exists; the real error is logged server-side only. The form was previously an account-enumeration oracle.
+- **`components/forgot-password-form.tsx`** — converted from browser client + `useState` to `useActionState`. Copy now warns that requesting a new link invalidates the previous one, which is the most common self-inflicted "the link is broken" report.
+
+`tsc --noEmit` + eslint clean. **Not yet verified live** — needs deploy, then one more real reset.
+
+**Why implicit rather than keeping PKCE:** PKCE stores its code verifier in the browser that began the flow, so requesting a reset on a laptop and tapping the link in a phone's mail app can never work. Email is the one place where cross-device is the *normal* case, which makes PKCE the wrong flow here regardless of the prefix bug. `/auth/callback` is retained for links already in inboxes and for OAuth later.

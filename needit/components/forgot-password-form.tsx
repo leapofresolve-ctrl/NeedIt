@@ -1,7 +1,13 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
+import { useActionState } from "react";
+
+import {
+  GENERIC_SENT,
+  requestPasswordReset,
+  type ForgotPasswordState,
+} from "@/app/auth/forgot-password/actions";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,79 +18,78 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Link from "next/link";
-import { useState } from "react";
+import { cn } from "@/lib/utils";
 
+const initialState: ForgotPasswordState = {};
+
+/**
+ * Moved off the browser Supabase client to a server action — see
+ * app/auth/forgot-password/actions.ts for why (short version: the browser
+ * client's PKCE flow produced a token that server-side verifyOtp rejects, so
+ * every reset link died on the first click).
+ *
+ * No `redirectTo` is sent from here any more; the email template owns the
+ * destination, so there's one place to change it instead of two that can
+ * disagree.
+ */
 export function ForgotPasswordForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const supabase = createClient();
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // The url which will be included in the email. This URL needs to be configured in your redirect URLs in the Supabase dashboard at https://supabase.com/dashboard/project/_/auth/url-configuration
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/update-password`,
-      });
-      if (error) throw error;
-      setSuccess(true);
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [state, formAction, pending] = useActionState(
+    requestPasswordReset,
+    initialState,
+  );
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      {success ? (
+      {state.sent ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Check Your Email</CardTitle>
+            <CardTitle className="text-2xl">Check your email</CardTitle>
             <CardDescription>Password reset instructions sent</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-3">
+            <p className="text-sm text-muted-foreground">{GENERIC_SENT}</p>
             <p className="text-sm text-muted-foreground">
-              If you registered using your email and password, you will receive
-              a password reset email.
+              The link works once and expires shortly. If it doesn&apos;t arrive
+              within a few minutes, check your spam folder before requesting
+              another — each new request invalidates the previous link.
             </p>
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Reset Your Password</CardTitle>
+            <CardTitle className="text-2xl">Reset your password</CardTitle>
             <CardDescription>
               Type in your email and we&apos;ll send you a link to reset your
-              password
+              password.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleForgotPassword}>
+            <form action={formAction}>
               <div className="flex flex-col gap-6">
                 <div className="grid gap-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
                     id="email"
+                    name="email"
                     type="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     placeholder="m@example.com"
                     required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
-                {error && <p className="text-sm text-destructive">{error}</p>}
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Sending..." : "Send reset email"}
+                {state.error && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {state.error}
+                  </p>
+                )}
+                <Button type="submit" className="w-full" disabled={pending}>
+                  {pending ? "Sending…" : "Send reset email"}
                 </Button>
               </div>
               <div className="mt-4 text-center text-sm">
