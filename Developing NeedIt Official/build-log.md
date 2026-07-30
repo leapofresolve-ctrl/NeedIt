@@ -245,3 +245,26 @@ Kyle confirmed 0015 applied in Supabase with every deny-test NOTICE reporting pa
 - **▶ Live test:** password reset → confirm Resend logs *Delivered* and the link lands on `exprifi.com/auth/update-password`. **Until this passes, treat password recovery as still broken** — `/auth/forgot-password` code is correct but has never once delivered, so every seeded seller currently has no self-serve recovery path.
 - **▶ Revoke the old Resend `Onboarding` key** after the redeploy verifies notifications still send.
 - Vercel is on **Hobby**, Supabase org on **Free** — both were W1 roadmap items, neither blocking today.
+
+### ✅ Jul 29, 10:39 PM — password reset VERIFIED delivered
+Live test from `exprifi.com/auth/forgot-password` → `kylevolo72@gmail.com`. Resend logs **Sent 10:39 PM → Delivered 10:39 PM**, from `"Exprifi" <notifications@exprifi.com>`. Auth email now flows through Resend; the 2/hour demo sender is out of the path. Commit `5d6af98` deployed to Production (Ready) with both new env vars. **Password recovery works for the first time.**
+
+Two things noticed in Resend's log while verifying:
+- `fhuiweou@gmail.com` **Bounced** (Jul 27) and a later send to it shows **Suppressed** — Resend auto-suppresses after a hard bounce, so that address will silently receive nothing from now on. Looks like a junk/typo signup; if it's ever a real member, they must be removed from the Suppression list or they get no email at all. Worth checking the suppression list before blaming the pipeline for any future "didn't get the email" report.
+- Auth email links point at `cfcjcxgmntkatamflaqh.supabase.co/auth/v1/verify?...` before redirecting to exprifi.com — the Supabase default template. Functional, but off-brand on the one screen where a member is most alert to phishing. `app/auth/confirm/route.ts` already implements the `token_hash` pattern, so switching the templates to `{{ .TokenHash }}` → `https://exprifi.com/auth/confirm` would keep the whole flow on our domain. Cosmetic; queue with the pre-launch security pass.
+
+### 🔧 Jul 29 (later still) — "Auth session missing!" on reset: the PKCE gap, closed
+Delivery was fixed but the reset itself still failed. Cause: `resetPasswordForEmail` from the browser client uses **PKCE**, so the email link is `<project>.supabase.co/auth/v1/verify?token=pkce_…&redirect_to=…` and Supabase bounces the member to `<redirect_to>?code=…`. A `code` is not a session — something must call `exchangeCodeForSession()`. `redirect_to` pointed at `/auth/update-password`, which is a **page**, not a Route Handler, so nothing exchanged it and `updateUser()` ran unauthenticated. Only a Route Handler or Server Action can write the auth cookies; a page render cannot.
+
+Fixed in four layers, so no single point has to hold:
+
+1. **`app/auth/callback/route.ts` (new)** — exchanges `?code=` for a session, then redirects to a validated `next`. Handles OAuth later, and handles any PKCE link already sitting in an inbox. Failure text says "expired or already used, and open it in the same browser you requested it from" rather than leaking the SDK string — PKCE keeps its verifier in the originating browser, which is the real cause most of the time.
+2. **`app/auth/update-password/page.tsx`** — now a server component. `?code=` present → hand off to `/auth/callback`; no session → render "This link has expired" with a link to request a new one. Previously the form rendered regardless and the member only discovered the problem *after* typing a new password, as `Auth session missing!`.
+3. **Email templates → token_hash.** Reset password now points at `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/auth/update-password`. This sidesteps PKCE entirely: `verifyOtp` runs server-side, so it works **cross-device** — request on the laptop, tap the link in the phone's mail app. Email is exactly where cross-device is normal, which makes PKCE the wrong default here. Bonus: the link stays on exprifi.com instead of routing through `<project>.supabase.co`, on the one screen where members are most alert to phishing.
+4. **`lib/safe-next.ts` (new)** — the open-redirect guard, extracted from `app/auth/login/actions.ts` (behaviour unchanged) and now shared by sign-in, `/auth/confirm` and `/auth/callback`. `next` arrives from an email in two of those three, i.e. attacker-controlled; three copies of this rule would eventually become three different rules.
+
+Also: `update-password-form` redirected to the scaffold's `/protected` on success — now `/` plus `router.refresh()` so server components see the new session. `/auth/confirm` gained a `recovery` → `/auth/update-password` default and human-readable expiry errors.
+
+`tsc --noEmit` and eslint clean on all touched files.
+
+**⚠ One item left:** the **Confirm sign up** template still uses `{{ .ConfirmationURL }}`. Dormant — email confirmation is off — but it must be switched to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/onboarding` **before** confirmation is flipped on for launch, or signups inherit the same PKCE dead-end this session just fixed. The Supabase dashboard started rendering blank mid-session, so it was left rather than half-edited. Note the editor auto-closes tags: type `</p` and let it supply the `>`, or you get `</p>>`.

@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { LIMITS, clientIp, rateLimit } from "@/lib/rate-limit";
+import { safeNext } from "@/lib/safe-next";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -47,18 +48,10 @@ const RATE_LIMITED =
 const looksLikeEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
 /**
- * Accept only same-site absolute paths.
- *
- * Rejects "https://evil.com" (absolute), "//evil.com" (protocol-relative — the
- * one people forget, since it starts with "/" and passes a naive check), and
- * anything with a backslash, which some browsers normalise to "/".
+ * `safeNext` now lives in lib/safe-next.ts — same rules, shared with
+ * /auth/confirm and /auth/callback so the three auth entry points can't drift
+ * into three different opinions about what a safe redirect is.
  */
-function safeNext(value: FormDataEntryValue | null): string {
-  if (typeof value !== "string") return "/";
-  if (!value.startsWith("/")) return "/";
-  if (value.startsWith("//") || value.includes("\\")) return "/";
-  return value;
-}
 
 export async function signIn(
   _prev: LoginState,
