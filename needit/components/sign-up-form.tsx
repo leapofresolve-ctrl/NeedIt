@@ -40,15 +40,31 @@ export function SignUpForm({
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          // Only used when email confirmation is ON in Supabase. Points at
+          // onboarding so a confirmed user lands on "pick a username" rather
+          // than a logged-out home page.
+          emailRedirectTo: `${window.location.origin}/onboarding`,
         },
       });
       if (error) throw error;
-      router.push("/auth/sign-up-success");
+
+      // Email confirmation is OFF, so signUp returns a live session and the
+      // user is already signed in. Send them to onboarding. Previously this
+      // always pushed to /auth/sign-up-success, which told every new signup to
+      // wait for a confirmation email that was never sent — a hard dead-end.
+      //
+      // If confirmation is ever turned back on, session is null and the
+      // check-your-email page is correct. This branch keeps both modes working
+      // without another code change.
+      if (data.session) {
+        router.push("/onboarding");
+      } else {
+        router.push("/auth/sign-up-success");
+      }
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {

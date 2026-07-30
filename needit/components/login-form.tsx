@@ -56,7 +56,7 @@ export function LoginForm({
                   autoComplete="username"
                   autoCapitalize="none"
                   spellCheck={false}
-                  placeholder="voloksvault"
+                  placeholder="cardhunter23"
                   required
                 />
               </div>

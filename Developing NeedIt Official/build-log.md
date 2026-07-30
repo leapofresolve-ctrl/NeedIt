@@ -210,3 +210,38 @@ See `exprifi-status-and-next-steps.md` for the full kickoff brief (open in new c
 - **Apply order: 0015 first (urgent, pairs with the proxy flip), then 0016 (whenever).** Both idempotent, disjoint objects.
 - Related docs from the card-refs session, also untracked: `card-data-vendor-comparison.md`, `cardhedge-reply-draft.md`, `card-catalog-and-automatch-spec.md`.
 - ⚠️ A stale zero-byte `.git/index.lock` (19:04) exists — sandbox can't delete it; Kyle: `rm ~/Desktop/NeedIt/.git/index.lock` before the next git command. The two handoff docs (`handoff-0015-reconcile.md`, `HANDOFF-0015-collision-check.md`) are now historical; safe to delete after commit.
+
+### ✅ Jul 29 (later) — migration 0015 RUN, deny-tests passed
+Kyle confirmed 0015 applied in Supabase with every deny-test NOTICE reporting pass. Anonymous access is now verified, not assumed: anon can read public needs and public profiles (whitelisted columns only) and can read nothing else — no offers, no private wants, no inventory, no deals, no `is_admin`, no `stripe_account_id`, no `resolve_login_email`, no writes. **The database boundary is confirmed, which is what makes the proxy denylist inversion safe to ship.** Remaining Phase 1 handoffs: legal review + `LEGAL_ADDRESS`, secret rotation, Supabase Auth URL configuration, `offer-photos` bucket check, commit + push. Search-indexing policy is being handled in a separate thread — **do not edit `app/robots.ts` from this session.**
+
+## 🗓 Jul 29, 2026 (late) — signup confirmation dead-end fixed + auth email pipe finally wired
+
+**Reported symptom:** every new signup was told to check their email for a confirmation that never arrived. Email confirmation had already been turned off in Supabase as a temporary fix, and it still didn't work.
+
+**Root cause was two independent faults stacked, neither of which was "email went to spam."**
+
+1. **The app dead-ended users itself.** `components/sign-up-form.tsx` pushed to `/auth/sign-up-success` unconditionally. With confirmation OFF, `signUp()` returns a live session — the user is *already signed in* — but the UI still parked them on "check your email to confirm your account before signing in." Turning confirmation off could never have worked while this redirect was unconditional.
+2. **Supabase Auth email had never been connected to Resend.** Two separate pipes, and only one was ever built:
+   - **Resend** (`notifications@exprifi.com`, verified on `send.exprifi.com`) — app notifications via DB webhook → `/api/notifications/email`. Live since Jul 2, working.
+   - **Supabase Auth** (confirmation, password reset, email change) — was still on Supabase's **built-in demo sender**, capped at **2 emails/hour**, best-effort, which their own docs say is not for production. Custom SMTP was **off**. Nothing Resend does touches this path.
+   - Found while configuring it: the SMTP username was already set to `NeedIt` with a saved password, from an abandoned earlier attempt. Resend requires the username to be literally `resend`, so that attempt would have failed auth even had the toggle been on.
+3. **Bonus fault that would have broken the emails anyway:** Site URL was `https://need-it.vercel.app` and the redirect allowlist contained only that host plus `localhost:3000`. **`exprifi.com` was absent.** A reset started from exprifi.com sends `redirectTo=https://exprifi.com/auth/update-password`, which Supabase rejects as un-allowlisted and silently downgrades to Site URL. Working SMTP alone would not have produced a working reset.
+
+**Fixed:**
+
+- ✅ `sign-up-form.tsx` is now session-aware: `if (data.session) → /onboarding`, else → `/auth/sign-up-success`. Correct under BOTH confirmation modes, so flipping the Supabase toggle needs no code change. `emailRedirectTo` retargeted from `/` to `/onboarding` so a confirmed user lands on "pick a username" instead of a logged-out home page. `tsc --noEmit` clean.
+- ✅ `login-form.tsx` placeholder `voloksvault` → `cardhunter23`. Kyle's personal username was being suggested to every visitor. (Deliberately left alone: the `resolve_login_email` comment, `LEGAL_ENTITY`, and the 0006 admin-grant migration.)
+- ✅ **Supabase custom SMTP ON** → `smtp.resend.com:465`, user `resend`, sender `Exprifi <notifications@exprifi.com>`. Auth email rate limit **2/hr → 30/hr** (adjustable under Auth → Rate Limits).
+- ✅ New Resend key `Supabase Auth SMTP`, **Sending access** only (not Full access), replacing reuse of the `Onboarding` key. Same value written to Vercel `RESEND_API_KEY`, which also discharges the rotation the runbook wanted. Old `Onboarding` key still live — revoke only after a redeploy confirms notifications still send.
+- ✅ **Supabase Site URL → `https://exprifi.com`**; redirect allowlist now `exprifi.com/**` + `need-it.vercel.app/**` + `localhost:3000/**`. Closes the open Phase 1 handoff. `need-it.vercel.app/**` retained on purpose for transition.
+- ✅ **`NEXT_PUBLIC_SITE_URL` was missing from Vercel entirely** — separate latent bug found in passing. `/api/notifications/email` falls back to `?? "https://need-it.vercel.app"`, so *every notification email ever sent* linked to the vercel.app host; canonical tags, OG images and the sitemap resolved through the same var. Now set to `https://exprifi.com`, **Production only** (Preview left unset so previews use their own URL), **not** marked Sensitive since it's a public value.
+
+**Why Resend and not Google Workspace for auth email:** Workspace is the *inbox* (`support@`, `kyle@` on root MX) and should stay that way. Its SMTP relay is built for human mail — ~2,000 recipients/day, no delivery analytics, and it would put transactional bursts on the same reputation as the real mailbox. Resend was already domain-verified with SPF/DKIM/DMARC and gives per-message delivery logs. The two coexist because their MX records sit on different hosts (see `lib/contact.ts`).
+
+**Deliberately NOT done:** email confirmation stays **OFF** through the seeding sprint. The board is at 0 and every extra signup step costs a seeded seller. Roadmap §246 wants it ON for launch and that's still right — flip it after a delivered test, before Sep 26. The code handles either mode with no further change.
+
+### ⚠️ Open items from this session
+- **▶ Redeploy Vercel** — `RESEND_API_KEY` and `NEXT_PUBLIC_SITE_URL` don't take effect until a new deployment.
+- **▶ Live test:** password reset → confirm Resend logs *Delivered* and the link lands on `exprifi.com/auth/update-password`. **Until this passes, treat password recovery as still broken** — `/auth/forgot-password` code is correct but has never once delivered, so every seeded seller currently has no self-serve recovery path.
+- **▶ Revoke the old Resend `Onboarding` key** after the redeploy verifies notifications still send.
+- Vercel is on **Hobby**, Supabase org on **Free** — both were W1 roadmap items, neither blocking today.
