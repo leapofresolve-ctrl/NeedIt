@@ -340,6 +340,7 @@ const WEEKS = [
   { id:"p4", title:"Phase 4 — Launch prep", dates:"Sep 15 – Sep 25", items:[
     ["c","Security pass 2: advisors, deny-tests on all new tables, npm audit, dispute drill"],
     ["c","BEFORE flipping email confirmation ON: switch the <strong>Confirm sign up</strong> template to <span class='mono'>{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=email&amp;next=/onboarding</span>. It still uses <span class='mono'>ConfirmationURL</span> (PKCE) — flip confirmation first and every signup dies on the same dead-end password reset hit Jul 29. Then send one real test signup.",1],
+    ["c","Auth form polish, one pass with the template switch above: (a) confirm-password field on <span class='mono'>/auth/update-password</span> — it has none today, so a typo silently becomes the new password and locks the member out on the screen they came to <em>fix</em> being locked out; (b) show/hide reveal toggle on password fields (first field at minimum); (c) fold in the HIBP leaked-password check + min length 10 already on the security list — same form, same pass. Signup already has a repeat field; update-password does not."],
     ["c","CSP tightening: nonce-based script-src, drop 'unsafe-inline' (deferred from Phase 1)"],
     ["c","Load/perf pass · analytics final · war-room checklist"],
     ["c","FEATURE FREEZE Sep 21 — bug-fix only after",1],

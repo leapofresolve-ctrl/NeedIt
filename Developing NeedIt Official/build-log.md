@@ -284,3 +284,15 @@ Followed it: **"That link has expired or was already used"** on the very first c
 `tsc --noEmit` + eslint clean. **Not yet verified live** — needs deploy, then one more real reset.
 
 **Why implicit rather than keeping PKCE:** PKCE stores its code verifier in the browser that began the flow, so requesting a reset on a laptop and tapping the link in a phone's mail app can never work. Email is the one place where cross-device is the *normal* case, which makes PKCE the wrong flow here regardless of the prefix bug. `/auth/callback` is retained for links already in inboxes and for OAuth later.
+
+### ✅ Jul 29 — password reset CONFIRMED WORKING end to end
+Kyle ran a real reset after the implicit-flow server action deployed: email delivered, link accepted, new password set. **Password recovery works.** That was the last unproven link in the auth chain and the one that mattered most for the seeding sprint — a seeded seller who loses their password now has a self-serve way back in.
+
+### 📌 Queued (Phase 4, one pass with the Confirm signup template switch)
+Kyle's asks, deliberately not built tonight:
+
+1. **Confirm-password field on `/auth/update-password`.** It has none today — a typo silently becomes the new password, and the member is locked out on the exact screen they opened to *stop* being locked out. Worst possible place for a single-entry password field. (`sign-up-form` already has a repeat field; this one was never given one by the scaffold.)
+2. **Show/hide reveal toggle** on password fields — at minimum the first/primary field. Reduces the typo rate that (1) catches, so the two belong together.
+3. **Fold in the security-list items on the same form:** HIBP leaked-password protection + min length 10 (roadmap §246). All three touch the same two components; doing them in one pass avoids three separate rounds of "change the password form, redeploy, retest".
+
+Grouped in the command center under Phase 4 next to the Confirm signup template item, since email confirmation ON and the password-form work will both want a real test signup afterwards — one test run, not two.
