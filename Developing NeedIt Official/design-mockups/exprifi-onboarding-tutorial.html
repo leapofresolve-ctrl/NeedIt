@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Exprifi — Teaching new users (from the empty state)</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --background:#FAFAFA; --foreground:#0B0E11; --card:#FFFFFF; --border:#E6E7E9;
+  --board:#101114; --board-border:#24262B; --board-card:#15171C; --board-hairline:#1C1E23;
+  --board-fg:#F2F3F5; --board-secondary:#C6CAD0; --board-faint:#5C6167;
+  --muted-foreground:#6E7378; --faint-foreground:#9BA0A6;
+  --primary:#00A968; --primary-live:#2ED98A; --primary-deep:#00794B; --warn:#F5A623;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#EDEEF0;color:var(--foreground);font-family:'Instrument Sans',system-ui,sans-serif;
+  font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:40px 24px 96px}
+h1{font-size:30px;font-weight:700;letter-spacing:-.02em;margin:0 0 6px}
+.sub{color:var(--muted-foreground);margin:0 0 36px;max-width:74ch}
+.mono{font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums}
+section{margin:0 0 56px}
+h2{font-size:21px;font-weight:700;margin:0 0 4px;letter-spacing:-.01em}
+h3{font-size:16px;font-weight:700;margin:26px 0 8px}
+.note{color:var(--muted-foreground);font-size:15px;margin:0 0 18px;max-width:80ch}
+.tag{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  background:var(--foreground);color:#fff;padding:4px 9px;border-radius:2px;margin-bottom:10px}
+.tag.rec{background:var(--primary-deep)}
+.tag.bad{background:#B4322A}
+.frame{background:var(--card);border:1px solid var(--border);border-radius:2px;overflow:hidden;
+  box-shadow:0 1px 2px rgba(11,14,17,.05)}
+.chrome{height:30px;background:#F3F4F5;border-bottom:1px solid var(--border);display:flex;align-items:center;
+  padding:0 10px;gap:5px}
+.chrome i{width:8px;height:8px;border-radius:50%;background:#D6D8DB;display:block}
+.chrome span{margin-left:10px;font-size:11px;color:var(--faint-foreground)}
+.pad{padding:22px;background:var(--background)}
+.mast{display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;
+  border-bottom:1px solid var(--border);margin-bottom:20px}
+.logo{font-weight:700;font-size:19px;letter-spacing:-.02em;display:flex;align-items:center;gap:5px}
+.logo .tick{width:.4em;height:.14em;background:var(--primary);border-radius:2px;display:inline-block}
+.mastlinks{display:flex;gap:18px;font-size:14px;color:var(--muted-foreground);align-items:center}
+.mastlinks a{color:inherit;text-decoration:none}
+.mastlinks .txtlink{color:var(--foreground);font-weight:500}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-family:inherit;font-size:15px;
+  font-weight:600;padding:11px 16px;border-radius:2px;border:1px solid var(--foreground);
+  background:var(--foreground);color:#fff;min-height:44px}
+.btn.ghost{background:transparent;color:var(--foreground)}
+.btn.sm{min-height:38px;padding:8px 13px;font-size:14px}
+.why{background:#fff;border:1px solid var(--border);border-left:3px solid var(--primary);padding:14px 16px;
+  margin-top:14px;font-size:14.5px}
+.why.warn{border-left-color:var(--warn)}
+.why.stop{border-left-color:#B4322A}
+.why ul{margin:8px 0 0;padding-left:20px}
+.why li{margin:3px 0}
+hr.big{border:0;border-top:1px solid #D9DBDE;margin:54px 0}
+.caption{font-size:12.5px;color:var(--muted-foreground);margin-top:8px}
+
+/* board */
+.board{background:var(--board);border:1px solid var(--board-border);color:var(--board-fg)}
+.board-head{display:flex;align-items:baseline;justify-content:space-between;padding:16px 18px;
+  border-bottom:1px solid var(--board-hairline)}
+.board-head .h{font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--board-secondary)}
+.livecount{font-size:13px;color:var(--board-secondary)}
+.livecount b{color:var(--primary-live);font-family:'Spline Sans Mono',monospace}
+.dot{display:inline-block;width:7px;height:7px;background:var(--primary-live);border-radius:2px;margin-right:6px}
+.row{display:grid;grid-template-columns:1fr auto auto auto;gap:14px;align-items:center;padding:14px 18px;
+  border-bottom:1px solid var(--board-hairline);min-height:44px}
+.row:last-child{border-bottom:0}
+.row .title{font-size:15px;font-weight:500}
+.row .meta{font-size:12.5px;color:var(--board-faint);margin-top:2px}
+.chip{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:3px 7px;border-radius:2px}
+.chip.bulk{background:#1E2A24;color:var(--primary-live)}
+.chip.single{border:1px solid var(--board-border);color:var(--board-secondary)}
+.budget{font-family:'Spline Sans Mono',monospace;font-size:18px;font-weight:600}
+.budget small{display:block;font-size:9.5px;font-weight:400;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--board-faint);font-family:'Instrument Sans',sans-serif}
+.clock{font-family:'Spline Sans Mono',monospace;font-size:13px;color:var(--board-secondary);text-align:right}
+.clock.amber{color:var(--warn)}
+.offers{font-size:12.5px;color:var(--board-secondary);text-align:right;min-width:74px}
+.offers b{color:var(--primary-live);font-family:'Spline Sans Mono',monospace}
+.row.urgent{background:var(--board-card);border-left:2px solid var(--warn)}
+
+/* teach strip */
+.teach{border:1px solid var(--foreground);background:#fff;padding:20px;margin-bottom:20px;position:relative}
+.teach .kicker{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted-foreground);margin-bottom:12px}
+.teach .x{position:absolute;top:14px;right:16px;font-size:13px;color:var(--muted-foreground);
+  text-decoration:underline;text-underline-offset:2px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.tcard{border:1px solid var(--border);padding:16px;background:#FCFCFC}
+.tcard .n{font-family:'Spline Sans Mono',monospace;font-size:12px;font-weight:600;color:var(--primary-deep);
+  letter-spacing:.06em;margin-bottom:8px}
+.tcard h4{margin:0 0 6px;font-size:16.5px;font-weight:700;letter-spacing:-.01em}
+.tcard p{margin:0;font-size:14.5px;color:var(--muted-foreground);line-height:1.55}
+.tcard .eg{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:13px;
+  color:var(--foreground)}
+.teach.mini{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;
+  border-color:var(--border)}
+.teach.mini .m{font-size:14.5px}
+.teach.mini .m b{font-weight:600}
+
+/* two doors */
+.doors{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
+.door{border:1px solid var(--foreground);background:#fff;padding:22px;min-height:150px;display:flex;
+  flex-direction:column;justify-content:space-between}
+.door .dl{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-foreground)}
+.door h4{margin:8px 0 4px;font-size:20px;font-weight:700;letter-spacing:-.01em}
+.door p{margin:0 0 16px;font-size:14.5px;color:var(--muted-foreground)}
+.arrow{font-family:'Spline Sans Mono',monospace;font-size:13px;color:var(--primary-deep);font-weight:600;
+  margin-bottom:6px}
+
+/* checklist */
+.check{border:1px solid var(--border);background:#fff;padding:18px}
+.check h4{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted-foreground);margin:0 0 14px}
+.step{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-top:1px solid var(--border)}
+.step:first-of-type{border-top:0;padding-top:0}
+.mark{width:20px;height:20px;border:1.5px solid #C4C7CB;border-radius:2px;flex:none;display:grid;
+  place-items:center;font-size:12px;font-weight:700;margin-top:2px}
+.mark.done{background:var(--primary-deep);border-color:var(--primary-deep);color:#fff}
+.step .st{font-size:15px;font-weight:600}
+.step.done .st{color:var(--muted-foreground);text-decoration:line-through;font-weight:500}
+.step .sd{font-size:13.5px;color:var(--muted-foreground);margin-top:1px}
+.step .sa{font-size:13.5px;font-weight:600;text-decoration:underline;text-underline-offset:2px;margin-top:6px;
+  display:inline-block}
+
+/* inline hint */
+.hint{border-left:2px solid var(--primary);background:#F1FAF6;padding:11px 14px;font-size:14.5px;margin:12px 0}
+.hint b{font-weight:600}
+.hint .dismiss{color:var(--muted-foreground);font-size:13px;margin-left:8px;text-decoration:underline}
+
+/* how it works page */
+.hiw{max-width:780px;margin:0 auto}
+.step-big{display:grid;grid-template-columns:52px 1fr;gap:18px;padding:22px 0;border-top:1px solid var(--border)}
+.step-big .num{font-family:'Spline Sans Mono',monospace;font-size:22px;font-weight:600;color:var(--primary-deep)}
+.step-big h4{margin:0 0 5px;font-size:19px;font-weight:700;letter-spacing:-.01em}
+.step-big p{margin:0;color:var(--muted-foreground);font-size:15px}
+
+.anti{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px}
+.anti>div{border:1px solid var(--border);background:#fff;padding:16px}
+.anti h5{margin:0 0 8px;font-size:14px;font-weight:700;letter-spacing:.02em}
+.anti ul{margin:0;padding-left:18px;font-size:14px;color:var(--muted-foreground)}
+.anti li{margin:5px 0}
+.anti .no h5{color:#B4322A}
+.anti .yes h5{color:var(--primary-deep)}
+@media(max-width:900px){.cards,.doors,.anti{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Teaching new users — the empty state, generalised</h1>
+<p class="sub">Kyle's observation: the 0-needs landing state is already doing tutorial work. It has nothing to show, so it explains what the place <em>is</em> instead. The problem is that teaching disappears the moment the board fills — but new users don't. So: take the three ideas the empty state is carrying and give them a permanent home.</p>
+
+<section>
+  <span class="tag">The three ideas — everything below is these, arranged differently</span>
+  <h2>What actually needs teaching (and what doesn't)</h2>
+  <p class="note">Only one thing about Exprifi is genuinely unfamiliar: <b>the direction</b>. Posting, offering, accepting — everyone already understands those from every marketplace they've used. Don't teach what they know. Teach the flip, the two doors, and why it's safe to say out loud what you want.</p>
+  <div class="cards">
+    <div class="tcard">
+      <div class="n">01</div>
+      <h4>You don't shop here</h4>
+      <p>There's no catalogue to browse and nothing for sale. You post what you're after and sellers bring it to you.</p>
+      <div class="eg">“5,000ct of 90s basketball bulk, up to $420” → sellers compete for it.</div>
+    </div>
+    <div class="tcard">
+      <div class="n">02</div>
+      <h4>Two doors, one account</h4>
+      <p>Post a need when you want to <b>buy</b>. Browse the board when you want to <b>sell</b> — every row there is a buyer.</p>
+      <div class="eg">Most bulk guys use both. Same login, different door.</div>
+    </div>
+    <div class="tcard">
+      <div class="n">03</div>
+      <h4>Saying what you want is safe</h4>
+      <p>Offers are structured, not a public chat. Who you are stays hidden until a deal funds. Everything stays on Exprifi.</p>
+      <div class="eg">Nobody can see your want list and go buy it out from under you.</div>
+    </div>
+  </div>
+  <div class="why"><b>Why card 03 is not optional:</b> a bulk reseller's whole edge is knowing what to look for. Asking them to post that publicly is asking them to leak it. Leak defence isn't a trust badge here — it's the thing that makes the product usable at all, so it has to be taught, not buried in a policy page.</div>
+</section>
+
+<hr class="big">
+
+<section>
+  <span class="tag rec">Surface 1 — public, indexable, already on the roadmap</span>
+  <h2>/how-it-works — the signed-out version</h2>
+  <p class="note">Already a Block A item. Same three ideas, expanded, readable without an account. This is also where every "what is this?" link in the product points, so it only gets written once.</p>
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span>exprifi.com/how-it-works</span></div>
+    <div class="pad">
+      <div class="mast">
+        <div class="logo">exprifi<span class="tick"></span></div>
+        <div class="mastlinks"><a href="#">How it works</a><a href="#">Plans</a><a href="#">Help</a><button class="btn sm">Sign up</button></div>
+      </div>
+      <div class="hiw">
+        <div style="font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-foreground);margin-bottom:8px">How Exprifi works</div>
+        <h2 style="font-size:30px;line-height:1.25;margin-bottom:8px">It's a marketplace running backwards.</h2>
+        <p style="color:var(--muted-foreground);font-size:17px;margin:0 0 6px">Everywhere else, sellers list and buyers hunt. Here, buyers post what they want and sellers come to them.</p>
+
+        <div class="doors">
+          <div class="door">
+            <div>
+              <div class="dl">If you're buying</div>
+              <h4>Post a need</h4>
+              <p>Describe the card or lot and your maximum. Sellers send structured offers. You pick one.</p>
+            </div>
+            <div><div class="arrow">→ you never search</div><button class="btn" style="width:100%">Post a need</button></div>
+          </div>
+          <div class="door">
+            <div>
+              <div class="dl">If you're selling</div>
+              <h4>Work the board</h4>
+              <p>Every row is a buyer with money and a deadline. Filter to what you stock, make an offer.</p>
+            </div>
+            <div><div class="arrow">→ demand you can see</div><button class="btn ghost" style="width:100%">See open demand</button></div>
+          </div>
+        </div>
+
+        <div class="step-big"><div class="num">01</div><div><h4>A buyer posts a need</h4><p>What they want, how much they'll pay, and when it closes. That's it — no listing photos, no auction to babysit.</p></div></div>
+        <div class="step-big"><div class="num">02</div><div><h4>Sellers make structured offers</h4><p>Price, condition, photos, shipping. Fixed fields, no public comment thread — so nothing about the deal is visible to anyone else.</p></div></div>
+        <div class="step-big"><div class="num">03</div><div><h4>The buyer accepts one</h4><p>Identities stay masked until the deal is funded. Everything happens on Exprifi, which is what keeps the deal from walking off-platform.</p></div></div>
+        <div class="step-big" style="border-bottom:1px solid var(--border)"><div class="num">04</div><div><h4>You pay nothing to start</h4><p>Posting needs and making offers are free while we're getting started. <a href="#" style="color:inherit">See plans →</a></p></div></div>
+
+        <div style="text-align:center;padding:30px 0 6px">
+          <button class="btn" style="min-height:52px;padding:0 28px">Create a free account</button>
+          <div class="caption">No card required.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="big">
+
+<section>
+  <span class="tag rec">Surface 2 — first run, in place</span>
+  <h2>The teach strip: the empty state, but over a live board</h2>
+  <p class="note">Same three cards, sitting above the real board on a new user's first visits. It teaches while they're looking at the thing being taught. Dismissible, and it does not come back — but it never fully leaves either (see below).</p>
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span>exprifi.com/board — first visit, signed in</span></div>
+    <div class="pad">
+      <div class="mast">
+        <div class="logo">exprifi<span class="tick"></span></div>
+        <div class="mastlinks"><a href="#">How it works</a><a href="#">Plans</a><a href="#">Help</a><a class="txtlink" href="#">Post a need</a></div>
+      </div>
+      <div class="teach">
+        <a class="x" href="#">Got it, hide this</a>
+        <div class="kicker">New here — 30 seconds</div>
+        <div class="cards">
+          <div class="tcard"><div class="n">01</div><h4>You don't shop here</h4><p>Nothing below is for sale. Every row is a buyer telling you what they'll pay for.</p></div>
+          <div class="tcard"><div class="n">02</div><h4>Two doors, one account</h4><p>Selling? Work the board. Buying? Post a need — that's the only way to buy here.</p></div>
+          <div class="tcard"><div class="n">03</div><h4>Nobody sees your business</h4><p>Offers are private and structured. Names stay masked until a deal funds.</p></div>
+        </div>
+      </div>
+      <div class="board">
+        <div class="board-head"><span class="h">Open demand</span><span class="livecount"><span class="dot"></span><b>27</b> open · <b>84</b> offers in play</span></div>
+        <div class="row urgent"><div><div class="title">1990–92 Hoops / Skybox bulk — 3,000ct+</div><div class="meta">Raw · any condition · closing soon</div></div><span class="chip bulk">Bulk</span><div class="budget">$185<small>max</small></div><div class="offers"><b>6</b> offers</div><div class="clock amber">09h 14m</div></div>
+        <div class="row"><div><div class="title">1985–91 Topps basketball bulk — 5,000ct min</div><div class="meta">Raw · any condition · shipped</div></div><span class="chip bulk">Bulk</span><div class="budget">$420<small>max</small></div><div class="offers"><b>3</b> offers</div><div class="clock">2d 04h</div></div>
+        <div class="row"><div><div class="title">Jordan rookie-era lot, PSA 8+ only</div><div class="meta">Graded · slabs only</div></div><span class="chip single">Single</span><div class="budget">$3,150<small>max</small></div><div class="offers"><b>2</b> offers</div><div class="clock">18h 22m</div></div>
+      </div>
+    </div>
+  </div>
+
+  <h3>After dismissal — it shrinks, it doesn't vanish</h3>
+  <p class="note">A single line stays. People dismiss things by reflex and then need them ten minutes later; making them hunt through a Help menu is where onboarding actually fails.</p>
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span>exprifi.com/board — after "Got it"</span></div>
+    <div class="pad">
+      <div class="teach mini">
+        <div class="m"><b>New to Exprifi?</b> <span style="color:var(--muted-foreground)">Every row below is a buyer, not a listing.</span></div>
+        <a href="#" style="font-size:14px;font-weight:600;text-decoration:underline;text-underline-offset:2px">How it works →</a>
+      </div>
+      <div class="board">
+        <div class="board-head"><span class="h">Open demand</span><span class="livecount"><span class="dot"></span><b>27</b> open · <b>84</b> offers in play</span></div>
+        <div class="row"><div><div class="title">1985–91 Topps basketball bulk — 5,000ct min</div><div class="meta">Raw · any condition · shipped</div></div><span class="chip bulk">Bulk</span><div class="budget">$420<small>max</small></div><div class="offers"><b>3</b> offers</div><div class="clock">2d 04h</div></div>
+        <div class="row"><div><div class="title">90s football bulk, any brand — 2,000ct</div><div class="meta">Raw · shipped</div></div><span class="chip bulk">Bulk</span><div class="budget">$260<small>max</small></div><div class="offers">no offers</div><div class="clock">3d 07h</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="caption">The mini strip disappears permanently after the user's first accepted offer or first posted need — by then they've learned it by doing.</div>
+</section>
+
+<hr class="big">
+
+<section>
+  <span class="tag rec">Surface 3 — uses space we already agreed is empty</span>
+  <h2>The checklist lives where the rail isn't yet</h2>
+  <p class="note">We just decided the filter rail doesn't render below ~15 open needs. That leaves a column of dead space during exactly the period when everyone is new — so put the getting-started checklist there. When the board grows past the threshold, the rail takes the column back and the checklist moves to the dashboard.</p>
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span>exprifi.com/board — 9 open needs, new user</span></div>
+    <div class="pad">
+      <div class="mast">
+        <div class="logo">exprifi<span class="tick"></span></div>
+        <div class="mastlinks"><a href="#">How it works</a><a href="#">Plans</a><a href="#">Help</a><a class="txtlink" href="#">Post a need</a></div>
+      </div>
+      <div style="display:grid;grid-template-columns:264px 1fr;gap:28px;align-items:start">
+        <aside>
+          <div class="check">
+            <h4>Getting started</h4>
+            <div class="step done">
+              <span class="mark done">✓</span>
+              <div><div class="st">Create your account</div></div>
+            </div>
+            <div class="step done">
+              <span class="mark done">✓</span>
+              <div><div class="st">Turn on selling</div></div>
+            </div>
+            <div class="step">
+              <span class="mark"></span>
+              <div>
+                <div class="st">Make your first offer</div>
+                <div class="sd">Find a need you can fill and quote it. Free, and the buyer can't see who you are.</div>
+                <a class="sa" href="#">Show me needs under $300 →</a>
+              </div>
+            </div>
+            <div class="step">
+              <span class="mark"></span>
+              <div>
+                <div class="st">Post your first need</div>
+                <div class="sd">This is how you buy here. Tell sellers what you're hunting for.</div>
+                <a class="sa" href="#">Post a need →</a>
+              </div>
+            </div>
+          </div>
+          <div class="caption">Disappears for good at 4/4. Never nags, never emails.</div>
+        </aside>
+        <div>
+          <div class="hint"><b>Reading the board:</b> the amber row is closing in under 24 hours, and “no offers” means you'd be first in. <a class="dismiss" href="#">Got it</a></div>
+          <div class="board">
+            <div class="board-head"><span class="h">Open demand</span><span class="livecount"><span class="dot"></span><b>9</b> open · <b>12</b> offers in play</span></div>
+            <div class="row urgent"><div><div class="title">1990–92 Hoops / Skybox bulk — 3,000ct+</div><div class="meta">Raw · any condition · closing soon</div></div><span class="chip bulk">Bulk</span><div class="budget">$185<small>max</small></div><div class="offers"><b>6</b> offers</div><div class="clock amber">09h 14m</div></div>
+            <div class="row"><div><div class="title">1985–91 Topps basketball bulk — 5,000ct min</div><div class="meta">Raw · any condition · shipped</div></div><span class="chip bulk">Bulk</span><div class="budget">$420<small>max</small></div><div class="offers">no offers</div><div class="clock">2d 04h</div></div>
+            <div class="row"><div><div class="title">Jordan rookie-era lot, PSA 8+ only</div><div class="meta">Graded · slabs only</div></div><span class="chip single">Single</span><div class="budget">$3,150<small>max</small></div><div class="offers"><b>2</b> offers</div><div class="clock">18h 22m</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="why"><b>Free-vs-paid check:</b> the checklist is on-site only. No email, no push, no "you haven't finished setting up!" reminder. It obeys the same boundary as saved views — <b>free = you come look.</b></div>
+</section>
+
+<hr class="big">
+
+<section>
+  <span class="tag">Surface 4 — the cheapest one, and probably the most effective</span>
+  <h2>One sentence, at the moment of confusion</h2>
+  <p class="note">Not up front. Shown once, in place, the first time someone reaches a screen where the reverse-marketplace logic bites. Each is one line, dismissible, and stored as a single flag.</p>
+  <div class="frame"><div class="pad" style="padding:20px 22px">
+    <div style="font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-foreground);margin-bottom:4px">First time on the board</div>
+    <div class="hint"><b>Every row here is a buyer.</b> Filter down to what you already have in boxes, then make an offer. <a class="dismiss" href="#">Got it</a></div>
+
+    <div style="font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-foreground);margin:20px 0 4px">First time opening “Post a need”</div>
+    <div class="hint"><b>This is how buying works on Exprifi.</b> Say what you want and your max — sellers come to you. <a class="dismiss" href="#">Got it</a></div>
+
+    <div style="font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-foreground);margin:20px 0 4px">First time making an offer</div>
+    <div class="hint"><b>The buyer can't see who you are</b> — and neither can other sellers. Identity unmasks only when a deal is funded. <a class="dismiss" href="#">Got it</a></div>
+
+    <div style="font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-foreground);margin:20px 0 4px">First time a need of yours gets an offer</div>
+    <div class="hint"><b>Offers are structured, not a negotiation thread.</b> Compare them side by side and accept one — that's the whole flow. <a class="dismiss" href="#">Got it</a></div>
+  </div></div>
+</section>
+
+<hr class="big">
+
+<section>
+  <span class="tag bad">Guardrail</span>
+  <h2>What we are deliberately not building</h2>
+  <div class="anti">
+    <div class="no">
+      <h5>✕ Not this</h5>
+      <ul>
+        <li>A modal carousel on first login</li>
+        <li>Pulsing coach-marks pointing at buttons</li>
+        <li>A 5-step "tour" with Next / Skip</li>
+        <li>A progress bar with a percentage</li>
+        <li>Confetti, badges, streaks</li>
+        <li>"You haven't finished setup!" emails</li>
+        <li>A video anyone has to watch</li>
+      </ul>
+    </div>
+    <div class="yes">
+      <h5>✓ This</h5>
+      <ul>
+        <li>Teach in place, over the real board</li>
+        <li>One sentence at the moment it's needed</li>
+        <li>Everything dismissible, nothing modal</li>
+        <li>A permanent public page anyone can re-read</li>
+        <li>Plain language, ink, no accent colour</li>
+        <li>On-site only — never reaches out</li>
+        <li>Learns by doing, then gets out of the way</li>
+      </ul>
+    </div>
+  </div>
+  <div class="why stop"><b>Why the anti-list matters more than usual here:</b> the beachhead is 45+ and allergic to feeling handled. A tour that blocks the screen reads as a startup demo; a quiet line of text next to the thing it describes reads as a business that thought about you. It's the same "official = restraint + furniture" principle from the 3b pass, applied to teaching.</div>
+</section>
+
+<section>
+  <span class="tag rec">Order of work</span>
+  <h2>What to build, in what order</h2>
+  <div class="frame"><div class="pad" style="padding:6px 22px 18px">
+    <div class="step-big"><div class="num">01</div><div><h4>/how-it-works</h4><p>Already a Block A item. Write the three ideas once; every other surface links here. Public, indexable, no auth. <b>Do this regardless of everything else.</b></p></div></div>
+    <div class="step-big"><div class="num">02</div><div><h4>The four inline hints</h4><p>Four one-liners, four boolean flags on the profile. Cheapest thing on this page and probably the highest-yield.</p></div></div>
+    <div class="step-big"><div class="num">03</div><div><h4>Teach strip + mini strip</h4><p>Reuses the three cards from /how-it-works. One dismissal flag, one "seen it" state.</p></div></div>
+    <div class="step-big" style="border-bottom:1px solid var(--border)"><div class="num">04</div><div><h4>Getting-started checklist</h4><p>Last, because it needs completion state derived from real activity — and because it only has a home while the board is under 15 needs. If seeding lands fast, this one may never be worth building.</p></div></div>
+  </div></div>
+</section>
+
+</div>
+</body>
+</html>

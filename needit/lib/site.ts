@@ -25,10 +25,14 @@ export function absoluteUrl(path = "/") {
   return `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
-/**
- * The legacy host. Kept as a constant because two things reference it: the
- * permanent redirect in `next.config.ts`, and the robots rules. Every link
- * Kyle has ever posted publicly points here, so the 301 is load-bearing for
- * both SEO and for anyone who bookmarked the app during the build.
+/*
+ * `LEGACY_HOST` ("need-it.vercel.app") was removed Aug 1, 2026.
+ *
+ * Its docstring said two things referenced it — the 301 in `next.config.ts`
+ * and the robots rules. By the time it was removed, neither did: robots had
+ * already moved to SITE_HOST, and the redirect was unreachable because the
+ * host is no longer attached to the Vercel project. The constant was the last
+ * thing in the codebase asserting that the legacy domain still mattered.
+ *
+ * Kyle's call, Aug 1: that host is done. Anything still pointing at it 404s.
  */
-export const LEGACY_HOST = "need-it.vercel.app";

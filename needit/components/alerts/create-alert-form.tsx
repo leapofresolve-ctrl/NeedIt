@@ -20,11 +20,33 @@ const fieldClass =
 
 const initialState: AlertState = {};
 
-export function CreateAlertForm() {
+export function CreateAlertForm({
+  remaining,
+  limit,
+}: {
+  remaining: number;
+  limit: number;
+}) {
   const [state, formAction, pending] = useActionState(
     createAlert,
     initialState,
   );
+
+  // At the cap the form is replaced rather than disabled — a form you can fill
+  // in but not submit is worse than no form.
+  if (remaining <= 0) {
+    return (
+      <div className="border rounded-lg p-4 flex flex-col gap-2">
+        <h2 className="font-semibold">
+          You&apos;re using all {limit} of your alerts
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Free accounts keep up to {limit}. Delete one below to make room for a
+          new one.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <form action={formAction} className="border rounded-lg p-4 flex flex-col gap-4">
@@ -32,8 +54,7 @@ export function CreateAlertForm() {
         <h2 className="font-semibold">New alert</h2>
         <p className="text-xs text-muted-foreground">
           Describe what you&apos;re sitting on. Every field is optional — set at
-          least one. You&apos;ll get a notification when a matching need hits
-          the board.
+          least one. {remaining} of {limit} slots left.
         </p>
       </div>
 

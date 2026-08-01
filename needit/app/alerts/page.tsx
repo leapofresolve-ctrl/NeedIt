@@ -4,6 +4,7 @@ import { SiteHeader } from "@/components/site-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CreateAlertForm } from "@/components/alerts/create-alert-form";
+import { FREE_ALERT_LIMIT, DIGEST_CADENCE_COPY } from "@/lib/alerts";
 import { toggleAlert, deleteAlert } from "./actions";
 
 type AlertRow = {
@@ -67,13 +68,22 @@ export default async function AlertsPage() {
       <div className="w-full max-w-3xl flex flex-col gap-6 p-5">
         <div>
           <h1 className="text-2xl font-bold">Demand alerts</h1>
+          {/* Say what the product actually does. The old copy promised "the
+              moment a buyer posts", which stopped being true when the free
+              tier moved to a periodic, deliberately vague nudge (0017). Copy
+              that overpromises is how you teach people to ignore your email. */}
           <p className="text-sm text-muted-foreground">
-            Get notified the moment a buyer posts a need that matches what
-            you&apos;re holding. Alerts are private — buyers never see them.
+            Tell us what you&apos;re holding and we&apos;ll flag matching demand
+            in your notifications. We&apos;ll email you{" "}
+            {DIGEST_CADENCE_COPY} to let you know there&apos;s something worth
+            a look. Alerts are private — buyers never see them.
           </p>
         </div>
 
-        <CreateAlertForm />
+        <CreateAlertForm
+          remaining={Math.max(0, FREE_ALERT_LIMIT - alerts.length)}
+          limit={FREE_ALERT_LIMIT}
+        />
 
         {alerts.length === 0 ? (
           <p className="text-sm text-muted-foreground border rounded-lg p-5">
@@ -81,7 +91,7 @@ export default async function AlertsPage() {
             Basketball, or Bulk lots up to $500.
           </p>
         ) : (
-          <ul className="flex flex-col gap-3">
+          <ul className="flex flex-col gap-3" aria-label="Your demand alerts">
             {alerts.map((a) => (
               <li
                 key={a.id}

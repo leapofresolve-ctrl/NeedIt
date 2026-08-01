@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { FREE_ALERT_LIMIT } from "@/lib/alerts";
 
 export type AlertState = { error?: string };
 
@@ -43,6 +44,18 @@ export async function createAlert(
     return { error: "Min budget can't exceed max." };
   }
 
+  // Free-tier cap. The database enforces this too (migration 0017) — this
+  // check exists so the seller gets a sentence instead of a Postgres error.
+  const { count } = await supabase
+    .from("demand_alerts")
+    .select("id", { count: "exact", head: true })
+    .eq("seller_id", userId);
+  if ((count ?? 0) >= FREE_ALERT_LIMIT) {
+    return {
+      error: `You can keep ${FREE_ALERT_LIMIT} alerts on a free account. Delete one to add another.`,
+    };
+  }
+
   const { error } = await supabase.from("demand_alerts").insert({
     seller_id: userId,
     keyword: keyword || null,
@@ -51,7 +64,16 @@ export async function createAlert(
     min_budget_cents: minCents,
     max_budget_cents: maxCents,
   });
-  if (error) return { error: error.message };
+  if (error) {
+    // The DB trigger raises FREE_ALERT_LIMIT if the count check above was
+    // raced. Translate it rather than showing the raw exception.
+    if (error.message.includes("FREE_ALERT_LIMIT")) {
+      return {
+        error: `You can keep ${FREE_ALERT_LIMIT} alerts on a free account. Delete one to add another.`,
+      };
+    }
+    return { error: error.message };
+  }
 
   revalidatePath("/alerts");
   return {};

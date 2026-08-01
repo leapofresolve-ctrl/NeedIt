@@ -1,13 +1,21 @@
 import { createClient } from "@supabase/supabase-js";
 
+import { SITE_URL } from "@/lib/site";
+import { DIGEST_INTERVAL_DAYS, DIGEST_CADENCE_COPY } from "@/lib/alerts";
+
 export const runtime = "nodejs";
 
 // Called by a Supabase Database Webhook when a row is inserted into `notifications`.
 // Looks up the recipient's email + preference and sends a transactional email via Resend.
 // Inert (returns 200, sends nothing) until the env vars below are configured.
-
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://need-it.vercel.app";
+//
+// SITE_URL comes from lib/site — do NOT re-derive it here. This file used to
+// carry its own copy defaulting to `https://need-it.vercel.app`, which is the
+// exact drift lib/site exists to prevent: that host stopped resolving after the
+// domain cutover, so if NEXT_PUBLIC_SITE_URL were ever unset, every link in
+// every notification email would point at a 404. See the Aug 1 build-log entry
+// — the same dead host, hard-coded in the Supabase webhook, silently killed
+// notification email for three days.
 
 function buildEmail(type: string, title: string) {
   switch (type) {
@@ -31,10 +39,14 @@ function buildEmail(type: string, title: string) {
         subject: "Update on your Exprifi offer",
         line: `Your offer on “${title}” was declined.`,
       };
+    // demand_match is deliberately the ONE type that says nothing specific.
+    // Naming the card here would be doing the seller's matching for them, and
+    // that is the M2 product (see lib/alerts.ts). Free tier gets a nudge to
+    // come and look; it does not get the answer delivered.
     case "demand_match":
       return {
-        subject: "A buyer wants what you have — Exprifi",
-        line: `A new need matches one of your demand alerts: “${title}”. Get there before another seller does.`,
+        subject: "New demand on Exprifi",
+        line: "There’s new demand on the board matching your alerts. Come take a look.",
       };
     default:
       return {
@@ -73,14 +85,46 @@ export async function POST(req: Request) {
       auth: { persistSession: false },
     });
 
-    // Respect the user's email preference.
+    const isDemandMatch = type === "demand_match";
+
+    // Respect the user's email preferences — the global switch, plus the
+    // per-type one for demand alerts (this route used to ignore the granular
+    // flags, so a seller who turned demand alerts off in Settings still got
+    // them).
     const { data: profile } = await admin
       .from("profiles")
-      .select("email_notifications")
+      .select("email_notifications, notify_demand_match, last_demand_digest_at")
       .eq("id", userId)
       .maybeSingle();
     if (profile && profile.email_notifications === false) {
       return Response.json({ skipped: "user opted out" });
+    }
+    if (isDemandMatch && profile && profile.notify_demand_match === false) {
+      return Response.json({ skipped: "demand alerts off" });
+    }
+
+    // ── Free-tier cadence ────────────────────────────────────────────────
+    // At most one demand-alert email every few days. The in-app bell already
+    // fired instantly and is unaffected — it's on-site, so it doesn't spend
+    // the "free = you come look" boundary. See lib/alerts.ts.
+    //
+    // Claimed with a conditional UPDATE rather than read-then-write: several
+    // needs can be published in the same second, and each one POSTs here
+    // independently. Whichever request wins the update sends; the rest see
+    // zero rows affected and skip.
+    if (isDemandMatch) {
+      const cutoff = new Date(
+        Date.now() - DIGEST_INTERVAL_DAYS * 86_400_000,
+      ).toISOString();
+      const { data: claimed } = await admin
+        .from("profiles")
+        .update({ last_demand_digest_at: new Date().toISOString() })
+        .eq("id", userId)
+        .or(`last_demand_digest_at.is.null,last_demand_digest_at.lt.${cutoff}`)
+        .select("id");
+      if (!claimed || claimed.length === 0) {
+        return Response.json({ skipped: "within digest window" });
+      }
     }
 
     // Recipient email (admin-only) — never exposed elsewhere.
@@ -89,8 +133,10 @@ export async function POST(req: Request) {
     if (!email) return Response.json({ skipped: "no email" });
 
     // Request title for context (no counterparty identity — leak defense).
+    // Skipped entirely for demand_match: that email is deliberately vague, so
+    // there is no reason to read the title, let alone risk it reaching a log.
     let title = "your need";
-    if (requestId) {
+    if (requestId && !isDemandMatch) {
       const { data: reqRow } = await admin
         .from("requests")
         .select("title")
@@ -99,18 +145,31 @@ export async function POST(req: Request) {
       if (reqRow?.title) title = reqRow.title;
     }
 
-    const link = requestId
-      ? `${SITE_URL}/request/${requestId}`
-      : `${SITE_URL}/notifications`;
+    // demand_match points at the board, not the need. Deep-linking to the
+    // specific request would hand over the match we just declined to name.
+    const link = isDemandMatch
+      ? SITE_URL
+      : requestId
+        ? `${SITE_URL}/request/${requestId}`
+        : `${SITE_URL}/notifications`;
     const { subject, line } = buildEmail(type, title);
 
     const html = `
       <div style="font-family: ui-sans-serif, system-ui, sans-serif; max-width: 480px;">
         <h2 style="margin:0 0 8px;">Exprifi</h2>
         <p style="font-size:15px;">${line}</p>
-        <p><a href="${link}" style="display:inline-block;background:#111;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;">View on Exprifi</a></p>
+        <p><a href="${link}" style="display:inline-block;background:#111;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;">${isDemandMatch ? "See the board" : "View on Exprifi"}</a></p>
+        ${
+          isDemandMatch
+            ? `<p style="font-size:12px;color:#666;">We send these ${DIGEST_CADENCE_COPY}, so you may find more than one match waiting.</p>`
+            : ""
+        }
         <p style="font-size:12px;color:#666;">You can turn these emails off in Settings.</p>
       </div>`;
+    // TODO (post-M2, needs billing — Block E): add an upsell line to the
+    // demand_match email pointing at instant, unlimited, inventory-matched
+    // alerts. Deliberately not written yet — there is nothing to sell and no
+    // checkout to send anyone to.
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",

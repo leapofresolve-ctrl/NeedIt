@@ -81,27 +81,22 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  /**
-   * Domain cutover: one canonical host.
+  /*
+   * REMOVED Aug 1, 2026 — the need-it.vercel.app → exprifi.com 301.
    *
-   * Everything Kyle posted during the build points at need-it.vercel.app. A
-   * permanent redirect tells search engines to move their index to exprifi.com
-   * and keeps old bookmarks working, instead of serving a duplicate copy of the
-   * marketplace on a second domain.
+   * It was written during the domain cutover to keep old links and search
+   * index moving to the canonical host. It was dead code by the time it was
+   * removed: `need-it.vercel.app` is no longer attached to the Vercel project
+   * (Domains lists only exprifi.com and www.exprifi.com), so requests to that
+   * host return DEPLOYMENT_NOT_FOUND at the edge and never reach the app —
+   * a redirect defined here can't run if the request never arrives.
    *
-   * `has` scopes this to that exact host so preview deployments still work
-   * normally — a blanket redirect would break every preview URL.
+   * Kept as a comment rather than deleted silently because the config used to
+   * claim a protection that wasn't in force, and the next person to wonder
+   * "where did old links go?" deserves the real answer: they 404, by decision,
+   * Aug 1. If that ever needs reversing, re-attach the domain in Vercel FIRST
+   * — restoring this block alone does nothing.
    */
-  async redirects() {
-    return [
-      {
-        source: "/:path*",
-        has: [{ type: "host", value: "need-it.vercel.app" }],
-        destination: "https://exprifi.com/:path*",
-        permanent: true,
-      },
-    ];
-  },
 };
 
 export default nextConfig;

@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Exprifi — 3b Addendum: Rail vs Refine mockups</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --background:#FAFAFA; --foreground:#0B0E11;
+  --card:#FFFFFF; --border:#E6E7E9;
+  --board:#101114; --board-border:#24262B; --board-card:#15171C; --board-hairline:#1C1E23;
+  --board-fg:#F2F3F5; --board-secondary:#C6CAD0; --board-faint:#5C6167;
+  --muted-foreground:#6E7378; --faint-foreground:#9BA0A6;
+  --primary:#00A968; --primary-live:#2ED98A; --primary-deep:#00794B;
+  --warn:#F5A623; --cat-tcg:#B78AE8;
+  --radius:2px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#EDEEF0;color:var(--foreground);
+  font-family:'Instrument Sans',system-ui,sans-serif;font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1280px;margin:0 auto;padding:40px 24px 96px}
+h1{font-size:30px;font-weight:700;letter-spacing:-.02em;margin:0 0 6px}
+.sub{color:var(--muted-foreground);margin:0 0 40px;max-width:70ch}
+.mono{font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums}
+
+/* section scaffolding */
+section{margin:0 0 56px}
+.tag{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  background:var(--foreground);color:#fff;padding:4px 9px;border-radius:2px;margin-bottom:10px}
+.tag.bad{background:#B4322A}
+.tag.rec{background:var(--primary-deep)}
+h2{font-size:21px;font-weight:700;margin:0 0 4px;letter-spacing:-.01em}
+.note{color:var(--muted-foreground);font-size:15px;margin:0 0 18px;max-width:78ch}
+.frame{background:var(--card);border:1px solid var(--border);border-radius:2px;overflow:hidden;
+  box-shadow:0 1px 2px rgba(11,14,17,.05)}
+.chrome{height:30px;background:#F3F4F5;border-bottom:1px solid var(--border);display:flex;align-items:center;
+  padding:0 10px;gap:5px}
+.chrome i{width:8px;height:8px;border-radius:50%;background:#D6D8DB;display:block}
+.chrome span{margin-left:10px;font-size:11px;color:var(--faint-foreground)}
+.pad{padding:22px}
+
+/* masthead bits */
+.mast{display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;
+  border-bottom:1px solid var(--border);margin-bottom:22px}
+.logo{font-weight:700;font-size:19px;letter-spacing:-.02em;display:flex;align-items:center;gap:5px}
+.logo .tick{width:.4em;height:.14em;background:var(--primary);border-radius:2px;display:inline-block}
+.mastlinks{display:flex;gap:18px;font-size:14px;color:var(--muted-foreground);align-items:center}
+.mastlinks a{color:inherit;text-decoration:none}
+.mastlinks .txtlink{color:var(--foreground);font-weight:500}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-family:inherit;font-size:15px;
+  font-weight:600;padding:11px 16px;border-radius:2px;border:1px solid var(--foreground);
+  background:var(--foreground);color:#fff;cursor:default;min-height:44px}
+.btn.ghost{background:transparent;color:var(--foreground)}
+.btn.sm{min-height:36px;padding:7px 12px;font-size:14px}
+
+/* ===== the old facet bar (the "eBay" tell) ===== */
+.facets{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px;background:#F1F2F3;
+  border:1px solid var(--border);margin-bottom:16px}
+.facets select,.facets input{font-family:inherit;font-size:13px;padding:5px 6px;border:1px solid #B9BCC0;
+  border-radius:3px;background:#fff}
+.facets input{width:72px}
+
+/* ===== board panel ===== */
+.board{background:var(--board);border:1px solid var(--board-border);border-radius:2px;color:var(--board-fg)}
+.board-head{display:flex;align-items:baseline;justify-content:space-between;padding:16px 18px;
+  border-bottom:1px solid var(--board-hairline)}
+.board-head .h{font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--board-secondary)}
+.livecount{font-size:13px;color:var(--board-secondary)}
+.livecount b{color:var(--primary-live);font-family:'Spline Sans Mono',monospace}
+.dot{display:inline-block;width:7px;height:7px;background:var(--primary-live);border-radius:2px;margin-right:6px}
+
+.row{display:grid;grid-template-columns:1fr auto auto auto;gap:14px;align-items:center;
+  padding:14px 18px;border-bottom:1px solid var(--board-hairline);min-height:44px}
+.row:last-child{border-bottom:0}
+.row .title{font-size:15px;font-weight:500}
+.row .meta{font-size:12.5px;color:var(--board-faint);margin-top:2px}
+.chip{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:3px 7px;border-radius:2px}
+.chip.bulk{background:#1E2A24;color:var(--primary-live)}
+.chip.single{border:1px solid var(--board-border);color:var(--board-secondary)}
+.chip.tcg{background:#241E2A;color:var(--cat-tcg)}
+.budget{font-family:'Spline Sans Mono',monospace;font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
+.budget small{display:block;font-size:9.5px;font-weight:400;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--board-faint);font-family:'Instrument Sans',sans-serif}
+.clock{font-family:'Spline Sans Mono',monospace;font-size:13px;color:var(--board-secondary);text-align:right}
+.clock.amber{color:var(--warn)}
+.offers{font-size:12.5px;color:var(--board-secondary);text-align:right;min-width:74px}
+.offers b{color:var(--primary-live);font-family:'Spline Sans Mono',monospace}
+.row.urgent{background:var(--board-card);border-left:2px solid var(--warn)}
+
+/* ===== filter chips at rest ===== */
+.chiprow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.fchip{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:500;padding:7px 10px;
+  border:1px solid var(--border);background:#fff;border-radius:2px}
+.fchip x{color:var(--faint-foreground);font-style:normal}
+.sortpill{margin-left:auto;font-size:13.5px;color:var(--muted-foreground)}
+
+/* ===== LEFT RAIL ===== */
+.split{display:grid;grid-template-columns:264px 1fr;gap:28px;align-items:start}
+.rail{border-right:1px solid var(--border);padding-right:24px}
+.rail h4{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted-foreground);margin:0 0 12px}
+.rail .grp{padding:18px 0;border-top:1px solid var(--border)}
+.rail .grp:first-of-type{border-top:0;padding-top:0}
+.opt{display:flex;align-items:center;gap:11px;min-height:44px;font-size:15px;cursor:default}
+.box{width:18px;height:18px;border:1.5px solid #B9BCC0;border-radius:2px;flex:none;display:grid;place-items:center}
+.box.on{background:var(--foreground);border-color:var(--foreground);color:#fff;font-size:11px;font-weight:700}
+.opt .ct{margin-left:auto;font-family:'Spline Sans Mono',monospace;font-size:12.5px;color:var(--faint-foreground)}
+.opt.off{color:var(--faint-foreground)}
+.range{display:flex;gap:8px;align-items:center;margin-top:6px}
+.range input{font-family:'Spline Sans Mono',monospace;font-size:14px;padding:9px 10px;width:100%;
+  border:1px solid var(--border);border-radius:2px;background:#fff;min-height:44px}
+.reset{font-size:13.5px;color:var(--muted-foreground);text-decoration:underline;text-underline-offset:2px}
+.railfoot{padding-top:16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;
+  align-items:center;font-size:13.5px}
+.railfoot .live{font-family:'Spline Sans Mono',monospace;font-weight:600}
+
+/* saved hunts */
+.hunt{border:1px solid var(--border);border-radius:2px;padding:11px 12px;margin-bottom:8px;background:#fff}
+.hunt.active{border-color:var(--foreground);border-left:3px solid var(--primary)}
+.hunt .hn{font-size:14.5px;font-weight:600;display:flex;align-items:center;justify-content:space-between}
+.hunt .hd{font-size:12.5px;color:var(--muted-foreground);margin-top:1px}
+.pip{font-family:'Spline Sans Mono',monospace;font-size:12px;font-weight:600;color:var(--primary-deep);
+  background:#E4F6EE;padding:1px 6px;border-radius:2px}
+.bell{font-size:11.5px;color:var(--muted-foreground);margin-top:6px;display:flex;gap:6px;align-items:center}
+.addhunt{width:100%;font-size:14px;font-weight:600;padding:10px;border:1px dashed #C4C7CB;background:transparent;
+  border-radius:2px;color:var(--muted-foreground);min-height:44px}
+
+/* post-a-need block */
+.postblock{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:88px;
+  border:1px solid var(--foreground);border-radius:2px;padding:16px 20px;margin-bottom:20px;background:#fff;
+  position:relative}
+.postblock:after{content:"";position:absolute;top:0;right:0;width:14px;height:14px;background:var(--background);
+  border-left:1px solid var(--foreground);border-bottom:1px solid var(--foreground)}
+.postblock .q{font-size:19px;font-weight:700;letter-spacing:-.01em}
+.postblock .qs{font-size:14px;color:var(--muted-foreground)}
+
+/* mobile */
+.phones{display:flex;gap:24px;flex-wrap:wrap}
+.phone{width:330px;border:9px solid #16181B;border-radius:30px;overflow:hidden;background:var(--card);
+  box-shadow:0 6px 20px rgba(11,14,17,.16)}
+.phone .scr{height:600px;position:relative;overflow:hidden}
+.pinner{padding:16px}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--border);
+  border-radius:12px 12px 0 0;box-shadow:0 -8px 28px rgba(11,14,17,.18);padding:14px 16px 16px}
+.grab{width:38px;height:4px;background:#D6D8DB;border-radius:2px;margin:0 auto 12px}
+.scrim{position:absolute;inset:0;background:rgba(11,14,17,.42)}
+.showbtn{width:100%;margin-top:12px}
+.stickybar{position:absolute;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--border);
+  padding:10px 14px;display:flex;gap:10px;align-items:center}
+
+/* callouts */
+.why{background:#fff;border:1px solid var(--border);border-left:3px solid var(--primary);padding:14px 16px;
+  margin-top:14px;font-size:14.5px}
+.why b{font-weight:600}
+.why ul{margin:8px 0 0;padding-left:20px}
+.why li{margin:3px 0}
+hr.big{border:0;border-top:1px solid #D9DBDE;margin:56px 0}
+.caption{font-size:12.5px;color:var(--muted-foreground);margin-top:8px}
+.why.warn{border-left-color:var(--warn)}
+.why.stop{border-left-color:#B4322A}
+
+/* comparison table */
+.cmp{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--border);margin-bottom:10px;
+  font-size:14px}
+.cmp th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted-foreground);padding:11px 14px;border-bottom:1px solid var(--border);background:#F7F8F8}
+.cmp td{padding:12px 14px;border-bottom:1px solid var(--border);vertical-align:top}
+.cmp tr:last-child td{border-bottom:0}
+.cmp tr.hi td{background:#F3FAF6}
+.cmp tr.hi td:first-child{box-shadow:inset 3px 0 0 var(--primary)}
+
+/* option C — setup card */
+.setup{background:#fff;border:1px solid var(--border);border-radius:2px;padding:16px;margin-bottom:8px}
+.setup .lbl{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted-foreground);margin-bottom:9px}
+.answer{font-size:16px;font-weight:600;line-height:1.45}
+.answer em{font-style:normal;background:#E4F6EE;box-shadow:0 0 0 3px #E4F6EE;border-radius:2px}
+.editlink{font-size:13.5px;color:var(--muted-foreground);text-decoration:underline;text-underline-offset:2px;
+  display:inline-block;margin-top:10px}
+.qcard{border:1px solid var(--border);background:#fff;padding:18px;border-radius:2px;margin-bottom:12px}
+.qcard .q2{font-size:18px;font-weight:700;letter-spacing:-.01em;margin-bottom:12px}
+.pickrow{display:flex;gap:8px;flex-wrap:wrap}
+.pick{border:1px solid var(--border);background:#fff;border-radius:2px;padding:12px 14px;font-size:15px;
+  font-weight:500;min-height:52px;display:inline-flex;align-items:center;gap:8px}
+.pick.on{border-color:var(--foreground);border-width:2px;padding:11px 13px;font-weight:600}
+
+/* locked header */
+.locked{position:sticky;top:0;z-index:5;background:rgba(250,250,250,.94);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);margin:0 -22px 20px;padding:14px 22px}
+.locked.slim{padding:9px 22px}
+.lockrow{display:flex;align-items:center;gap:12px}
+.lockrow .bigsearch{margin-bottom:0;flex:1}
+.pinnote{position:absolute;right:14px;top:-9px;font-size:10px;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;background:var(--foreground);color:#fff;padding:2px 7px;border-radius:2px}
+.cutrow{opacity:.32}
+.scrollhint{text-align:center;font-size:12px;color:var(--faint-foreground);padding:6px 0 2px;letter-spacing:.04em}
+
+/* option D — search-first */
+.bigsearch{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--foreground);
+  border-radius:2px;padding:0 16px;min-height:60px;margin-bottom:14px}
+.bigsearch input{border:0;outline:0;font-family:inherit;font-size:18px;width:100%;background:transparent}
+.bigsearch .mag{color:var(--faint-foreground);font-size:18px}
+.suggest{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.sug{font-size:13.5px;font-weight:500;padding:8px 12px;border:1px solid var(--border);background:#fff;
+  border-radius:2px;color:var(--muted-foreground);min-height:38px;display:inline-flex;align-items:center}
+.sug.on{background:var(--foreground);color:#fff;border-color:var(--foreground)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Board filtering — all four options, mocked</h1>
+<p class="sub">The same board, same data, same locked 3a tokens (ink buttons, green as data only, sharp 2px radius, dark board panel). The only thing changing between frames is <em>where the filters live</em>. Start with the comparison, then scroll.</p>
+
+<table class="cmp">
+  <thead><tr><th>Option</th><th>What it is</th><th>Best at</th><th>Costs you</th><th>Build</th></tr></thead>
+  <tbody>
+    <tr><td><b>Today</b></td><td>Seven controls in a strip above the board</td><td>Nothing</td><td>Reads as Craigslist; most moving parts on the page</td><td>—</td></tr>
+    <tr><td><b>A · Docked rail</b></td><td>Same filters, moved into the empty left gutter, auto-applying</td><td>Power scanning; fills dead space; zero risk</td><td>Still a filter UI — familiar, not distinctive</td><td>~1 day, presentation only</td></tr>
+    <tr class="hi"><td><b>A + D · Locked header + rail</b><br><span style="font-size:12px;color:var(--primary-deep);font-weight:600">← THE BUILD</span></td><td>D's search bar pinned to the top of the board, A's rail down the left</td><td>Both jobs: find a specific thing, or slice the whole board</td><td>Two filter surfaces — needs a hard rule about which does what</td><td>~1.5 days</td></tr>
+    <tr><td><b>B · Saved views</b></td><td>Bookmarked filter states in the rail. <b>No email, no alerts.</b></td><td>Coming back to the same slice without re-clicking</td><td>Must stay passive or it eats M2's paid matching</td><td>~1 day, small table</td></tr>
+    <tr><td><b>C · Profile-shaped</b></td><td>No filters — plain-language setup questions stored on your profile</td><td>The 45+ collector; board is right on arrival</td><td>Power users feel trapped; needs an escape hatch</td><td>~2 days + onboarding</td></tr>
+    <tr><td><b>D · Zero-chrome</b></td><td>One search box and chips. No rail, no panel.</td><td>Maximum restraint; fastest to build</td><td>Breakers scanning volume can't slice; search must be good</td><td>~half a day</td></tr>
+  </tbody>
+</table>
+<p class="caption" style="margin-bottom:40px"><b>Locked:</b> A + D. Search is dumb (text only), the rail is smart (structured), they combine with AND. B is demoted to passive bookmarks. C stays on the shelf. D alone is rejected.</p>
+
+<section style="background:#fff;border:1px solid var(--border);border-left:3px solid var(--foreground);padding:20px 22px">
+  <h2 style="margin-bottom:10px">First: who is filtering, and why?</h2>
+  <p class="note" style="margin-bottom:12px">Worth being blunt about, because the answer governs every screen below.</p>
+  <table class="cmp" style="margin-bottom:12px">
+    <tbody>
+      <tr><td style="width:130px"><b>The board</b></td><td>Contains <b>only demand</b> — every row is a buyer saying "I want this."</td></tr>
+      <tr><td><b>Who filters it</b></td><td><b>Sellers.</b> Filtering the board means "find demand I can fill." It is always a seller-side act.</td></tr>
+      <tr><td><b>How you buy</b></td><td>By <b>posting a need</b> — never by searching. There is no "search for cards to buy" on Exprifi. The day we add one, we've rebuilt eBay and thrown away the thesis.</td></tr>
+      <tr><td><b>Your own stuff</b></td><td>Needs you posted and offers you sent live on a <b>dashboard</b>, not as a filter of the board. Keeping those apart is most of what prevents this confusion.</td></tr>
+      <tr class="hi"><td><b>The catch</b></td><td>The beachhead is buyer <em>and</em> seller in the same person. So the same account posts needs <em>and</em> filters the board — but never in the same surface. Two doors, always.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<hr class="big">
+
+<!-- ============ 0. TODAY ============ -->
+<section>
+  <span class="tag bad">Today — the thing that reads eBay</span>
+  <h2>Inline facet strip</h2>
+  <p class="note">Seven controls in a row above the board, native selects, an Apply button. This is Craigslist chrome. It's also the most moving parts on the page, which is exactly what the 45+ collector bounces off.</p>
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span>exprifi.com/board</span></div>
+    <div class="pad" style="background:var(--background)">
+      <div class="mast">
+        <div class="logo">exprifi<span class="tick"></span></div>
+        <div class="mastlinks"><a href="#">How it works</a><a href="#">Plans</a><a href="#">Help</a><a class="txtlink" href="#">Post a need</a></div>
+      </div>
+      <div class="facets">
+        <select><option>Type: Any</option></select>
+        <select><option>Sport: Any</option></select>
+        <select><option>Condition: Any</option></select>
+        <input placeholder="$ min"><input placeholder="$ max">
+        <select><option>Sort: Newest</option></select>
+        <button class="btn sm">Apply</button>
+      </div>
+      <div class="board">
+        <div class="board-head"><span class="h">Live board</span><span class="livecount"><span class="dot"></span><b>27</b> open · <b>84</b> offers in play</span></div>
+        <div class="row"><div><div class="title">1985–1991 Topps basketball bulk — 5,000ct min</div><div class="meta">Raw · any condition · shipped</div></div><span class="chip bulk">Bulk</span><div class="budget">$420<small>max</small></div><div class="clock">2d 04h</div></div>
+        <div class="row"><div><div class="title">Jordan rookie-era lot, PSA 8+ only</div><div class="meta">Graded · slabs only</div></div><span class="chip single">Single</span><div class="budget">$3,150<small>max</small></div><div class="clock">18h 22m</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="big">
+
+<!-- ============ A. DOCKED RAIL ============ -->
+<section>
+  <span class="tag rec">Option A — recommended shell</span>
+  <h2>Docked rail, no Apply button</h2>
+  <p class="note">Same filter set, moved into the left gutter that's currently empty dead space. No Apply — the board recomputes as you toggle, and the live count at the bottom of the rail is the feedback. Counts next to each option tell you what's actually out there before you click, which a select can never do.</p>
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span>exprifi.com/board</span></div>
+    <div class="pad" style="background:var(--background)">
+      <div class="mast">
+        <div class="logo">exprifi<span class="tick"></span></div>
+        <div class="mastlinks"><a href="#">How it works</a><a href="#">Plans</a><a href="#">Help</a><a class="txtlink" href="#">Post a need</a></div>
+      </div>
+
+      <div class="split">
+        <!-- RAIL -->
+        <aside class="rail">
+          <div class="grp">
+            <h4>What kind</h4>
+            <div class="opt"><span class="box on">✓</span> Bulk &amp; lots <span class="ct">19</span></div>
+            <div class="opt"><span class="box"></span> Single cards <span class="ct">8</span></div>
+            <div class="opt off"><span class="box"></span> Wax &amp; sealed <span class="ct">0</span></div>
+          </div>
+          <div class="grp">
+            <h4>Sport</h4>
+            <div class="opt"><span class="box on">✓</span> Basketball <span class="ct">11</span></div>
+            <div class="opt"><span class="box"></span> Football <span class="ct">6</span></div>
+            <div class="opt"><span class="box"></span> Baseball <span class="ct">5</span></div>
+            <div class="opt"><span class="box"></span> TCG <span class="ct">3</span></div>
+          </div>
+          <div class="grp">
+            <h4>Buyer's max</h4>
+            <div class="range"><input class="mono" value="$0"><span style="color:var(--faint-foreground)">–</span><input class="mono" value="$500"></div>
+          </div>
+          <div class="grp">
+            <h4>Closing</h4>
+            <div class="opt"><span class="box"></span> Under 24 hours <span class="ct">4</span></div>
+            <div class="opt"><span class="box"></span> No offers yet <span class="ct">7</span></div>
+          </div>
+          <div class="railfoot">
+            <span class="live mono">11 needs</span>
+            <span class="reset">Reset all</span>
+          </div>
+        </aside>
+
+        <!-- BOARD -->
+        <div>
+          <div class="postblock">
+            <div><div class="q">What are you hunting for?</div><div class="qs">Post it and let sellers bring it to you.</div></div>
+            <button class="btn">Post a need</button>
+          </div>
+          <div class="chiprow">
+            <span class="fchip">Bulk &amp; lots <x>×</x></span>
+            <span class="fchip">Basketball <x>×</x></span>
+            <span class="fchip">Under $500 <x>×</x></span>
+            <span class="sortpill">Sort: Newest ⌄</span>
+          </div>
+          <div class="board">
+            <div class="board-head"><span class="h">Open demand</span><span class="livecount"><span class="dot"></span><b>11</b> matching · <b>31</b> offers in play</span></div>
+            <div class="row urgent"><div><div class="title">1990–92 Hoops / Skybox bulk — 3,000ct+</div><div class="meta">Raw · any condition · closing soon</div></div><span class="chip bulk">Bulk</span><div class="budget">$185<small>max</small></div><div class="offers"><b>6</b> offers</div><div class="clock amber">09h 14m</div></div>
+            <div class="row"><div><div class="title">1985–91 Topps basketball bulk — 5,000ct min</div><div class="meta">Raw · any condition · shipped</div></div><span class="chip bulk">Bulk</span><div class="budget">$420<small>max</small></div><div class="offers"><b>3</b> offers</div><div class="clock">2d 04h</div></div>
+            <div class="row"><div><div class="title">Mixed NBA rookie lot — 1996–2004, 250ct</div><div class="meta">Raw · NM or better preferred</div></div><span class="chip bulk">Bulk</span><div class="budget">$310<small>max</small></div><div class="offers">no offers</div><div class="clock">4d 11h</div></div>
+            <div class="row"><div><div class="title">Panini Prizm base bulk, any year — 1,000ct</div><div class="meta">Raw · shipped or local</div></div><span class="chip bulk">Bulk</span><div class="budget">$140<small>max</small></div><div class="offers"><b>2</b> offers</div><div class="clock">5d 02h</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="why">
+    <b>Why this stops reading as eBay:</b>
+    <ul>
+      <li>Persistent rail + live recompute is <em>screener</em> grammar (Kayak, stock screeners, job boards) — not retail-catalog grammar.</li>
+      <li>Zero native <code>&lt;select&gt;</code> elements on the page. That single detail is doing most of the "amateur marketplace" signalling today.</li>
+      <li>No Apply button means no form-submission feel. The board is a live instrument, not a search results page.</li>
+      <li>Result counts per option are demand data — an eBay filter shows you supply. Different product, visibly.</li>
+    </ul>
+  </div>
+</section>
+
+<hr class="big">
+
+<!-- ============ A+D. THE BUILD ============ -->
+<section>
+  <span class="tag rec">A + D — locked</span>
+  <h2>The build: locked search header + docked rail</h2>
+  <p class="note">D's search bar pinned to the top of the board so it never scrolls away, A's rail down the left. <b>The rule that makes two filter surfaces safe:</b> search is <em>dumb</em> — plain text match on player, set and card names only, it never tries to interpret "under 500" or "basketball." The rail is <em>smart</em> — every structured filter lives there. They combine with AND. That rule is what removes the parsing risk that disqualified D on its own.</p>
+
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span>exprifi.com/board — at the top of the page</span></div>
+    <div class="pad" style="background:var(--background)">
+      <div class="mast">
+        <div class="logo">exprifi<span class="tick"></span></div>
+        <div class="mastlinks"><a href="#">How it works</a><a href="#">Plans</a><a href="#">Help</a><a class="txtlink" href="#">Post a need</a></div>
+      </div>
+      <div class="postblock">
+        <div><div class="q">What are you hunting for?</div><div class="qs">Post it and let sellers bring it to you.</div></div>
+        <button class="btn">Post a need</button>
+      </div>
+
+      <div class="locked" style="position:relative">
+        <span class="pinnote">Locked — stays put</span>
+        <div class="lockrow">
+          <div class="bigsearch" style="min-height:52px">
+            <span class="mag">⌕</span>
+            <input value="jordan rookie" readonly>
+            <span class="reset">Clear</span>
+          </div>
+          <span class="sortpill" style="margin-left:0;white-space:nowrap">Sort: Newest ⌄</span>
+        </div>
+        <div class="chiprow" style="margin:10px 0 0">
+          <span class="fchip">Bulk &amp; lots <x>×</x></span>
+          <span class="fchip">Basketball <x>×</x></span>
+          <span class="fchip">Under $500 <x>×</x></span>
+          <span class="fchip" style="border-style:dashed;color:var(--muted-foreground)">“jordan rookie” <x>×</x></span>
+        </div>
+      </div>
+
+      <div class="split">
+        <aside class="rail">
+          <div class="grp">
+            <h4>What kind</h4>
+            <div class="opt"><span class="box on">✓</span> Bulk &amp; lots <span class="ct">19</span></div>
+            <div class="opt"><span class="box"></span> Single cards <span class="ct">8</span></div>
+            <div class="opt off"><span class="box"></span> Wax &amp; sealed <span class="ct">0</span></div>
+          </div>
+          <div class="grp">
+            <h4>Sport</h4>
+            <div class="opt"><span class="box on">✓</span> Basketball <span class="ct">11</span></div>
+            <div class="opt"><span class="box"></span> Football <span class="ct">6</span></div>
+            <div class="opt"><span class="box"></span> Baseball <span class="ct">5</span></div>
+            <div class="opt"><span class="box"></span> TCG <span class="ct">3</span></div>
+          </div>
+          <div class="grp">
+            <h4>Buyer's max</h4>
+            <div class="range"><input class="mono" value="$0"><span style="color:var(--faint-foreground)">–</span><input class="mono" value="$500"></div>
+          </div>
+          <div class="grp">
+            <h4>Closing</h4>
+            <div class="opt"><span class="box"></span> Under 24 hours <span class="ct">4</span></div>
+            <div class="opt"><span class="box"></span> No offers yet <span class="ct">7</span></div>
+          </div>
+          <div class="railfoot"><span class="live mono">3 needs</span><span class="reset">Reset all</span></div>
+        </aside>
+
+        <div>
+          <div class="board">
+            <div class="board-head"><span class="h">Open demand</span><span class="livecount"><span class="dot"></span><b>3</b> matching · <b>9</b> offers in play</span></div>
+            <div class="row urgent"><div><div class="title">Jordan rookie-era bulk, 1986–1993 — 1,500ct</div><div class="meta">Raw · any condition · closing soon</div></div><span class="chip bulk">Bulk</span><div class="budget">$480<small>max</small></div><div class="offers"><b>5</b> offers</div><div class="clock amber">06h 41m</div></div>
+            <div class="row"><div><div class="title">Fleer-era Jordan mixed lot — 300ct</div><div class="meta">Raw · NM or better preferred</div></div><span class="chip bulk">Bulk</span><div class="budget">$395<small>max</small></div><div class="offers"><b>3</b> offers</div><div class="clock">1d 18h</div></div>
+            <div class="row"><div><div class="title">90s Bulls team bulk incl. Jordan rookies</div><div class="meta">Raw · shipped</div></div><span class="chip bulk">Bulk</span><div class="budget">$260<small>max</small></div><div class="offers"><b>1</b> offer</div><div class="clock">4d 02h</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- scrolled state -->
+  <div class="frame" style="margin-top:18px">
+    <div class="chrome"><i></i><i></i><i></i><span>exprifi.com/board — scrolled down 600px</span></div>
+    <div class="pad" style="background:var(--background);padding-top:0">
+      <div class="locked slim" style="position:relative;margin-top:0">
+        <span class="pinnote">Condensed on scroll</span>
+        <div class="lockrow">
+          <div class="logo" style="font-size:16px">exprifi<span class="tick"></span></div>
+          <div class="bigsearch" style="min-height:40px;padding:0 12px"><span class="mag" style="font-size:15px">⌕</span><input style="font-size:15px" value="jordan rookie" readonly></div>
+          <span class="fchip" style="white-space:nowrap">3 filters <x>×</x></span>
+          <span class="sortpill" style="margin-left:0;white-space:nowrap">Newest ⌄</span>
+          <button class="btn sm">Post a need</button>
+        </div>
+      </div>
+      <div class="split">
+        <aside class="rail">
+          <div class="scrollhint">↑ rail scrolls with you, sticks below the header</div>
+          <div class="grp" style="padding-top:8px">
+            <h4>Sport</h4>
+            <div class="opt"><span class="box on">✓</span> Basketball <span class="ct">11</span></div>
+            <div class="opt"><span class="box"></span> Football <span class="ct">6</span></div>
+            <div class="opt"><span class="box"></span> Baseball <span class="ct">5</span></div>
+          </div>
+          <div class="grp"><h4>Buyer's max</h4>
+            <div class="range"><input class="mono" value="$0"><span style="color:var(--faint-foreground)">–</span><input class="mono" value="$500"></div>
+          </div>
+          <div class="railfoot"><span class="live mono">3 needs</span><span class="reset">Reset all</span></div>
+        </aside>
+        <div>
+          <div class="board">
+            <div class="row cutrow"><div><div class="title">Fleer-era Jordan mixed lot — 300ct</div><div class="meta">Raw · NM or better preferred</div></div><span class="chip bulk">Bulk</span><div class="budget">$395<small>max</small></div><div class="offers"><b>3</b> offers</div><div class="clock">1d 18h</div></div>
+            <div class="row"><div><div class="title">90s Bulls team bulk incl. Jordan rookies</div><div class="meta">Raw · shipped</div></div><span class="chip bulk">Bulk</span><div class="budget">$260<small>max</small></div><div class="offers"><b>1</b> offer</div><div class="clock">4d 02h</div></div>
+            <div class="row"><div><div class="title">Jordan-era Bulls singles wanted, PSA 7+</div><div class="meta">Graded · slabs only</div></div><span class="chip single">Single</span><div class="budget">$1,850<small>max</small></div><div class="offers"><b>2</b> offers</div><div class="clock">6d 14h</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="why">
+    <b>How the two surfaces divide, precisely:</b>
+    <ul>
+      <li><b>Search</b> = free text across need title and description. Matches player, set, brand, year, team. Nothing else. If someone types "under 500" it searches for that phrase and finds nothing — which is honest and fixable, not broken.</li>
+      <li><b>Rail</b> = every structured field: type, sport, price band, closing window, offer state. Anything with a defined set of values lives here.</li>
+      <li>They compose with AND, both live in <code>searchParams</code>, and the header chips show the combined state — the dashed chip is the text query so it reads as a different kind of filter.</li>
+      <li>The header stays locked so a seller scanning 40 rows never scrolls away from their controls. It condenses to ~52px after 120px of scroll to keep the board the biggest thing on screen.</li>
+    </ul>
+  </div>
+</section>
+
+<hr class="big">
+
+<!-- ============ B. MY HUNTS ============ -->
+<section>
+  <span class="tag">Option B — revised, deliberately weakened</span>
+  <h2>Saved views — bookmarks, not matching</h2>
+  <p class="note"><b>Originally this was "My hunts" with email alerts. That was a mistake and Kyle caught it</b> — a standing search that emails you when matching demand appears <em>is</em> Lane 1 matching, given away free in the MVP. It would have gutted the M2 paid feature before it shipped. So the feature survives with its teeth pulled: saved views are <b>passive bookmarks</b>. They remember a filter state and show a badge when you're already on the site. <b>Nothing ever leaves the platform.</b> No email, no push, no "we found you a match."</p>
+  <p class="note"><b>The boundary rule, stated once:</b> free = <em>you come look</em>. Paid (M2) = <em>it comes to you</em>. Anything that reaches out to a seller unprompted is Lane 1 and is not free.</p>
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span>exprifi.com/board?hunt=basketball-bulk</span></div>
+    <div class="pad" style="background:var(--background)">
+      <div class="mast">
+        <div class="logo">exprifi<span class="tick"></span></div>
+        <div class="mastlinks"><a href="#">How it works</a><a href="#">Plans</a><a href="#">Help</a><a class="txtlink" href="#">Post a need</a></div>
+      </div>
+      <div class="split">
+        <aside class="rail">
+          <div class="grp">
+            <h4>Saved views</h4>
+            <div class="hunt active"><div class="hn">Basketball bulk <span class="pip">3 new</span></div><div class="hd">Bulk · Basketball · under $500</div></div>
+            <div class="hunt"><div class="hn">Any Jordan lot <span class="pip">1 new</span></div><div class="hd">Any type · $1k+</div></div>
+            <div class="hunt"><div class="hn">Closing today</div><div class="hd">Any type · under 24h</div></div>
+            <button class="addhunt">+ Save this view</button>
+            <div class="bell" style="margin-top:10px;color:var(--faint-foreground)">Badges update when you visit. We don't email you.</div>
+          </div>
+          <div class="grp">
+            <h4>Editing: Basketball bulk view</h4>
+            <div class="opt"><span class="box on">✓</span> Bulk &amp; lots <span class="ct">19</span></div>
+            <div class="opt"><span class="box on">✓</span> Basketball <span class="ct">11</span></div>
+            <div class="range"><input class="mono" value="$0"><span style="color:var(--faint-foreground)">–</span><input class="mono" value="$500"></div>
+          </div>
+          <div class="railfoot"><span class="live mono">11 needs</span><span class="reset">All open demand</span></div>
+        </aside>
+        <div>
+          <div class="postblock">
+            <div><div class="q">What are you hunting for?</div><div class="qs">Post it and let sellers bring it to you.</div></div>
+            <button class="btn">Post a need</button>
+          </div>
+          <div class="chiprow">
+            <span class="fchip" style="border-color:var(--foreground);font-weight:600">Hunt: Basketball bulk</span>
+            <span class="fchip">3 new since Sunday <x>×</x></span>
+            <span class="sortpill">Sort: Newest ⌄</span>
+          </div>
+          <div class="board">
+            <div class="board-head"><span class="h">Basketball bulk</span><span class="livecount"><span class="dot"></span><b>11</b> matching · <b>3</b> new</span></div>
+            <div class="row urgent"><div><div class="title">1990–92 Hoops / Skybox bulk — 3,000ct+</div><div class="meta">Raw · any condition · closing soon</div></div><span class="chip bulk">Bulk</span><div class="budget">$185<small>max</small></div><div class="offers"><b>6</b> offers</div><div class="clock amber">09h 14m</div></div>
+            <div class="row"><div><div class="title">1985–91 Topps basketball bulk — 5,000ct min</div><div class="meta">Raw · any condition · shipped</div></div><span class="chip bulk">Bulk</span><div class="budget">$420<small>max</small></div><div class="offers"><b>3</b> offers</div><div class="clock">2d 04h</div></div>
+            <div class="row"><div><div class="title">Mixed NBA rookie lot — 1996–2004, 250ct</div><div class="meta">Raw · NM or better preferred</div></div><span class="chip bulk">Bulk</span><div class="budget">$310<small>max</small></div><div class="offers">no offers</div><div class="clock">4d 11h</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="why"><b>What it's still good for:</b> a breaker who checks the board every morning stops re-clicking the same four filters, and the "3 new" badge gives them a reason to open the tab. Real retention, zero risk to M2.</div>
+  <div class="why warn"><b>What it's now deliberately NOT good for — and that's the point:</b> it will not tell you about demand you haven't come to look at. That gap is exactly what M2 sells. When Lane 1 ships, a saved view becomes the upgrade prompt — <em>"you check this view every day, want us to just tell you?"</em> — and the saved views themselves are the cleanest signal of what each seller stocks, which is the data Lane 1 needs anyway. The free version becomes the on-ramp instead of the substitute.</div>
+  <div class="why stop"><b>Seeding-sprint correction:</b> I previously claimed hunts were the mechanism for waking sellers up. With alerts removed, that's now a <b>manual founder job</b> — Kyle emails people himself during seeding. That's the right answer at 0 needs anyway, and it doesn't need to be a product feature.</div>
+</section>
+
+<hr class="big">
+
+<!-- ============ C. PROFILE-SHAPED ============ -->
+<section>
+  <span class="tag">Option C — the "no filters at all" version</span>
+  <h2>Profile-shaped rail: you answer once, the board is yours</h2>
+  <p class="note">Filtering disappears as a concept. On signup you answer three plain-English questions; the board arrives already matched to you and the rail just shows your answers back with an Edit link. Nothing on screen looks like a search tool.</p>
+
+  <!-- the one-time setup -->
+  <div class="frame" style="margin-bottom:18px">
+    <div class="chrome"><i></i><i></i><i></i><span>exprifi.com/welcome — asked once, at signup</span></div>
+    <div class="pad" style="background:var(--background)">
+      <div style="max-width:640px">
+        <div style="font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-foreground);margin-bottom:10px">Step 2 of 3</div>
+        <div class="qcard">
+          <div class="q2">What do you sell?</div>
+          <div class="pickrow">
+            <span class="pick on">📦 Bulk &amp; lots</span>
+            <span class="pick">🃏 Single cards</span>
+            <span class="pick">📕 Wax &amp; sealed</span>
+          </div>
+        </div>
+        <div class="qcard">
+          <div class="q2">Which sports do you actually stock?</div>
+          <div class="pickrow">
+            <span class="pick on">🏀 Basketball</span>
+            <span class="pick on">🏈 Football</span>
+            <span class="pick">⚾ Baseball</span>
+            <span class="pick">🎴 TCG</span>
+          </div>
+        </div>
+        <div class="qcard">
+          <div class="q2">What size deals are worth your time?</div>
+          <div class="pickrow">
+            <span class="pick">Anything</span>
+            <span class="pick on">$50 – $500</span>
+            <span class="pick">$500 – $2k</span>
+            <span class="pick">$2k+</span>
+          </div>
+        </div>
+        <button class="btn" style="width:100%;min-height:52px">Show me my board</button>
+        <div class="caption">Skippable. Skipping shows the whole board — never a dead end.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- the resulting board -->
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span>exprifi.com/board — every visit after</span></div>
+    <div class="pad" style="background:var(--background)">
+      <div class="mast">
+        <div class="logo">exprifi<span class="tick"></span></div>
+        <div class="mastlinks"><a href="#">How it works</a><a href="#">Plans</a><a href="#">Help</a><a class="txtlink" href="#">Post a need</a></div>
+      </div>
+      <div class="split">
+        <aside class="rail">
+          <div class="grp">
+            <h4>Your board</h4>
+            <div class="setup">
+              <div class="lbl">You told us</div>
+              <div class="answer">You sell <em>bulk &amp; lots</em> in <em>basketball</em> and <em>football</em>, worth <em>$50–$500</em>.</div>
+              <a class="editlink" href="#">Change my answers</a>
+            </div>
+            <div class="setup" style="background:#F7F8F8">
+              <div class="lbl">Right now</div>
+              <div class="answer mono" style="font-size:26px;line-height:1.2">14 <span style="font-size:15px;font-family:'Instrument Sans';font-weight:500;color:var(--muted-foreground)">needs match you</span></div>
+              <div style="font-size:13.5px;color:var(--muted-foreground);margin-top:4px">4 posted since your last visit</div>
+            </div>
+          </div>
+          <div class="grp">
+            <h4>Not seeing enough?</h4>
+            <div class="opt"><span class="box"></span> Show everything <span class="ct">27</span></div>
+            <div class="opt"><span class="box"></span> Ignore my price range <span class="ct">+9</span></div>
+          </div>
+        </aside>
+        <div>
+          <div class="postblock">
+            <div><div class="q">What are you hunting for?</div><div class="qs">Post it and let sellers bring it to you.</div></div>
+            <button class="btn">Post a need</button>
+          </div>
+          <div class="chiprow">
+            <span class="fchip" style="border-color:var(--foreground);font-weight:600">Matched to you</span>
+            <span class="sortpill">Sort: Newest ⌄</span>
+          </div>
+          <div class="board">
+            <div class="board-head"><span class="h">Your board</span><span class="livecount"><span class="dot"></span><b>14</b> match you · <b>4</b> new</span></div>
+            <div class="row urgent"><div><div class="title">1990–92 Hoops / Skybox bulk — 3,000ct+</div><div class="meta">Raw · any condition · closing soon</div></div><span class="chip bulk">Bulk</span><div class="budget">$185<small>max</small></div><div class="offers"><b>6</b> offers</div><div class="clock amber">09h 14m</div></div>
+            <div class="row"><div><div class="title">1985–91 Topps basketball bulk — 5,000ct min</div><div class="meta">Raw · any condition · shipped</div></div><span class="chip bulk">Bulk</span><div class="budget">$420<small>max</small></div><div class="offers"><b>3</b> offers</div><div class="clock">2d 04h</div></div>
+            <div class="row"><div><div class="title">90s football bulk, any brand — 2,000ct</div><div class="meta">Raw · shipped</div></div><span class="chip bulk">Bulk</span><div class="budget">$260<small>max</small></div><div class="offers">no offers</div><div class="clock">3d 07h</div></div>
+            <div class="row"><div><div class="title">Panini Prizm base bulk, any year — 1,000ct</div><div class="meta">Raw · shipped or local</div></div><span class="chip bulk">Bulk</span><div class="budget">$140<small>max</small></div><div class="offers"><b>2</b> offers</div><div class="clock">5d 02h</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="why"><b>What's good:</b> this is the friendliest option for the 45+ collector by a mile — no controls to learn, board is right on arrival, and the setup answers double as the seed for notification preferences. It's also the most obviously <em>not</em> a store.</div>
+  <div class="why warn"><b>Where it breaks:</b> a breaker scanning for one specific thing today has no way to slice, so the "Show everything" escape hatch has to be genuinely prominent or they feel trapped in a box they set months ago and forgot. It also front-loads friction onto signup, which is the worst possible place to add friction while the board is at 0 and you're fighting for every account. <b>C works best layered on top of A later — not instead of it.</b></div>
+</section>
+
+<hr class="big">
+
+<!-- ============ D. ZERO-CHROME ============ -->
+<section>
+  <span class="tag">Option D — maximum restraint</span>
+  <h2>Zero chrome: one box, some chips, nothing else</h2>
+  <p class="note">No rail, no panel, no facets. One search field, a row of suggested searches, and the board. Whatever you type gets parsed into filters behind the scenes and rendered back as removable chips.</p>
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span>exprifi.com/board</span></div>
+    <div class="pad" style="background:var(--background)">
+      <div class="mast">
+        <div class="logo">exprifi<span class="tick"></span></div>
+        <div class="mastlinks"><a href="#">How it works</a><a href="#">Plans</a><a href="#">Help</a><a class="txtlink" href="#">Post a need</a></div>
+      </div>
+      <div style="max-width:860px;margin:0 auto">
+        <div class="postblock">
+          <div><div class="q">What are you hunting for?</div><div class="qs">Post it and let sellers bring it to you.</div></div>
+          <button class="btn">Post a need</button>
+        </div>
+        <div class="bigsearch">
+          <span class="mag">⌕</span>
+          <input value="basketball bulk under 500" readonly>
+          <span class="reset">Clear</span>
+        </div>
+        <div class="suggest">
+          <span class="sug on">basketball bulk under 500</span>
+          <span class="sug">closing today</span>
+          <span class="sug">no offers yet</span>
+          <span class="sug">wax &amp; sealed</span>
+          <span class="sug">$1k+</span>
+          <span class="sug">local pickup</span>
+        </div>
+        <div class="board">
+          <div class="board-head"><span class="h">Open demand</span><span class="livecount"><span class="dot"></span><b>11</b> matching · <b>31</b> offers in play</span></div>
+          <div class="row urgent"><div><div class="title">1990–92 Hoops / Skybox bulk — 3,000ct+</div><div class="meta">Raw · any condition · closing soon</div></div><span class="chip bulk">Bulk</span><div class="budget">$185<small>max</small></div><div class="offers"><b>6</b> offers</div><div class="clock amber">09h 14m</div></div>
+          <div class="row"><div><div class="title">1985–91 Topps basketball bulk — 5,000ct min</div><div class="meta">Raw · any condition · shipped</div></div><span class="chip bulk">Bulk</span><div class="budget">$420<small>max</small></div><div class="offers"><b>3</b> offers</div><div class="clock">2d 04h</div></div>
+          <div class="row"><div><div class="title">Mixed NBA rookie lot — 1996–2004, 250ct</div><div class="meta">Raw · NM or better preferred</div></div><span class="chip bulk">Bulk</span><div class="budget">$310<small>max</small></div><div class="offers">no offers</div><div class="clock">4d 11h</div></div>
+          <div class="row"><div><div class="title">Panini Prizm base bulk, any year — 1,000ct</div><div class="meta">Raw · shipped or local</div></div><span class="chip bulk">Bulk</span><div class="budget">$140<small>max</small></div><div class="offers"><b>2</b> offers</div><div class="clock">5d 02h</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="why"><b>What's good:</b> cheapest to build by far, looks nothing like any marketplace, and it's honest about the current stage — with 27 needs on the board, a filter rail is arguably over-engineering. Also the only option that's identical on desktop and mobile.</div>
+  <div class="why stop"><b>Where it breaks — and this is the disqualifier:</b> it only works if free-text parsing is genuinely good, and "basketball bulk under 500" is a real NLP problem you'd be committing to on a board with no data to tune against. Every parse miss reads as the site being broken. It also gives sellers no way to see <em>what exists</em> — the whole point of a demand board is browsing what buyers want, and a search box assumes you already know. <b>Not recommended, but worth keeping the search field itself as an addition to A.</b></div>
+</section>
+
+<hr class="big">
+
+<!-- ============ MOBILE ============ -->
+<section>
+  <span class="tag">Mobile — under 1024px</span>
+  <h2>The rail becomes a sheet</h2>
+  <p class="note">Same component, different presentation. On phones the rail can't dock, so it returns as a bottom sheet behind one "Refine" button — which is what the locked 3b §1.3 already specified. Nothing is lost; the desktop just stops wasting its gutter.</p>
+  <div class="phones">
+    <div class="phone"><div class="scr">
+      <div class="pinner">
+        <div class="logo" style="font-size:17px;margin-bottom:10px">exprifi<span class="tick"></span></div>
+        <div class="bigsearch" style="min-height:44px;padding:0 12px;margin-bottom:10px"><span class="mag" style="font-size:15px">⌕</span><input style="font-size:15px" placeholder="Player, set or card" readonly></div>
+        <div class="chiprow" style="margin-bottom:12px">
+          <span class="fchip" style="border-color:var(--foreground);font-weight:600">Refine</span>
+          <span class="fchip">Bulk <x>×</x></span>
+          <span class="fchip">🏀 <x>×</x></span>
+        </div>
+        <div class="board">
+          <div class="board-head" style="padding:12px 14px"><span class="h" style="font-size:11px">Open demand</span><span class="livecount" style="font-size:12px"><span class="dot"></span><b>11</b></span></div>
+          <div class="row urgent" style="grid-template-columns:1fr auto;padding:12px 14px"><div><div class="title" style="font-size:14px">1990–92 Hoops bulk — 3,000ct+</div><div class="meta">Bulk · 6 offers · <span style="color:var(--warn)">09h 14m</span></div></div><div class="budget" style="font-size:16px">$185<small>max</small></div></div>
+          <div class="row" style="grid-template-columns:1fr auto;padding:12px 14px"><div><div class="title" style="font-size:14px">1985–91 Topps bulk — 5,000ct</div><div class="meta">Bulk · 3 offers · 2d 04h</div></div><div class="budget" style="font-size:16px">$420<small>max</small></div></div>
+          <div class="row" style="grid-template-columns:1fr auto;padding:12px 14px"><div><div class="title" style="font-size:14px">Mixed NBA rookie lot, 250ct</div><div class="meta">Bulk · no offers · 4d 11h</div></div><div class="budget" style="font-size:16px">$310<small>max</small></div></div>
+        </div>
+      </div>
+      <div class="stickybar"><button class="btn" style="flex:1">Post a need</button></div>
+    </div></div>
+
+    <div class="phone"><div class="scr">
+      <div class="pinner">
+        <div class="logo" style="font-size:17px;margin-bottom:14px">exprifi<span class="tick"></span></div>
+        <div class="board"><div class="board-head" style="padding:12px 14px"><span class="h" style="font-size:11px">Open demand</span></div>
+          <div class="row" style="grid-template-columns:1fr auto;padding:12px 14px"><div><div class="title" style="font-size:14px">1990–92 Hoops bulk</div></div><div class="budget" style="font-size:16px">$185</div></div>
+        </div>
+      </div>
+      <div class="scrim"></div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+          <b style="font-size:17px">Refine</b><span class="reset">Reset all</span>
+        </div>
+        <div class="grp" style="padding:10px 0;border-top:1px solid var(--border)">
+          <h4 style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-foreground);margin:0 0 6px">What kind</h4>
+          <div class="opt"><span class="box on">✓</span> Bulk &amp; lots <span class="ct">19</span></div>
+          <div class="opt"><span class="box"></span> Single cards <span class="ct">8</span></div>
+        </div>
+        <div class="grp" style="padding:10px 0;border-top:1px solid var(--border)">
+          <h4 style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-foreground);margin:0 0 6px">Sport</h4>
+          <div class="opt"><span class="box on">✓</span> Basketball <span class="ct">11</span></div>
+          <div class="opt"><span class="box"></span> Football <span class="ct">6</span></div>
+        </div>
+        <button class="btn showbtn">Show 11 needs</button>
+      </div>
+    </div></div>
+  </div>
+  <p class="caption">Left: at rest — two controls, not seven. Right: sheet open, 44px rows, one commit button.</p>
+</section>
+
+<hr class="big">
+
+<!-- ============ RAIL STATES ============ -->
+<section>
+  <span class="tag rec">Answered: the rail is permanent</span>
+  <h2>Two states you'll actually see first</h2>
+  <p class="note">The rail is <b>always visible at ≥1024px</b> — "Refine" is only the mobile presentation, never a desktop control. Hidden filters are unused filters, and the counts are demand data, not just chrome. But two states need designing: the escape hatch, and what happens before the board has earned a rail.</p>
+
+  <h3 style="font-size:16px;margin:22px 0 8px">1 · Collapsed — the escape hatch</h3>
+  <p class="note">A "Hide filters" link at the foot of the rail, remembered in localStorage. The rail becomes a 44px ink tab clamped to the left edge; active filters stay in the header chips so nothing is lost. Twenty minutes of work that ends the argument.</p>
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span>exprifi.com/board — filters hidden</span></div>
+    <div class="pad" style="background:var(--background)">
+      <div class="locked" style="position:relative;margin-top:0">
+        <div class="lockrow">
+          <div class="logo" style="font-size:16px">exprifi<span class="tick"></span></div>
+          <div class="bigsearch" style="min-height:40px;padding:0 12px"><span class="mag" style="font-size:15px">⌕</span><input style="font-size:15px" value="jordan rookie" readonly></div>
+          <span class="fchip">Bulk <x>×</x></span><span class="fchip">Basketball <x>×</x></span>
+          <span class="sortpill" style="margin-left:0;white-space:nowrap">Newest ⌄</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:38px 1fr;gap:20px;align-items:start">
+        <div style="border:1px solid var(--foreground);border-left:0;border-radius:0 2px 2px 0;padding:14px 0;
+          text-align:center;min-height:150px;display:flex;flex-direction:column;align-items:center;gap:10px;background:#fff">
+          <span style="font-size:15px">⇥</span>
+          <span style="writing-mode:vertical-rl;font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase">Filters</span>
+          <span class="mono" style="font-size:12px;color:var(--primary-deep);font-weight:600">3</span>
+        </div>
+        <div class="board">
+          <div class="board-head"><span class="h">Open demand</span><span class="livecount"><span class="dot"></span><b>3</b> matching</span></div>
+          <div class="row urgent"><div><div class="title">Jordan rookie-era bulk, 1986–1993 — 1,500ct</div><div class="meta">Raw · any condition · closing soon</div></div><span class="chip bulk">Bulk</span><div class="budget">$480<small>max</small></div><div class="offers"><b>5</b> offers</div><div class="clock amber">06h 41m</div></div>
+          <div class="row"><div><div class="title">Fleer-era Jordan mixed lot — 300ct</div><div class="meta">Raw · NM or better preferred</div></div><span class="chip bulk">Bulk</span><div class="budget">$395<small>max</small></div><div class="offers"><b>3</b> offers</div><div class="clock">1d 18h</div></div>
+          <div class="row"><div><div class="title">90s Bulls team bulk incl. Jordan rookies</div><div class="meta">Raw · shipped</div></div><span class="chip bulk">Bulk</span><div class="budget">$260<small>max</small></div><div class="offers"><b>1</b> offer</div><div class="clock">4d 02h</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="font-size:16px;margin:30px 0 8px">2 · Low volume — under ~15 needs, no rail at all</h3>
+  <p class="note">A rail full of zeros makes the board look emptier than it is. Below the threshold the rail doesn't render: the board goes full width, the search bar stays, and a single honest line replaces the filters. The rail appears automatically once the board earns it — same logic as holding saved views until there are real rows.</p>
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span>exprifi.com/board — 9 open needs</span></div>
+    <div class="pad" style="background:var(--background)">
+      <div class="mast">
+        <div class="logo">exprifi<span class="tick"></span></div>
+        <div class="mastlinks"><a href="#">How it works</a><a href="#">Plans</a><a href="#">Help</a><a class="txtlink" href="#">Post a need</a></div>
+      </div>
+      <div class="postblock">
+        <div><div class="q">What are you hunting for?</div><div class="qs">Post it and let sellers bring it to you.</div></div>
+        <button class="btn">Post a need</button>
+      </div>
+      <div class="bigsearch" style="min-height:52px"><span class="mag">⌕</span><input placeholder="Search by player, set or team" readonly></div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 0 14px">
+        <span style="font-size:14.5px;color:var(--muted-foreground)">Everything open right now — small enough to read top to bottom.</span>
+        <span class="sortpill" style="margin-left:0">Sort: Newest ⌄</span>
+      </div>
+      <div class="board">
+        <div class="board-head"><span class="h">Open demand</span><span class="livecount"><span class="dot"></span><b>9</b> open · <b>12</b> offers in play</span></div>
+        <div class="row urgent"><div><div class="title">1990–92 Hoops / Skybox bulk — 3,000ct+</div><div class="meta">Raw · any condition · closing soon</div></div><span class="chip bulk">Bulk</span><div class="budget">$185<small>max</small></div><div class="offers"><b>6</b> offers</div><div class="clock amber">09h 14m</div></div>
+        <div class="row"><div><div class="title">1985–91 Topps basketball bulk — 5,000ct min</div><div class="meta">Raw · any condition · shipped</div></div><span class="chip bulk">Bulk</span><div class="budget">$420<small>max</small></div><div class="offers"><b>3</b> offers</div><div class="clock">2d 04h</div></div>
+        <div class="row"><div><div class="title">Jordan rookie-era lot, PSA 8+ only</div><div class="meta">Graded · slabs only</div></div><span class="chip single">Single</span><div class="budget">$3,150<small>max</small></div><div class="offers"><b>2</b> offers</div><div class="clock">18h 22m</div></div>
+        <div class="row"><div><div class="title">90s football bulk, any brand — 2,000ct</div><div class="meta">Raw · shipped</div></div><span class="chip bulk">Bulk</span><div class="budget">$260<small>max</small></div><div class="offers">no offers</div><div class="clock">3d 07h</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="why"><b>Rule:</b> rail renders at <b>≥15 open needs</b>. Below that, full-width board + search only. The threshold is a constant in one place, tunable once you can see real behaviour — don't make it a setting.</div>
+</section>
+
+<hr class="big">
+
+<!-- ============ EMPTY STATE ============ -->
+<section>
+  <span class="tag">Edge case that matters right now</span>
+  <h2>Zero results, and zero board</h2>
+  <p class="note">The board is at 0 today, so the rail's honest-empty behaviour isn't hypothetical — it's the first thing most visitors will see until the seeding sprint lands. Never fake a count.</p>
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span>exprifi.com/board</span></div>
+    <div class="pad" style="background:var(--background)">
+      <div class="split">
+        <aside class="rail">
+          <div class="grp"><h4>What kind</h4>
+            <div class="opt off"><span class="box on">✓</span> Bulk &amp; lots <span class="ct">0</span></div>
+            <div class="opt off"><span class="box"></span> Single cards <span class="ct">0</span></div>
+          </div>
+          <div class="grp"><h4>Sport</h4>
+            <div class="opt off"><span class="box"></span> Basketball <span class="ct">0</span></div>
+            <div class="opt off"><span class="box"></span> Football <span class="ct">0</span></div>
+          </div>
+          <div class="railfoot"><span class="live mono" style="color:var(--muted-foreground)">0 needs</span><span class="reset">Reset all</span></div>
+        </aside>
+        <div>
+          <div class="board" style="padding:44px 24px;text-align:center">
+            <div style="font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--board-secondary);margin-bottom:14px"><span class="dot"></span>Live · 0 open</div>
+            <div style="font-size:22px;font-weight:700;letter-spacing:-.01em;margin-bottom:8px">The board opens with founding members</div>
+            <div style="color:var(--board-faint);max-width:46ch;margin:0 auto 22px">Nothing is posted yet. Post the first need and every seller who joins will see it at the top.</div>
+            <button class="btn" style="background:#fff;color:var(--foreground);border-color:#fff">Post the first need</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="why"><b>Rule:</b> options with 0 matches render dimmed with their real count, never hidden. Hiding them makes the board look smaller than it is; faking them is a trust violation you can't take back.</div>
+</section>
+
+</div>
+</body>
+</html>

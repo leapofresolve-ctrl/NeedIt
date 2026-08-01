@@ -272,7 +272,8 @@
       <tr class="risk"><td>Facelift scope creeps into a redesign</td><td>Med</td><td>3a tokens are locked and the spec never overrides them · six discrete blocks, each independently shippable and verifiable</td></tr>
       <tr class="risk"><td>Kyle bandwidth across an 8-week plan</td><td>Med</td><td>Phases 1–2 are Claude-heavy · Kyle's heavy lift is concentrated in Phase 3 where it belongs · cut from Phase 4, never from seeding</td></tr>
       <tr class="risk"><td>Scam / counterfeit in launch week</td><td>Med</td><td>Mandatory single photos · watermarks · guarantee + dispute runbook · Leak Patrol · your eye on every early deal</td></tr>
-      <tr class="risk"><td>Security incident</td><td>Low</td><td>Hardening executed + verified · <strong>secrets still unrotated since July debugging — runbook written Jul 29, 20 minutes of your time</strong> · freeze Sep 21</td></tr>
+      <tr class="risk"><td>Security incident</td><td>Low</td><td>Hardening executed + verified · <span class="ok">Resend key rotated + old key revoked ✓ Aug 1</span> · <strong>service-role key, NOTIFY_WEBHOOK_SECRET and METRICS_API_TOKEN still unrotated since July debugging — runbook written Jul 29, ~20 minutes of your time</strong> · freeze Sep 21</td></tr>
+      <tr class="risk"><td>A pipeline fails silently and nobody notices</td><td>Med</td><td><strong>Already happened once:</strong> notification email 404'd for 3 days behind a working in-app bell (Aug 1) · webhook now on exprifi.com and verified end-to-end · cheap standing check: <span class="mono">select status_code, count(*) from net._http_response where created &gt; now() - interval '7 days' group by 1;</span></td></tr>
       <tr class="risk"><td>Off-platform leakage normalizes</td><td>High by design</td><td>Acceptable in M1 · funded-deal perks + post-funding chat make paying the better deal, not just the safer one</td></tr>
       <tr class="risk"><td>Follower reach ≠ signups</td><td>Med</td><td>Phase 3 soft-open data warns early · partner breakers de-risk reach · facelift + public browsing land <em>before</em> the audience arrives (one first impression)</td></tr>
     </tbody>
@@ -305,7 +306,12 @@ const WEEKS = [
     ["k","▶ Set the LLC's postal address for the Terms contact block (LEGAL_ADDRESS)"],
     ["k","Upstash Redis + Sentry accounts — until Upstash exists the limiter runs per-instance only"],
     ["k","Uptime monitor pointed at https://exprifi.com/api/health"],
-    ["k","Confirm the offer-photos storage bucket is NOT public (Supabase → Storage)"]
+    ["k","Confirm the offer-photos storage bucket is NOT public (Supabase → Storage)"],
+    ["c","Aug 1 — NOTIFICATION EMAIL REPAIRED. The Supabase webhook <span class='mono'>notify_email</span> was still POSTing to the dead <span class='mono'>need-it.vercel.app</span> host and 404'ing (DEPLOYMENT_NOT_FOUND) since the domain cutover, so every new_offer / counter / accepted / declined / demand_match email failed silently for ~3 days while the in-app bell kept working. URL → <span class='mono'>https://exprifi.com/api/notifications/email</span>. Verified: <span class='mono'>200 {\"sent\":true}</span> + Resend <em>Delivered</em>.",1],
+    ["c","Aug 1 — old Resend <span class='mono'>Onboarding</span> API key REVOKED. <span class='mono'>Supabase Auth SMTP</span> is now the only key in the account; the Resend half of the rotation is complete."],
+    ["c","Aug 1 — <span class='mono'>api/notifications/email/route.ts</span> no longer re-derives its own SITE_URL with a <span class='mono'>need-it.vercel.app</span> fallback; imports from <span class='mono'>lib/site</span>. Run <span class='mono'>npx tsc --noEmit</span> locally before pushing (sandbox times out type-checking over the mount)."],
+    ["c","Aug 1 — LEGACY HOST RETIRED (Kyle's call). <span class='mono'>need-it.vercel.app</span> removed from all four places that still referenced it: the <span class='mono'>redirects()</span> block in <span class='mono'>next.config.ts</span>, <span class='mono'>LEGACY_HOST</span> in <span class='mono'>lib/site.ts</span>, the notifications-route fallback, and the Supabase Auth redirect allowlist. Old links now 404 by decision. To reverse: re-attach the domain in Vercel <em>first</em> — restoring the code alone does nothing."],
+    ["c","Aug 1 — added <span class='mono'>https://www.exprifi.com/**</span> to the Supabase redirect allowlist. Vercel serves both apex and www as Production but only apex was allowlisted, so a visitor who signed up from www would have had <span class='mono'>emailRedirectTo</span> silently downgraded to Site URL — the Jul 29 bug, one subdomain over. Latent while confirmation is OFF; would have surfaced at launch."]
   ]},
   { id:"p2", title:"Phase 2 — The facelift", dates:"Aug 11 – Aug 24", note:"You get one first impression with your following. This is the phase that makes it count.", items:[
     ["c","Block C: accent discipline — green becomes a data color, buttons go ink"],
@@ -320,7 +326,8 @@ const WEEKS = [
     ["c","Block E: /plans public page with worked fee examples — NO billing code"],
     ["c","/post composes first, commits second (auth wall at the submit step, not the route)"],
     ["k","Set the three /plans numbers: high-end threshold · Pro price · free alert cap",1],
-    ["k","Content: build-in-public clips of the facelift — the redesign IS content"]
+    ["k","Content: build-in-public clips of the facelift — the redesign IS content"],
+    ["c","Aug 1 — Block D: fresh signup verified end-to-end. Sign-up → <span class='mono'>/onboarding</span> → username → board, with email confirmation OFF. This was the last unproven link in the auth chain. Also confirmed 0011's <span class='mono'>profiles insert own</span> policy survived 0015's policy drop (that loop filters <span class='mono'>cmd='SELECT'</span>), which is what the onboarding upsert depends on."]
   ]},
   { id:"p3", title:"Phase 3 — THE SEEDING SPRINT", dates:"Aug 25 – Sep 14", note:"This is the whole ballgame and the phase the original plan never actually gave time to. If something has to be cut, cut from Phase 4 — never from here.", gate:true, items:[
     ["k","Post 10–15 real needs from your own buy-list. You are buyer #1.",1],
@@ -346,7 +353,8 @@ const WEEKS = [
     ["c","FEATURE FREEZE Sep 21 — bug-fix only after",1],
     ["k","Launch video + 3 posts + partner content queued"],
     ["k","Pre-seed: board shows 30+ live needs before launch morning",1],
-    ["k","Dry-run the runbooks: one ticket, one dispute, one leak flag"]
+    ["k","Dry-run the runbooks: one ticket, one dispute, one leak flag"],
+    ["c","Wire <span class='mono'>LIMITS.signupPerIp</span> — it exists in <span class='mono'>lib/rate-limit.ts</span> and is referenced by nothing, the same unwired-limit shape <span class='mono'>passwordResetPerIp</span> had before Jul 29. Signup runs in the browser client, so it can't be limited without moving to a server action — bundle with the auth-form pass above rather than as its own redeploy."]
   ]},
   { id:"pL", title:"Launch — LIVE", dates:"Sep 26", items:[
     ["k","SAT SEP 26: launch video + partner posts + all-day comments/DMs",1],
@@ -399,7 +407,11 @@ WEEKS.forEach((w, wi) => {
     const row = document.createElement("div");
     row.className = "item" + (state[id] ? " done" : "") + (it[2] ? " hard" : "");
     row.innerHTML = `<input type="checkbox" id="${id}" ${state[id] ? "checked" : ""}><span class="who ${it[0]}">${it[0]==="k"?"KYLE":"CLAUDE"}</span><label for="${id}"></label>`;
-    row.querySelector("label").textContent = it[1];
+    // innerHTML, not textContent: many items embed <strong>/<span class="mono">
+    // markup deliberately (the Phase 4 template item, the Aug 1 entries). With
+    // textContent those tags rendered as literal angle-bracket text. Content is
+    // static and authored in this file, so there's no untrusted input here.
+    row.querySelector("label").innerHTML = it[1];
     row.querySelector("input").addEventListener("change", e => {
       state[id] = e.target.checked; if(!e.target.checked) delete state[id];
       row.classList.toggle("done", e.target.checked); save(); refresh();

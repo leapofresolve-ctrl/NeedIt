@@ -1,424 +1,362 @@
-# Needit — Build Log
+# Exprifi — Build Log
 
-_MVP = Lane 2 (open request board). No payments, no catalog, no Lane 1 yet._
+_Public brand **Exprifi** (exprifi.com). Internal codename **needit** (repo, folders, Supabase project) — deliberately not renamed._
+
+_MVP = **Lane 2**, the open request board. Buyers post what they want; sellers bring it to them. No catalog UI, no Lane 1 matching, no live payments._
+
+> **Reading order.** Current state first, history last. If you only read one section, read **Open items**. Everything below "Session history" is the record of how we got here — useful for *why*, not for *what's true now*.
+
+---
 
 ## Status at a glance
-- **Milestone:** M0 — vertical slice (Lane 2)
-- **Last updated:** Aug 1, 2026
+
+| | |
+|---|---|
+| **Milestone** | M1 — Lane 2 live, pre-launch |
+| **Launch target** | **Sep 26, 2026** |
+| **Live at** | https://exprifi.com (apex + www, Vercel project `need-it`) |
+| **Board** | **0 live needs** — seeding sprint (Aug 25 – Sep 14) is the gate that decides the date |
+| **Last updated** | Aug 1, 2026 (evening) |
+
+**What works today, verified:** public browsing logged-out · post a need · structured offers + counters (cap 10) · accept/decline with atomic match · in-app notifications + live bell · **notification email** · demand alerts · username-or-email sign-in · **password reset** · **fresh signup → onboarding → username** · admin `/metrics` · `/api/health`.
+
+**What exists but is dormant:** card catalog schema (0014/0016) — no ingest, no picker, blocked on licensing · Stripe Connect test-mode wiring — never proven end-to-end, live flip not scheduled · `/legal/*` pages — built, unlinked.
+
+**Environment:** git root `~/Desktop/NeedIt`, app at `needit/`, **Vercel Root Directory = `needit`**. Supabase project ref `cfcjcxgmntkatamflaqh` (org VoloksVault, free tier). Vercel Hobby.
 
 ---
 
-## ✅ Done
-- **Scaffold** — `create-next-app -e with-supabase` → full Next.js App Router + Supabase + Tailwind + shadcn/ui starter, auth pre-wired.
-  - App lives at: `~/Desktop/NeedIt/Developing NeedIt Official/needit/`
-- **Git committed** — initial scaffold snapshot.
-- **GitHub auth** — installed GitHub CLI (`gh`), logged in as `leapofresolve-ctrl` via browser device flow. Credentials saved.
-- **Pushed to GitHub** — repo: `github.com/leapofresolve-ctrl/NeedIt`, branch `main`.
-  - Note: git repo root is `~/Desktop/NeedIt` (one level above the app). App is nested at `Developing NeedIt Official/needit/` → **Vercel Root Directory must be set to that subpath.**
+## 🔴 Open items
 
-## ✅ Done (cont.)
-- **Supabase project created** — `needit` (ref `cfcjcxgmntkatamflaqh`), org VoloksVault, free/NANO, us-west-2. URL + publishable key saved to Vercel env + local `.env.local`.
-- **App relocated** — moved from `Developing NeedIt Official/needit` → repo-root `needit` (Vercel rejects spaces in serverless function paths). App now at `~/Desktop/NeedIt/needit`.
-- **Deployed to Vercel — LIVE & GREEN** — project `need-it`, Root Directory `needit`, Next.js preset, both env vars set. Live at **https://need-it.vercel.app** — homepage + `/auth/login` render, Supabase connected.
+Everything genuinely outstanding, in one place. Nothing else in this document is a to-do list.
 
-## ✅ Done (Step 3 — backend, Jun 27)
-- **Schema + RLS** — ran full SQL block in Supabase SQL Editor. "Success." Tables: profiles, requests, offers, deals + auto-profile trigger + indexes + all RLS policies.
-- **Storage** — `offer-photos` bucket created (public). Added RLS policy: authenticated users can insert into `offer-photos` (needed for uploads — not in original plan).
-- **Auth URLs** — Site URL = `https://need-it.vercel.app`; Redirect URLs allow-list = vercel + `localhost:3000` (for local dev).
+### Kyle only — blocking or near-blocking
 
-## Step 4 — Features (one at a time, test after each)
-1. ✅ **Onboarding / set username (Prompt 1)** — LIVE & verified. Files: app/onboarding/{page.tsx,actions.ts}, components/onboarding/username-form.tsx; home guard in app/page.tsx; post-login redirect → "/". 
-   - **Trigger fix:** the schema's `handle_new_user` trigger was auto-setting username = email prefix, so onboarding never fired (and it leaked identity — against masked-identity principle). Changed trigger to insert profile with NULL username; ran `update profiles set username = null` to reset test accounts. Now new users must pick a username. Verified live: logged-in user with null username → redirected to /onboarding "Welcome to Exprifi" form.
-2. ✅ **Post a Need + Exprifi board (Prompts 2 & 3 bundled)** — LIVE & verified end-to-end. Home (app/page.tsx) replaced starter landing with: logged-out Exprifi landing (sign in/up); logged-in board listing open requests (newest first) with type/sport/condition/time-left badges + budget, empty state, SiteHeader nav (components/site-header.tsx: Exprifi logo, Post a Need, AuthButton). /post page + form (components/post/post-need-form.tsx) + createNeed action (app/post/actions.ts) — budget dollars→cents, expiry 24h/3d/7d→expires_at, inserts request (RLS ok), redirects to board. Verified: posted "2003 Topps Chrome LeBron rookie (raw)" $200 → appeared on board. (Test need exists in DB; Kyle can delete later.)
-   - Minor polish TODO: timeLeft() floors hours so a fresh 7d need shows "6d left" — switch to ceil. Batch with next feature.
-   - Board cards link to /request/[id] (built next) — clicking 404s until then.
-   - **Optional reference photo added (Kyle request, Jun 27):** `requests.image_url` column; public `request-photos` bucket + authenticated-insert policy; file input on post form; server-action upload (next.config serverActions.bodySizeLimit=8mb); thumbnail on board cards (plain <img>, no next/image config needed). Optional — posting without a photo still works.
-3. ✅ **Request detail + structured offer (Prompt 4)** — LIVE & verified. app/request/[id]/page.tsx (async params), actions.ts (createOffer, photo→offer-photos), components/offer/offer-form.tsx. Buyer sees private offers list (RLS); non-buyer sees offer form (price/condition/photo/note, no chat). Verified: offer flowed account→account.
-4. ✅ **Accept / decline + match (Prompt 5) — CORE MVP LOOP COMPLETE** — LIVE. Two SECURITY DEFINER SQL funcs `accept_offer`/`decline_offer` (buyer-only auth check via auth.uid(); accept is atomic: offer→accepted, siblings→declined, request→matched, insert deal; guards against double-accept via status check). Server actions acceptOffer/declineOffer (form actions calling rpc + revalidatePath). Accept/Decline buttons on pending offers; "It's a match! 🎉" panel reveals seller + "payments/shipping coming soon". Verified offer-send success state; accept test handed to Kyle (2-account).
-   - timeLeft now uses ceil (shows "7d left" correctly).
+0. **▶ RUN migration `0017_free_alert_limits.sql`** in the Supabase SQL editor. The free-alert code (server action, form copy, email cadence) is already in the tree and **assumes the columns and trigger exist** — `profiles.notify_demand_match`, `last_demand_digest_at`, `enforce_free_alert_limit()`. Until it runs, the notification route's `.select()` on those columns fails and demand-alert email degrades. The file has a self-verify block that raises on failure.
+1. **Read the four `/legal/*` pages, set `LEGAL_ADDRESS`, flip `LEGAL_PUBLISHED = true`.** Pages are live but unlinked; the flag gates the footer Legal column, trust-and-safety links and `/help` cross-links. One line after the read.
+2. **Rotate the three remaining secrets** — `SUPABASE_SERVICE_ROLE_KEY`, `NOTIFY_WEBHOOK_SECRET`, `METRICS_API_TOKEN`. See `secret-rotation-runbook.md`, ~20 min. *(The Resend key is done — rotated Jul 29, old key revoked Aug 1.)*
+3. **Confirm the `offer-photos` storage bucket is NOT public** (Supabase → Storage). It was created public in June.
+4. **Set the three `/plans` numbers** — high-end threshold, Pro price, free alert cap.
+5. **Write the real buy-list** (10–15 needs) ready for the seeding sprint.
 
-## ✅ Done (Step 5 — Profiles + private wants, Jun 28)
-5. ✅ **Public profile + want board (Prompt 6-ish) — LIVE & verified.** `app/u/[username]/page.tsx`: pseudonymous profile at `/u/<username>`; any logged-in member can view a user's open **public** needs (their want board) and make offers via the existing flow. Owner view of the same page doubles as the buyer command center — each need shows an **offer-count badge** (read directly; RLS lets the buyer read offers on their own requests, so no denormalized counter needed for the owner's own view) plus a "Matched & closed" history section. Nav/discovery: `auth-button.tsx` now shows **@username linked to the profile** (stopped printing the email — leak-defense win); "Posted by" on request detail + a new "by @username" line on each board card link to the poster's profile. Verified live: `/u/voloksvault` shows header, "2 open needs", offer badges; board shows attribution links.
-6. ✅ **Private vs public wants (NEW Kyle, Jun 28) — LIVE & verified.** A want can be saved as a private wishlist and published to the board later ("put the call out"); **expiry starts at publish**, not at draft. 
-   - **DB (migration `needit/supabase/migrations/0002_request_visibility.sql`, run in SQL Editor):** added `requests.visibility text not null default 'public' check (public|private)` + index `requests_visibility_status_idx`; **replaced the SELECT RLS** so private rows are readable only by their owner (`visibility = 'public' or auth.uid() = buyer_id`).
-   - **Code:** post form has a Visibility radio (hides expiry when private; button → "Save private want"); `app/post/actions.ts` sets visibility + nulls expiry for private + redirects private posts to the owner's profile. Profile has an owner-only **"Private wants"** section with a duration picker + **"Post to board"** publish action (`app/u/[username]/actions.ts` — sets visibility=public, sets expires_at). Board (`app/page.tsx`) + want board now filter `visibility='public'` so the owner's own private wants don't leak onto either board. Non-owner hitting a private want URL → 404 (RLS).
-   - Verified live: post form shows the Visibility choice; deploy green.
+### Before launch — must happen, order matters
 
-## ✅ Done (Step 6 — Editable wants, avatar menu, counter-offers, Jun 28)
-7. ✅ **Editable private wants + avatar account menu — LIVE.** Private wants now have an **Edit** button → `/request/[id]/edit` (`app/request/[id]/edit/page.tsx` + `components/post/edit-need-form.tsx`); `updateNeed` action (`app/request/[id]/actions.ts`) guards owner + visibility='private' (public/live needs aren't editable here — edit screen redirects away), supports replacing the photo. Header now shows a round **avatar menu** (`components/user-menu.tsx`, shadcn dropdown) in the top-right with My board / Post a Need / Log out; `auth-button.tsx` renders it instead of the plain @username + logout. No DB change. Verified: deploy green.
-8. ✅ **Counter-offers (NEW Kyle) — LIVE; full loop needs Kyle's 2-account test.** Structured price negotiation, no chat.
-   - **DB (migration `needit/supabase/migrations/0003_counter_offers.sql`):** added `offers.current_price_cents` (backfilled, NOT NULL), `offers.counter_by` ('buyer'|'seller'|null), `offers.counter_round` (default 0). No enum change — negotiation stays `status='pending'` with `counter_by` tracking whose turn. Rewrote `accept_offer` (party-aware: the side that did NOT make the last move accepts; **locks price_cents = current_price_cents**; still atomic — siblings decline, request→matched, deal inserted) and `decline_offer` (either party may end it). New `counter_offer(p_offer_id, p_price_cents)` validates turn + enforces round cap; all SECURITY DEFINER.
-   - **Code:** `counterOffer` action + `createOffer` now sets `current_price_cents`. Request page (`app/request/[id]/page.tsx`) reworked: buyer sees all offers, **seller now sees their own offer's state** (previously only the offer form) incl. a seller-side match panel when they win. Whoever's turn it is gets Accept/Counter/Decline; the other side sees "waiting". `CounterForm` (`components/offer/counter-form.tsx`) = inline price input. Each offer shows a **"X counters left"** countdown badge (shared pool).
-   - **Round cap = 10** (≈5 each), set as `COUNTER_LIMIT` in the page + `v_max` in the SQL. "Do 10 for now, adjust later" (Kyle, Jun 28).
-   - **Verified live (Jun 29):** buyer counter works end-to-end — $200→$150, countdown 10→9, turn flipped to seller, buyer sees "waiting". (Seller-side accept/counter still Kyle's to confirm with the 2nd account, but logic is symmetric.)
-   - ⚠️ **GOTCHA that cost a debugging detour:** the `0003` migration was run in two parts and only the **column ALTERs** applied — the **functions never got created**, so `counter_offer` was missing. The old deployed `counterOffer` action swallowed the resulting RPC error → counters failed **silently** (a transient cold-start 503 in the browser was a red herring; Vercel logged the POST as 200). Root-caused by checking the Supabase Functions list directly. **Lesson: after running any migration with functions, confirm them in Supabase → Database → Functions; and don't swallow `supabase.rpc` errors.**
-   - **Error surfacing — DONE & pushed (Jun 29):** `counterOffer` + `CounterForm` now show the RPC error on-screen (via `useActionState`) instead of failing silently. Live.
+6. **Switch the Supabase *Confirm sign up* template** to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/onboarding` **before** flipping email confirmation ON. It still uses `{{ .ConfirmationURL }}` (PKCE) — flip confirmation first and every new signup dies on the exact dead-end that cost Jul 29. Then send one real test signup.
+7. **Auth-form pass, bundled with (6)** so there's one test run rather than three: confirm-password field on `/auth/update-password` (it has none — a typo silently becomes the new password and locks the member out on the screen they came to *stop* being locked out); show/hide reveal toggle; HIBP leaked-password check + min length 10.
+8. **Wire `LIMITS.signupPerIp`** — defined in `lib/rate-limit.ts`, referenced by nothing. Signup runs in the browser client, so it needs moving to a server action; do it inside (7).
+9. **CSP tightening** — nonce-based `script-src`, drop `'unsafe-inline'`. Deferred from Phase 1 because it needs per-request nonces threaded through the proxy.
+10. **Feature freeze Sep 21.** Bug-fix only after.
 
-## ✅ Done (Step 7 — Seller command center + transaction history, Jun 29)
-9. ✅ **"Your offers" on the profile (counters surface to the seller) — LIVE & verified.** New owner-only section near the top of `/u/[username]` listing offers you've *sent* as a seller, each linking to the request. Status badges: **"Your move — counter waiting"** (buyer countered, your turn), "Waiting on buyer," "Matched 🎉," "Declined," "Closed." This is the seller-side counterpart to the buyer command center — a buyer's counter now shows up on the offerer's own page. Reads embedded `requests(title,status)` (RLS-safe; seller can read own offers). Verified live.
-10. ✅ **Completed deals moved into the avatar dropdown — LIVE & verified.** Removed the on-profile "Completed deals" block; added a **Completed deals** item to the avatar menu (`components/user-menu.tsx`) → new page **`/completed-deals`** (`app/completed-deals/page.tsx`) showing **Bought** (your needs that matched) and **Sold** (your offers that were accepted). Verified live: shows LeBron $200 (Bought/Matched) + Every chargers card ever $40 (Sold).
-11. ✅ **Paginated, full-width History log — LIVE & verified.** Replaced the old "Matched & closed" grid with a **History** running log of past needs (status≠open). Full-width single-column rows; **server pagination via `?hsize=&hpage=` searchParams** with `.range()` + exact count. Controls sit at the **bottom**: "Show 10/25/50" size selector + **← / → arrows** + "Page X of Y" (links carry `#history` to keep scroll position). Page sizes locked to `PAGE_SIZES = [10,25,50]`.
-   - Note: History currently logs the **buyer side** (your past needs); seller-side completed sales live in `/completed-deals` and "Your offers". Could unify into one transaction log later if wanted.
-   - **Real-time notifications still TODO:** counters/offers only surface when the seller opens their profile — no push/email/badge alert yet (separate, bigger piece; Kyle flagged interest).
+### Nice to have, degrade gracefully
 
-## ✅ Done (Step 8 — Notifications: in-app + email + live bell, Jun 29)
-12. ✅ **In-app notifications — LIVE & verified.** DB migration `0004_notifications.sql`: `notifications` table (user_id, type, request_id, offer_id, read, created_at) + RLS (own select/update only) + a SECURITY DEFINER trigger `notify_offer_change` on `offers` (insert→`new_offer` to the buyer; update→`counter`/`accepted`/`declined` to the correct party, computed from `auth.uid()` so the actor is never self-notified). Header **bell** (`components/notification-bell*.tsx`) with unread badge → **`/notifications`** page (`app/notifications/page.tsx`) listing items linked to their request, auto-marking read on view (`MarkReadOnView` client effect + `markAllRead` action). Verified live: counter/accept/new-offer all generated rows and showed up.
-13. ✅ **Live-updating bell + hover preview — LIVE & verified.** Bell is now a client component (`notification-bell-client.tsx`) that **polls `/api/notifications/count` every 15s + on tab-focus**, so the badge updates with no refresh. **Hover** shows a preview box of the 5 most recent notifications (each linked) + "See all"; **click** still opens the full page. Verified live (preview showed real counter/accepted/new-offer items).
-14. ✅ **Settings + email notifications — CODE LIVE; email needs external setup.** `0005_email_notifications_pref.sql`: `profiles.email_notifications` boolean (default true). **`/settings`** page (avatar menu → Settings) with the email toggle (`updateSettings` action). Email delivery: **`/api/notifications/email`** route called by a **Supabase Database Webhook** on `notifications` insert → looks up recipient email (service role) + preference + request title → sends via **Resend**. Route is inert until env vars exist. Verified: Settings save works; bell/in-app fully live.
-    - **Email turn-on (Kyle's external setup — DONE Jun 29):** Resend account + `RESEND_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NOTIFY_WEBHOOK_SECRET` added to Vercel (server-only); Supabase DB webhook on `notifications` insert → POST to the route with `x-webhook-secret` header, timeout 5000ms. **Env vars require a redeploy to take effect.**
-    - ⚠️ **Resend test-mode limit:** with the default sender `onboarding@resend.dev`, Resend only delivers to your own Resend-account email. **To email any user, verify a domain (e.g. exprifi.com) in Resend and set `EMAIL_FROM`.** Not done yet.
-15. ✅ **"Your offers" shows ACTIVE only (Jun 29).** That profile section now filters to `status='pending'` — matched/declined offers drop off automatically and live in History / Completed deals instead.
-    - ⚠️ **Recurring gotcha repeated again:** notifications "didn't work" at first because migration 0004 was run in parts — the **table** existed but the **trigger** wasn't created. Same lesson: run the *whole* migration (functions/triggers included) and verify in Supabase. Also: the notification bell is **not** instant — it updates on poll/focus/navigation, and lights for the **recipient**, not the actor.
+- **Upstash Redis** — until it exists the rate limiter runs per-instance only. **Sentry** — `lib/observability.ts` is dormant without `SENTRY_DSN`. `/api/health` reports which mode is live.
+- **Uptime monitor** → `https://exprifi.com/api/health`.
+- **Periodic pipeline check** (see the Aug 1 outage): `select status_code, count(*) from net._http_response where created > now() - interval '7 days' group by 1;`
 
-## ✅ Done (Step 9 — Email delivery LIVE end-to-end, Jul 2)
-16. ✅ **Email notifications fully working — VERIFIED (Resend shows "Delivered" to kylevolo72@gmail.com, sent from the verified domain).** Three things were broken/missing; all fixed Jul 2:
-    - **Domain verified:** exprifi.com added in Resend (region us-east-1) and **verified**. DNS added at **Namecheap** (registrar): DKIM TXT `resend._domainkey`, SPF TXT on host `send`, **MX on host `send`** → `feedback-smtp.us-east-1.amazonses.com` (prio 10, required switching Namecheap MAIL SETTINGS from "Email Forwarding" → **Custom MX**; no forwarders existed so nothing broke), plus optional DMARC TXT `_dmarc` = `v=DMARC1; p=none;`.
-    - **`EMAIL_FROM` set in Vercel** = `Exprifi <notifications@exprifi.com>` (Production+Preview) + redeploy.
-    - **Bug 1 — middleware 307:** the Supabase webhook POST to `/api/notifications/email` was being **redirected to /auth/login** by the auth middleware (no session cookie), so the route never ran — emails had silently never sent. Fix: exempt that path in `lib/supabase/proxy.ts` (route already self-authenticates via `x-webhook-secret`). Commit `e5cb84f`.
-    - **Bug 2 — webhook 401:** the Supabase webhook header `x-webhook-secret` contained the **literal string "NOTIFY_WEBHOOK_SECRET"** (env var *name* pasted instead of a value). Fix: minted a fresh 64-hex secret (browser-generated → clipboard; never displayed) and pasted the same value into BOTH the Supabase webhook header and Vercel's `NOTIFY_WEBHOOK_SECRET`, then redeployed.
-    - **Debug trail for posterity:** Vercel logs showed POST `/api/notifications/email` go **307 → 401 → 200** as each layer was fixed. Test method: `insert into notifications (user_id, type, request_id) values (...)` in the Supabase SQL editor fires the webhook exactly like production.
-    - ⚠️ Two synthetic "counter" notifications for **voloksvault** were created during testing (in-app bell will show them; harmless). Also the real test negotiation on "baseball test" advanced: voloksvault countered $0.03, now waiting on voloktest (round 5 of 10).
-    - ⚠️ **exprifi.com still points at a Namecheap parking page** (www CNAME + URL redirect). Fine for now (Kyle OK with site not public yet); when ready, point it at Vercel — also helps email deliverability reputation.
+### Blocked on an external answer
 
-## ✅ Done (Step 10 — Admin /metrics liquidity dashboard, Jul 2)
-17. ✅ **Admin-only `/metrics` page — LIVE & verified (commit `d80b7ff`).** The M1 dashboard: % of published needs with ≥1 offer, median + p90 time-to-first-offer, offers per need (and per engaged need), avg counter-rounds across negotiated offers, match rate, and 7-day bar trends (needs/offers/matches). All computed live from `requests`/`offers`/`deals` — no tracking events.
-    - **Gating:** migration `0006_admin_metrics.sql` adds `profiles.is_admin` (true only for voloksvault) + `admin_metrics()` SECURITY DEFINER function that raises `not authorized` unless the caller's profile is admin (verified: raises under the bare `authenticated` role). The page also checks `is_admin` and redirects non-admins home. RLS alone can't gate cross-user aggregates — the definer-function-with-check is the pattern.
-    - **Caveat:** publish time isn't stored for private→published wants, so TTFO measures from `created_at` (noted on the page). Add a `published_at` column if this ever matters.
-    - First reading (Jul 2): 4 published needs, 100% with ≥1 offer, median TTFO 21h, p90 1.8d, 1.25 offers/need, 2.67 counter-rounds avg, 75% match rate.
+- **Card catalog ingest / picker / seller vault** — hard-blocked on a licensing answer in writing. Outreach sent to PriceCharting/SportsCardsPro; TCDb + Card Hedge drafted. Nothing downstream starts without terms. See `card-catalog-and-automatch-spec.md`.
 
-## ✅ Done (Step 11 — Offer-count badges + board filters/sort + My board link, Jul 2)
-18. ✅ **Offer-count badge on board cards — LIVE & verified.** Migration `0007_offer_count.sql`: denormalized `requests.offer_count` (offers stay RLS-private; only the aggregate is public) kept in sync by SECURITY DEFINER trigger `offers_count_sync` on offers insert/delete + backfill. Board cards show "N offers" (hidden at 0). Verified: trigger exists, baseball test shows "1 offer".
-19. ✅ **Board filters + sort — LIVE & verified.** GET-form → searchParams on `/`: filter by type (single/bulk), sport (post-form list), condition (ilike), budget $ min/max (converted to cents); sort newest / expiring soon / highest budget. Form reflects URL state; filtered-empty state has "Clear filters". Verified live (`?type=bulk&sort=budget` correctly filters).
-20. ✅ **"My board" header button.** One-click hop from the main board to your own `/u/<username>` page, next to the avatar (hidden on mobile widths — avatar menu still has it).
+### Payments (M3) — not on the launch path
 
-## ✅ Done (Step 12 — Seller demand alerts, Jul 2)
-21. ✅ **Demand alerts (inverted saved search) — LIVE & verified end-to-end.** Kyle originally asked for seller inventory + auto-match ("autosale") — that's Lane 1; per guardrails we built the criteria-only bridge instead. Migration `0008_demand_alerts.sql`: `demand_alerts` table (keyword ilike on title/description, sport, type, budget min/max in cents, active flag), own-rows-only RLS (4 policies), SECURITY DEFINER `notify_demand_match()` with triggers on requests INSERT + UPDATE-of-visibility (fires only when a need BECOMES public+open; never notifies the buyer about their own need; one notification per matching seller).
-    - **UI:** avatar menu → **Demand alerts** → `/alerts` page (create form with useActionState, list with Pause/Resume/Delete via server actions). New notification type `demand_match` = "A buyer wants what you have" in the bell + notifications page; email subject "A buyer wants what you have — Exprifi" via the existing Resend pipeline (opt-out respected).
-    - **E2E verified:** created alert ("Jordan" · Basketball · $50–$500) as voloksvault via the UI → inserted matching need as voloktest via SQL → `demand_match` notification row for voloksvault → Resend shows **Delivered** to kylevolo72@gmail.com. Test need then set private to keep the board clean (an extra "A buyer wants what you have" notification remains on Kyle's bell — it's the demo).
-    - **Strategic note:** every saved alert doubles as Lane 1 training data (what sellers hold, in structured form) — this is the on-ramp to inventory matching in M2.
-
-## ✅ Done (Step 13 — 3a brand system + 5c notch applied, Jul 4)
-22. ✅ **Exprifi 3a brand system applied — LIVE & verified.** Source: Kyle's "Exprifi Brand Directions" artifact, saved as `exprifi-brand-system.md` (working folder) — 3a locked: Precise/Global/Live, light chrome + dark live board. Applied: shadcn tokens in `globals.css` (primary #00A968, radius .75rem, board surface #101114 family, warn #F5A623, primary-live #2ED98A + `.num`/board utilities), **Instrument Sans + Spline Sans Mono** via next/font, lowercase `exprifi.` wordmark, ThemeProvider pinned to light.
-23. ✅ **The Board → LIVE BOARD panel.** Dark exchange panel with live dot + "N open · N offers in play" (mono); full card anatomy: Bulk filled / Single outlined badge, sport·condition microline, offer count in live-green mono ("racing" at 3+, "no offers — be first" at 0), budget as the big green mono anchor ("$212 max"), countdown mono — amber <24h, **blinks only <12h** (the board's only motion). Logged-out landing rebuilt: "The marketplace that hunts for you." + Find/Sell intent doors with locked voice lines.
-24. ✅ **5c notched corner — LOCKED by Kyle & applied.** One clipped top-right corner (14px ticket stub) on board cards + landing doors via `.notched` clip-path; **urgent (<12h) cards fill the notch amber** via `.notch-fill` sibling. Verified live (notch renders clean; 16h card showed amber countdown, no blink — motion rule holds).
-    - Nit for next pass: "1 offers in play" pluralization; extend notch + anatomy to need detail, offer flow, and match panel ("one-shot scale-in" celebration is still unbuilt).
-
-## ⬜️ Next up — enhancements
-1. ~~"My Needs" inbox~~ — DONE via the owner profile view (offer counts + manage).
-2. ~~Editable private wants~~ — DONE (Step 6). Could later allow editing live/public needs (with care re: offers in flight).
-3. ~~Counter-offers~~ — DONE (Step 6); cap=10 for now, tune later.
-4. Offer-count badge on the *public* board (needs denormalized counter) — still future; the owner's own profile shows counts already.
-5. **Mandatory offer photos (NEW Kyle, Jun 27):** require photo on offers (currently optional). REC: required for single-card offers (trust/anti-fake), optional for bulk/filter requests (avoid suppressing liquidity); revisit from usage. Kyle's call.
-6. **Preset buyer questions on an offer (scoped Jun 29, not built):** canned-only Q&A (no free text → leak-safe) — "Is price firm?", "Bundle?", "More photos?", "In hand?". Build when ready.
-7. ~~Verify a Resend domain + set `EMAIL_FROM`~~ — **DONE Jul 2** (see Step 9). Emails deliver to any user from `notifications@exprifi.com`.
-8. **(Optional) Supabase Realtime** for truly-instant bell (websockets) instead of the 15s poll.
-9. Polish: filters/sort on board, buyer/seller mode landing (DEFERRED until follower-marketing plan is finalized), pixel sizing tweaks.
-
-See `exprifi-status-and-next-steps.md` for the full kickoff brief (open in new chats).
-
-**Workflow (CHANGED Jun 27):** Cursor's AI agent kept building in the wrong folder (made a stray `gradesave` repo). Switched to: **Claude writes feature files directly into `~/Desktop/NeedIt/needit` (Cowork now mounted at `~/Desktop/NeedIt`), type-checks with tsc, then Kyle runs `git add -A && git commit && git push` from `~/Desktop/NeedIt`** → Vercel deploys → Claude verifies live. Do NOT run git from Claude's sandbox (it leaves a stale .git/index.lock; if seen, Kyle runs `rm -f ~/Desktop/NeedIt/.git/index.lock`).
-
-**Gotcha fixed:** Next 16 shipped with `cacheComponents: true` in next.config.ts — breaks builds for auth/cookie pages (prerender error). Set to disabled. Keep it off.
-
-## ⚠️ Follow-up (before email auth is fully tested)
-- Set Supabase **Auth → URL Configuration → Site URL** to `https://need-it.vercel.app` so signup/confirmation emails redirect to the live app (not localhost). Do when we first test signup.
-- Optional tidy: reconnect Cowork workspace folder to `~/Desktop/NeedIt` so Claude regains direct file access to the app (now outside the old mounted folder).
-
-## 🏷️ Naming (decided Jun 25)
-- **Public brand = Exprifi** (domain: exprifi.com). Apply at UI/marketing + point domain at Vercel.
-- **Internal codename = needit** (repo, folders, Supabase project) — intentionally not renamed.
-
-## 💡 Future ideas (post-MVP)
-- **"My Needs" inbox (Kyle, Jun 27):** buyer command-center page listing the user's own posted needs with offer counts; drill in to view/act on offers. (≈ doc Prompt 6 /my-needs.) Build right after Feature 4 — it's where accept/decline lives most naturally.
-- **Offer-count badge on board (Kyle, Jun 27):** colored badge on each board card showing # of offers, as public social proof / "sellers race" signal. NOTE: offers are RLS-restricted to buyer+sellers, so a PUBLIC count needs a denormalized `offer_count` column on requests kept in sync by a trigger on offers insert/update. Build with the inbox.
-- **Split "buyer/seller" landing (Kyle, Jun 27):** split-screen landing — NOT an account-type gate (keep one account that's both; beachhead = breakers who are both sides). Frame as intent/mode: "Find cards" (→ /post) vs "Sell cards" (→ board). Black/white base + one accent color per mode as a light visual cue, not two separate apps. Marketing/onboarding polish for later. NOTE (Jun 28): marketing plan for seeding followers is NOT finalized — defer this until that plan exists.
-- **Seller inventory + want-match alerts (Kyle, Jun 28) — LANE 1 territory:** members upload the cards they own to their account; when a buyer later posts a call-out that matches one of those cards, the seller gets pinged so they can move it fast. This is the seller-side inventory that powers Lane 1's instant price-match — keep it as M2, after Lane 2 liquidity is proven. (Earlier this was the "CSV of collection items" idea — same thing.)
-- **Seller "Showcase" (Kyle, Jun 29) — DEFERRED to Lane 1 (M2):** a carousel of small boxes on the profile showing the user's available singles/bulk lots (short description, arrow paging, click → fullscreen). This is seller *inventory/listings* = the catalog/forward-marketplace surface we locked as M2; pairs with the inventory-alerts + variant-taxonomy items. Talked through Jun 29 and **Kyle chose to defer** until Lane 2 liquidity is proven. When built, keep it leak-safe (structured descriptions, no off-platform contact) and decide whether buyers can act on showcase items (that's the Lane 1 step).
-- **Card variant taxonomy / fuzzy matching (Kyle, Jun 28):** a way to normalize card identities so buyers don't have to type every detail. A loose request ("CJ Stroud Prizm #88") should match/notify ALL parallels of that card; a specific one ("the red & blue version") should narrow to just that parallel. Needs a structured card catalog + a matching layer (broad vs. specific intent). Prereq/companion to the inventory-alerts feature above; both are Lane 1 building blocks.
-
-## 🧠 Open items / reminders
-- Supabase project: confirm it exists and grab Project URL + anon/publishable key for env vars.
-- Money = integer cents everywhere.
-- Never put the secret/service_role key in a `NEXT_PUBLIC_` var.
-
-## 🗓 Jul 28, 2026 — My board facelift + catalog spec
-- `/u/[username]` ("My board") rebuilt to the 3a system, Sample A direction (Kyle picked from two mockups): light platform chrome, dark notched want-board section matching the home live board, mono money (green = data only, `text-primary-deep` on light / `text-live` on dark), ink CTAs, amber urgent notch via `Countdown`, microlabel section headers, compact light rows for offers/private wants/history. Data logic untouched; tsc + eslint clean. Needs commit + push.
-- Kyle reprioritized the card database: build the catalog NOW (Claude-lane), matching engine still gated on Sep 14. Full plan: `card-catalog-and-automatch-spec.md` (schema 0012, data-source audit is Phase 1, picker + seller vault pre-gate, race/final-confirm post-gate).
-- ✅ **Card catalog schema — LIVE (migration `0014_card_catalog.sql`, commit `f0e50c1`, pushed).** Schema only; the spec above says "0012" but 0012/0013 were taken by account settings + username login, so it landed as **0014**. Three tables: `card_sets` (sport/year/brand/name + `unique(source, source_key)` so re-ingest upserts instead of duplicating), `cards` (one row per printed card — **each parallel is its own row**, not a flag, because a Gold /50 is a different object at a different price and matching has to treat it that way; `print_run`, `attrs jsonb`, same source-key uniqueness), and `seller_inventory` (`ask_cents` integer with `>= 0` check, `qty > 0`, status available|claimed|sold|withdrawn, `updated_at` touched by trigger). `requests` gained nullable `card_id` + `grade_min` — nullable on purpose, bulk lots and oddballs stay free-text Lane 2 forever.
-  - **Search:** `cards.search` is a generated `tsvector`, weighted player(A) / parallel + number(B) / set name(C), using the `simple` config so player names aren't stemmed. ⚠️ **Gotcha worth remembering:** a generated column can't reference another table, so the set name couldn't come from `card_sets` directly. Fix: a denormalized `cards.set_name` column kept in sync by trigger `card_sets_name_resync` (on `card_sets.name` update) + `cards_set_name_fill` (before insert/update of `set_id`). **`card_sets.name` stays canonical — never write `set_name` by hand.**
-  - **Indexes:** GIN on `cards.search`; `pg_trgm` GIN on `cards.player` for autocomplete (extension created if missing; the operator class is schema-qualified from `pg_extension` at run time because Supabase installs into `extensions`, not `public`); `(card_id, status, ask_cents)` on inventory for the future cheapest-first match scan; plus `cards(set_id)`, `seller_inventory(seller_id)`, partial `requests(card_id)`.
-  - **RLS:** `card_sets` + `cards` world-readable (`for select using (true)`, incl. logged-out) with **no write policies at all** — the future ingest job writes via service role only. `seller_inventory` is **owner-only on all four verbs**. That's leak defense, not caution: inventory is a want-list in reverse, and an open read lets anyone scrape who holds what at what ask. When the match engine ships it must surface a single matched row through a SECURITY DEFINER function — **never** a cross-user query against this table.
-  - **Deliberately NOT built:** ingest script, any third-party API/CSV call, card picker UI, seller vault UI, match engine. All gated on the pending licensing answer (spec Phase 1: source terms in writing + 50-card coverage audit ≥ 45/50) and later phases. Schema is dormant — nothing user-facing changed.
-  - Ran via `RUN-THIS-IN-SUPABASE.sql` (0012 + 0013 + 0014, idempotent) with a verify block appended: expect 3 tables, 2 `requests` columns, 6 indexes, 6 policies, `relrowsecurity = true` on all three.
-
-## ✅ Done (Step 14 — PHASE 1: Legitimacy + doors open, Jul 29)
-
-**The headline: the auth gate flipped from allowlist to denylist, so Exprifi is a public marketplace for the first time.** Everything below follows from that one change. Verified before starting: `exprifi.com` resolves to the Vercel app (Kyle's DNS cutover landed) and `support@exprifi.com` receives mail (Workspace up). Typecheck and lint clean. Production build could not be run in the sandbox — the only failure is `next/font` being unable to reach `fonts.googleapis.com` from the isolated network, which is an environment limit, not a code error.
-
-### Block B — public access (the load-bearing part)
-
-24. ✅ **Proxy inverted to a denylist (`lib/supabase/proxy.ts`).** `PROTECTED` is now an explicit regex list — post, settings, notifications, alerts, completed-deals, metrics, deals, onboarding, protected, `/request/[id]/edit`. Everything else renders publicly. Two bonuses beyond the ask: webhook routes no longer need bespoke exemptions (this is what caused the July Resend 307 and forced a hand-written line for Stripe), and adding a public page requires no change here. A `?next=` param is attached on redirect.
-    - **Open-redirect guard:** `next` is re-validated in `signIn()` (`safeNext`) — must start with `/`, must not start with `//` (protocol-relative, the one people forget), must not contain a backslash. An unchecked redirect target on a login page is a phishing primitive.
-    - ⚠️ **The guardrail is written at the top of the file and must survive:** the proxy is never the only auth check. Every protected page still calls `getClaims()`, every action re-checks the caller, and RLS is the real boundary. If this list were the only gate, the inversion would have been a security regression rather than a routing change.
-25. ✅ **Migration `0015_public_browsing_rls.sql` — NOT YET RUN.** Explicit anon-role access plus explicit denial of everything else.
-    - `requests`: policy restated with `to anon, authenticated`. **Deliberate spec deviation, documented in the file:** the spec said anon may read `public AND open`; this grants public needs at *any* status. Status carries no privacy (a matched need is already visible to every member) and restricting it would 404 every link Kyle shares the moment the need fills — precisely when that link is most worth clicking. The sitemap still lists open needs only, so nothing dead enters the index.
-    - `profiles`: **all pre-existing SELECT policies are dropped first** via a `pg_policies` loop, then rebuilt. Adding a policy next to an unknown one is theatre — policies are OR'd, so a forgotten permissive policy silently overrides anything restrictive. Anon sees `profile_public` rows only.
-    - **Column privileges**, because RLS filters rows and cannot hide columns: `revoke select on profiles from anon`, then `grant select (id, username, display_name, created_at, is_seller, profile_public, allow_indexing)`. Without this an anonymous visitor reading a public profile also reads `is_admin`, `stripe_account_id`, every notification pref and `deletion_requested_at`.
-    - `revoke all ... from anon` on offers, deals, notifications, demand_alerts, seller_inventory — belt-and-braces so a future policy written without a `to` clause still can't leak them.
-    - **A runnable deny-test block** at the bottom: `set local role anon` and assert, with `raise exception` on failure, that anon cannot read private wants, offers, inventory, deals, notifications, alerts, `is_admin`, `stripe_account_id`, cannot call `resolve_login_email` or `admin_metrics`, and cannot insert. **Run it and read the NOTICEs — reasoning about policies on paper is how the 0004 trigger was believed-in for a week while it didn't exist.**
-    - Storage note in the file: confirm `offer-photos` is NOT a public bucket.
-26. ✅ **Rate limiting (`lib/rate-limit.ts`) — shipped with public access, not after.** Fixed-window counters, Upstash REST when configured, in-process memory when not. **No `@upstash/ratelimit` dependency** — the REST API is INCR + EXPIRE and we need one algorithm; the wrapper is shorter than its own doc comment. Named limits in one reviewable block: login 10/min per IP **and** 5/min per identifier (either alone is trivially walked around), signup and password-reset 5/hr, post 20/hr, offer 60/hr, anon reads 240/min. **Fails open** on Upstash errors — the limiter is an abuse brake, not an authorization boundary. `clientIp()` reads the **left-most** `x-forwarded-for` entry; reading the right-most (the common copy-paste) returns Vercel's own proxy and buckets every visitor together.
-    - Wired into `signIn`. Throttling returns a message distinct from the generic failure — it reveals nothing about whether the account exists, and telling a real person who fat-fingered their password that they're throttled is kinder than a sixth "wrong password".
-27. ✅ **Security headers + CSP (`next.config.ts`).** Full set: CSP, HSTS 2y preload, nosniff, `frame-ancestors 'none'` + X-Frame-Options, `strict-origin-when-cross-origin` referrer (full URLs would leak need ids into third-party logs), Permissions-Policy, COOP, `poweredByHeader: false`. `'unsafe-inline'` on script-src is documented as a **Phase 4** item — removing it needs per-request nonces threaded through the proxy.
-    - ⚠️ **Next 16 dropped the top-level `eslint` config key** — adding it is a type error. Type errors already fail the build by default.
-28. ✅ **Auth wall (`components/auth/auth-wall.tsx`) + logged-out need pages.** `/request/[id]` no longer redirects anonymous visitors. The need renders in full; the offer form renders *inert underneath a sign-in bar* — `pointer-events-none`, `aria-hidden`, `tabIndex={-1}`, because a "disabled" form a keyboard user can still tab into and submit is worse than no preview. Seeing the shape of the thing is the conversion event. Shipped as an inline bar + real navigation rather than a modal: same promise (no page loss, no dead end), no client component, no focus trap, no second auth surface. The modal is Phase 2 polish and saves exactly one page transition.
-29. ✅ **Logged-out board (`app/page.tsx`).** The hero was an early `return`; it's now a block rendered *above* the live board, so pitch and proof arrive in the same scroll. "Browse the board" is an anchor, not a login link. H1 demotes to H2 on the board section when logged out so there's one h1 per document. Added the **trust strip** (3b §1.5d) under the heading.
-30. ✅ **Public profiles (`/u/[username]`).** Anon sees open public needs only; owner tools, private wants and offers are unreachable. A member who turns `profile_public` off is a 404 to a stranger and unchanged for members — that setting can finally mean something.
-31. ✅ **sitemap.ts + robots.ts + per-need `generateMetadata`.** Every need is a long-tail page nobody else can write, because it's demand rather than a listing — and it was completely invisible behind a login. Sitemap lists open public needs plus profiles where the member left `allow_indexing` on; fails soft to the static pages if Supabase is unreachable (a 500 on `/sitemap.xml` drops the whole file from Search Console). Matched/expired needs still render but are marked `noindex`. Robots disallows auth screens — a "Sign in to Exprifi" page ranking for the brand is free real estate for a phishing lookalike.
-
-### Block A — legitimacy
-
-32. ✅ **Canonical origin pinned (`lib/site.ts`).** `metadataBase` was derived from `VERCEL_URL`, which on Vercel is the **deployment-specific** hostname. The visible symptom: every OG and Twitter image on exprifi.com pointed at `need-muz69103c-….vercel.app` — broken share cards on iMessage, Discord and X, and two hosts serving identical content to crawlers. Plus a permanent redirect from `need-it.vercel.app`, scoped with `has: host` so preview deployments still work.
-33. ✅ **Legal pages built at `/legal/{terms,privacy,prohibited-items,off-platform}` — LIVE BUT UNLINKED.** Kyle's call Jul 29: use my leans, show him before publication. The five bracketed decisions are resolved in `lib/legal.ts` so the policy text and the product can't drift: **Connecticut · individual arbitration + class waiver (small-claims carve-out, 30-day opt-out) · 18+ · 14-day grace then anonymise, deal records kept · $250 high-end threshold (as integer cents).** `LEGAL_PUBLISHED = false` gates the footer Legal column, the trust-and-safety links and the /help cross-links — **one line to flip after he reads them.** `LEGAL_ADDRESS` is still null and must be set before publishing.
-34. ✅ **`/help` — a real FAQ, not a stub.** Ten questions the concierge phase would otherwise answer by DM twelve times a day. A help page that says "coming soon" is worse than none: it's a visible admission nobody is home, on the exact screen someone reaches when they're already unsure.
-35. ✅ **Utility strip + header nav + footer Help link.** 32px dark band above the masthead (`Trusted seller marketplace · Buyer protection · Help`); "Buyer protection" links to what protection actually means *today* — structured offers and an on-platform record, not an insurance policy we don't have. Overstating here is worse than saying nothing; these people have been burned before. Header gains a centre nav now that there's somewhere to send a logged-out visitor.
-36. ✅ **`SUPPORT_INBOX_LIVE = true`** — Workspace is up. The historical comment in `lib/contact.ts` is kept because the same MX trap is waiting for the next address.
-
-### Observability
-
-37. ✅ **`/api/health`.** Actually queries the database (`head: true` count on `requests`), because a check that only proves "Next.js is running" goes green during the exact outage you care about. Returns 200/503 and reports config **shape, never values**: rate-limiter backend (`memory` vs `upstash`), error reporting, email, and whether Stripe is in test or live mode. Never add a key, a row count or a user id here — it's the most reliably scraped URL on any site.
-38. ✅ **`lib/observability.ts` — Sentry-compatible, zero dependencies.** Sentry's store endpoint takes a plain JSON POST; the official SDK adds a build plugin, source-map upload, two instrumentation files and a client bundle for one thing we need. Dormant without `SENTRY_DSN` (logs to console, which Vercel collects). Never throws — a monitoring failure must not become a second incident.
-39. ✅ **`secret-rotation-runbook.md`** written (working folder). Three secrets, in order, with verify-before-revoke steps. Kyle executes; ~20 minutes.
-
-### ⚠️ Handoffs — Kyle only. The first one is not optional.
-
-- **▶ RUN migration 0015 in the Supabase SQL editor and read every deny-test NOTICE.** The proxy no longer blocks anonymous traffic, so the database is now the only boundary. Until those tests pass, the site is open with unverified access control.
-- **▶ Read the four `/legal/*` pages, set `LEGAL_ADDRESS`, then flip `LEGAL_PUBLISHED` to `true`.**
-- **▶ Rotate the three secrets** (runbook).
-- **▶ Supabase → Auth → URL Configuration:** Site URL + redirect allowlist → `https://exprifi.com`. Signup confirmation links still point at the old host.
-- Confirm the `offer-photos` storage bucket is **not** public.
-- Upstash + Sentry accounts when convenient (both degrade gracefully; `/api/health` reports which mode is live). Uptime monitor → `https://exprifi.com/api/health`.
-
-**Not done in Phase 1, on purpose:** `/post` still redirects logged-out visitors rather than composing-first (3b §3.3 wants compose-then-commit). The `?next=` return makes the redirect lossless, and the compose-first version belongs with Block C/D in Phase 2 where the post form is being reworked anyway.
-
-## 🗓 Jul 29, 2026 (evening) — 0015 collision reconciled + card-refs schema logged
-
-**Two parallel Cowork sessions both minted a migration numbered 0015.** Audited, found to be *different intent, same number* — zero overlapping objects, no policy fights. Resolved:
-
-- `0015_public_browsing_rls.sql` (repo `migrations/`) **keeps the number**. Status: **NOT YET RUN** — confirmed live via a read-only probe: anon still holds the default table-level SELECT on every `profiles` column (incl. `is_admin`, `stripe_account_id`), which 0015 revokes. Must run **before** the proxy-denylist code deploys.
-- The card-refs session's `0015-card-refs.sql` (working folder, never logged here) **renamed and moved to `needit/supabase/migrations/0016_card_refs.sql`**, internal comments updated 0015→0016. What it does: `card_data_providers` (vendor rows + licence columns seeded: manual/tcdb/pricecharting/sportscardspro/cardhedge), `card_refs` + `card_set_refs` (provider-agnostic ID mapping, unique on `(provider, provider_id)` and `(card/set, provider)`), `attr_source` + `attrs_expire_at` on `cards`/`card_sets`, backfill from 0014's `(source, source_key)`, RLS on with **zero policies** (service-role only — TCDb §3.6(c) forbids exposing their record IDs). `cards.source`/`source_key` kept but comment-deprecated. Idempotent; dormant schema, nothing user-facing.
-- **Apply order: 0015 first (urgent, pairs with the proxy flip), then 0016 (whenever).** Both idempotent, disjoint objects.
-- Related docs from the card-refs session, also untracked: `card-data-vendor-comparison.md`, `cardhedge-reply-draft.md`, `card-catalog-and-automatch-spec.md`.
-- ⚠️ A stale zero-byte `.git/index.lock` (19:04) exists — sandbox can't delete it; Kyle: `rm ~/Desktop/NeedIt/.git/index.lock` before the next git command. The two handoff docs (`handoff-0015-reconcile.md`, `HANDOFF-0015-collision-check.md`) are now historical; safe to delete after commit.
-
-**Resolution (later that evening):** Kyle applied **0015** ("Success. No rows returned" = every deny-test passed; failures raise hard errors, Supabase just hides the NOTICEs) and then **0016** (VERIFY confirmed: all three ref tables exist, RLS on, `policy_count = 0`). Stale git lock deleted. **Both migrations are LIVE.** The database boundary is now verified, so the proxy-denylist code is safe to deploy whenever it's committed and pushed.
-
-### 🧠 Key takeaways from Jul 29 (the two-session day)
-
-- **One session per repo at a time.** Two parallel Cowork chats each minted a "0015" within 42 minutes of each other. It resolved cleanly only by luck — the migrations happened to touch disjoint objects. If both had touched `profiles` policies, whichever ran last would have silently defined who can read profiles, with no error to catch it. If two chats are ever needed again: one owns the schema, the other stays out of SQL entirely.
-- **Migrations have exactly one home: `needit/supabase/migrations/`.** The collision happened partly because one session wrote to the working folder and believed "there is no migrations directory." Numbered SQL never lives anywhere else, even though applying stays manual via the SQL Editor.
-- **Claim the number in the build log the moment a migration is drafted, not when it runs.** The card-refs session never logged, so nothing recorded that 0015 was taken. The log is the reservation system.
-- **"Has it been applied?" is answerable read-only — probe before reasoning.** The `information_schema.column_privileges` check settled 0015's state definitively: anon holding per-column SELECT on *every* profiles column (incl. `is_admin`, `stripe_account_id`) is the fingerprint of the default table-level grant, i.e. the migration had NOT run. A table-level grant expands to one row per column in that view — don't misread "many rows" as "column grants exist."
-- **Idempotent migrations turned an ambiguous DB state into a non-problem.** Because both files are safe to re-run (`if not exists`, `on conflict do nothing`, conditional constraint blocks, policy drop-then-recreate), the fix was "run both in order" with no forensics needed. Every future migration keeps this property — it's what made the collision cheap instead of scary.
-- **"Success. No rows returned" is what a passing deny-test looks like** in the Supabase editor — assertions live in `raise exception`, so success ≡ all passed. Likewise `rm` is silent on success. Absence of output is often the pass signal; know which silence means what.
-- **Sequencing mattered more than either file:** 0015 (RLS) had to land before the proxy denylist deploys, because the flip makes the database the only boundary. Rule of thumb going forward: the DB-side tightening ships before the app-side loosening, never after.
-
-### ✅ Jul 29 (later) — migration 0015 RUN, deny-tests passed
-Kyle confirmed 0015 applied in Supabase with every deny-test NOTICE reporting pass. Anonymous access is now verified, not assumed: anon can read public needs and public profiles (whitelisted columns only) and can read nothing else — no offers, no private wants, no inventory, no deals, no `is_admin`, no `stripe_account_id`, no `resolve_login_email`, no writes. **The database boundary is confirmed, which is what makes the proxy denylist inversion safe to ship.** Remaining Phase 1 handoffs: legal review + `LEGAL_ADDRESS`, secret rotation, Supabase Auth URL configuration, `offer-photos` bucket check, commit + push. Search-indexing policy is being handled in a separate thread — **do not edit `app/robots.ts` from this session.**
-
-## 🗓 Jul 29, 2026 (late) — signup confirmation dead-end fixed + auth email pipe finally wired
-
-**Reported symptom:** every new signup was told to check their email for a confirmation that never arrived. Email confirmation had already been turned off in Supabase as a temporary fix, and it still didn't work.
-
-**Root cause was two independent faults stacked, neither of which was "email went to spam."**
-
-1. **The app dead-ended users itself.** `components/sign-up-form.tsx` pushed to `/auth/sign-up-success` unconditionally. With confirmation OFF, `signUp()` returns a live session — the user is *already signed in* — but the UI still parked them on "check your email to confirm your account before signing in." Turning confirmation off could never have worked while this redirect was unconditional.
-2. **Supabase Auth email had never been connected to Resend.** Two separate pipes, and only one was ever built:
-   - **Resend** (`notifications@exprifi.com`, verified on `send.exprifi.com`) — app notifications via DB webhook → `/api/notifications/email`. Live since Jul 2, working.
-   - **Supabase Auth** (confirmation, password reset, email change) — was still on Supabase's **built-in demo sender**, capped at **2 emails/hour**, best-effort, which their own docs say is not for production. Custom SMTP was **off**. Nothing Resend does touches this path.
-   - Found while configuring it: the SMTP username was already set to `NeedIt` with a saved password, from an abandoned earlier attempt. Resend requires the username to be literally `resend`, so that attempt would have failed auth even had the toggle been on.
-3. **Bonus fault that would have broken the emails anyway:** Site URL was `https://need-it.vercel.app` and the redirect allowlist contained only that host plus `localhost:3000`. **`exprifi.com` was absent.** A reset started from exprifi.com sends `redirectTo=https://exprifi.com/auth/update-password`, which Supabase rejects as un-allowlisted and silently downgrades to Site URL. Working SMTP alone would not have produced a working reset.
-
-**Fixed:**
-
-- ✅ `sign-up-form.tsx` is now session-aware: `if (data.session) → /onboarding`, else → `/auth/sign-up-success`. Correct under BOTH confirmation modes, so flipping the Supabase toggle needs no code change. `emailRedirectTo` retargeted from `/` to `/onboarding` so a confirmed user lands on "pick a username" instead of a logged-out home page. `tsc --noEmit` clean.
-- ✅ `login-form.tsx` placeholder `voloksvault` → `cardhunter23`. Kyle's personal username was being suggested to every visitor. (Deliberately left alone: the `resolve_login_email` comment, `LEGAL_ENTITY`, and the 0006 admin-grant migration.)
-- ✅ **Supabase custom SMTP ON** → `smtp.resend.com:465`, user `resend`, sender `Exprifi <notifications@exprifi.com>`. Auth email rate limit **2/hr → 30/hr** (adjustable under Auth → Rate Limits).
-- ✅ New Resend key `Supabase Auth SMTP`, **Sending access** only (not Full access), replacing reuse of the `Onboarding` key. Same value written to Vercel `RESEND_API_KEY`, which also discharges the rotation the runbook wanted. Old `Onboarding` key still live — revoke only after a redeploy confirms notifications still send.
-- ✅ **Supabase Site URL → `https://exprifi.com`**; redirect allowlist now `exprifi.com/**` + `need-it.vercel.app/**` + `localhost:3000/**`. Closes the open Phase 1 handoff. `need-it.vercel.app/**` retained on purpose for transition.
-- ✅ **`NEXT_PUBLIC_SITE_URL` was missing from Vercel entirely** — separate latent bug found in passing. `/api/notifications/email` falls back to `?? "https://need-it.vercel.app"`, so *every notification email ever sent* linked to the vercel.app host; canonical tags, OG images and the sitemap resolved through the same var. Now set to `https://exprifi.com`, **Production only** (Preview left unset so previews use their own URL), **not** marked Sensitive since it's a public value.
-
-**Why Resend and not Google Workspace for auth email:** Workspace is the *inbox* (`support@`, `kyle@` on root MX) and should stay that way. Its SMTP relay is built for human mail — ~2,000 recipients/day, no delivery analytics, and it would put transactional bursts on the same reputation as the real mailbox. Resend was already domain-verified with SPF/DKIM/DMARC and gives per-message delivery logs. The two coexist because their MX records sit on different hosts (see `lib/contact.ts`).
-
-**Deliberately NOT done:** email confirmation stays **OFF** through the seeding sprint. The board is at 0 and every extra signup step costs a seeded seller. Roadmap §246 wants it ON for launch and that's still right — flip it after a delivered test, before Sep 26. The code handles either mode with no further change.
-
-### ⚠️ Open items from this session
-- **▶ Redeploy Vercel** — `RESEND_API_KEY` and `NEXT_PUBLIC_SITE_URL` don't take effect until a new deployment.
-- **▶ Live test:** password reset → confirm Resend logs *Delivered* and the link lands on `exprifi.com/auth/update-password`. **Until this passes, treat password recovery as still broken** — `/auth/forgot-password` code is correct but has never once delivered, so every seeded seller currently has no self-serve recovery path.
-- **▶ Revoke the old Resend `Onboarding` key** after the redeploy verifies notifications still send.
-- Vercel is on **Hobby**, Supabase org on **Free** — both were W1 roadmap items, neither blocking today.
-
-### ✅ Jul 29, 10:39 PM — password reset VERIFIED delivered
-Live test from `exprifi.com/auth/forgot-password` → `kylevolo72@gmail.com`. Resend logs **Sent 10:39 PM → Delivered 10:39 PM**, from `"Exprifi" <notifications@exprifi.com>`. Auth email now flows through Resend; the 2/hour demo sender is out of the path. Commit `5d6af98` deployed to Production (Ready) with both new env vars. **Password recovery works for the first time.**
-
-Two things noticed in Resend's log while verifying:
-- `fhuiweou@gmail.com` **Bounced** (Jul 27) and a later send to it shows **Suppressed** — Resend auto-suppresses after a hard bounce, so that address will silently receive nothing from now on. Looks like a junk/typo signup; if it's ever a real member, they must be removed from the Suppression list or they get no email at all. Worth checking the suppression list before blaming the pipeline for any future "didn't get the email" report.
-- Auth email links point at `cfcjcxgmntkatamflaqh.supabase.co/auth/v1/verify?...` before redirecting to exprifi.com — the Supabase default template. Functional, but off-brand on the one screen where a member is most alert to phishing. `app/auth/confirm/route.ts` already implements the `token_hash` pattern, so switching the templates to `{{ .TokenHash }}` → `https://exprifi.com/auth/confirm` would keep the whole flow on our domain. Cosmetic; queue with the pre-launch security pass.
-
-### 🔧 Jul 29 (later still) — "Auth session missing!" on reset: the PKCE gap, closed
-Delivery was fixed but the reset itself still failed. Cause: `resetPasswordForEmail` from the browser client uses **PKCE**, so the email link is `<project>.supabase.co/auth/v1/verify?token=pkce_…&redirect_to=…` and Supabase bounces the member to `<redirect_to>?code=…`. A `code` is not a session — something must call `exchangeCodeForSession()`. `redirect_to` pointed at `/auth/update-password`, which is a **page**, not a Route Handler, so nothing exchanged it and `updateUser()` ran unauthenticated. Only a Route Handler or Server Action can write the auth cookies; a page render cannot.
-
-Fixed in four layers, so no single point has to hold:
-
-1. **`app/auth/callback/route.ts` (new)** — exchanges `?code=` for a session, then redirects to a validated `next`. Handles OAuth later, and handles any PKCE link already sitting in an inbox. Failure text says "expired or already used, and open it in the same browser you requested it from" rather than leaking the SDK string — PKCE keeps its verifier in the originating browser, which is the real cause most of the time.
-2. **`app/auth/update-password/page.tsx`** — now a server component. `?code=` present → hand off to `/auth/callback`; no session → render "This link has expired" with a link to request a new one. Previously the form rendered regardless and the member only discovered the problem *after* typing a new password, as `Auth session missing!`.
-3. **Email templates → token_hash.** Reset password now points at `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/auth/update-password`. This sidesteps PKCE entirely: `verifyOtp` runs server-side, so it works **cross-device** — request on the laptop, tap the link in the phone's mail app. Email is exactly where cross-device is normal, which makes PKCE the wrong default here. Bonus: the link stays on exprifi.com instead of routing through `<project>.supabase.co`, on the one screen where members are most alert to phishing.
-4. **`lib/safe-next.ts` (new)** — the open-redirect guard, extracted from `app/auth/login/actions.ts` (behaviour unchanged) and now shared by sign-in, `/auth/confirm` and `/auth/callback`. `next` arrives from an email in two of those three, i.e. attacker-controlled; three copies of this rule would eventually become three different rules.
-
-Also: `update-password-form` redirected to the scaffold's `/protected` on success — now `/` plus `router.refresh()` so server components see the new session. `/auth/confirm` gained a `recovery` → `/auth/update-password` default and human-readable expiry errors.
-
-`tsc --noEmit` and eslint clean on all touched files.
-
-**⚠ One item left:** the **Confirm sign up** template still uses `{{ .ConfirmationURL }}`. Dormant — email confirmation is off — but it must be switched to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/onboarding` **before** confirmation is flipped on for launch, or signups inherit the same PKCE dead-end this session just fixed. The Supabase dashboard started rendering blank mid-session, so it was left rather than half-edited. Note the editor auto-closes tags: type `</p` and let it supply the `>`, or you get `</p>>`.
-
-### ❌→✅ Jul 29, 11:27 PM — second reset test FAILED, real root cause found
-Sent a second reset after `a8e015c` deployed. Delivered again (11:27 PM), and the link was correctly on our domain:
-`https://exprifi.com/auth/confirm?token_hash=pkce_9be4…&type=recovery&next=/auth/update-password`
-
-Followed it: **"That link has expired or was already used"** on the very first click. Note the token: **`pkce_`-prefixed**. The browser Supabase client runs the PKCE flow, so `resetPasswordForEmail` made GoTrue mint a PKCE-style token, `{{ .TokenHash }}` inherited the prefix, and server-side `verifyOtp()` rejects it outright. The template change was necessary but not sufficient — the *request* side had to change too.
-
-**Fix — originate the reset server-side in implicit mode:**
-- **`app/auth/forgot-password/actions.ts` (new)** — server action using `createServerClient` with `auth: { flowType: "implicit" }`. Implicit produces a plain token hash that `verifyOtp` accepts, from any device. No `redirectTo` passed: the email template owns the destination, so there's one place to change it instead of two that can disagree.
-- Rate limited with **`LIMITS.passwordResetPerIp`** — which already existed in `lib/rate-limit.ts` and had never been wired to anything. Per-IP only, deliberately: a per-address limit leaks which addresses exist.
-- Response is always the same ("if that address has an account…") whether or not the user exists; the real error is logged server-side only. The form was previously an account-enumeration oracle.
-- **`components/forgot-password-form.tsx`** — converted from browser client + `useState` to `useActionState`. Copy now warns that requesting a new link invalidates the previous one, which is the most common self-inflicted "the link is broken" report.
-
-`tsc --noEmit` + eslint clean. **Not yet verified live** — needs deploy, then one more real reset.
-
-**Why implicit rather than keeping PKCE:** PKCE stores its code verifier in the browser that began the flow, so requesting a reset on a laptop and tapping the link in a phone's mail app can never work. Email is the one place where cross-device is the *normal* case, which makes PKCE the wrong flow here regardless of the prefix bug. `/auth/callback` is retained for links already in inboxes and for OAuth later.
-
-### ✅ Jul 29 — password reset CONFIRMED WORKING end to end
-Kyle ran a real reset after the implicit-flow server action deployed: email delivered, link accepted, new password set. **Password recovery works.** That was the last unproven link in the auth chain and the one that mattered most for the seeding sprint — a seeded seller who loses their password now has a self-serve way back in.
-
-## 🗓 Aug 1, 2026 — Card catalog Phase 1: vendor outreach + migration status check
-
-**Vendor outreach (spec Phase 1, licensing gate).** Drafted and tracked three commercial-licensing emails, saved to `card-catalog-vendor-outreach.md`:
-- **PriceCharting/SportsCardsPro — SENT.** Asks whether storing checklist data (set/year/brand/player/number/parallel) in our own DB for autocomplete counts as the "accessible to third parties" use their ToS flags as needing express written permission beyond a subscription; also asks about Legendary-tier CSV coverage for bulk/junk-wax era (1980s–2000s), scheduled-refresh vs. live-call pattern, and image rights (assumed unlicensed, catalog stays text-only).
-- **TCDB — drafted, not yet sent.** Their terms default to personal/non-commercial use only and there's no documented public API, so this one leads with "would you license this commercially at all" rather than assuming a subscription path exists.
-- **Card Hedge AI — drafted, not yet sent.** Their $49/mo tier is a real commercial API (3.7M+ cards), so this one asks for enterprise terms + bulk-era coverage depth rather than a permission-to-use question.
-
-⚠️ **Reconcile before sending Card Hedge/TCDB:** the Jul 29 collision-reconcile entry above already lists `cardhedge-reply-draft.md` and `card-data-vendor-comparison.md` as untracked files from a parallel card-refs session — there may already be vendor contact in flight that this thread didn't have visibility into. Check those files before sending duplicate outreach.
-
-**Migration status — corrected an assumption, then found the work already done.** Walked through drafting an Opus prompt to build the `0012_card_catalog.sql` migration from the original spec. Caught mid-draft that 0012/0013 were already taken (account settings, username login) — but a full re-read of this log shows the catalog schema **already shipped** as `0014_card_catalog.sql` (Jul 28, commit `f0e50c1`) with a follow-on `0016_card_refs.sql` (Jul 29, provider-agnostic vendor ID mapping, service-role-only RLS per TCDB §3.6(c)). **The drafted Opus prompt was not sent — it would have duplicated existing work.** No code changed this session.
-
-### 📌 Queued (Phase 4, one pass with the Confirm signup template switch)
-Kyle's asks, deliberately not built tonight:
-
-1. **Confirm-password field on `/auth/update-password`.** It has none today — a typo silently becomes the new password, and the member is locked out on the exact screen they opened to *stop* being locked out. Worst possible place for a single-entry password field. (`sign-up-form` already has a repeat field; this one was never given one by the scaffold.)
-2. **Show/hide reveal toggle** on password fields — at minimum the first/primary field. Reduces the typo rate that (1) catches, so the two belong together.
-3. **Fold in the security-list items on the same form:** HIBP leaked-password protection + min length 10 (roadmap §246). All three touch the same two components; doing them in one pass avoids three separate rounds of "change the password form, redeploy, retest".
-
-Grouped in the command center under Phase 4 next to the Confirm signup template item, since email confirmation ON and the password-form work will both want a real test signup afterwards — one test run, not two.
-
-### Key takeaways — Jul 28
-- **Decision process that worked:** two rendered samples (dark-board vs all-light) beat describing options in prose — Kyle picked A ("trusting the vision") in one turn. Reuse for future design forks.
-- **Design rule confirmed:** profile pages are "light platform chrome around a dark live board" — the want board is a *slice of the live board*, so it reuses the exact home-board anatomy (notched `bg-board` section, microlabel header, `num` money, urgent = amber border + `notch-fill`). Green money on light surfaces uses `text-primary-deep` (#00794B), never #00A968 — AA contrast.
-- **Guardrail reconciliation, not override:** "build the database now" and "earn Lane 1 with Lane 2" coexist — split by *who pays the time*. Catalog ingest/picker/vault = Claude-lane, zero seeding-sprint hours, ship pre-gate; the match engine (race + final confirm) is the only piece the guardrail actually protects → stays behind Sep 14.
-- **Card picker is secretly a Lane 2 upgrade:** structured `card_id` on needs improves board quality and seeding *now*, and is the exact data auto-match needs later. It's the bridge feature.
-- **Data-source findings (Jul 2026):** SportsCardsPro/PriceCharting = best fit (paid API, CSV set lists, prices already integer pennies — matches our cents rule). Coverage audit vs 50 real bulk-era cards is Phase 1 *before any code*. Catalog ships text-only — source images aren't licensed to us; photos stay user-uploaded.
-- **Leak defense extends to inventory:** `seller_inventory` is a want-list leak in reverse — RLS owner-only pre-match, surfaced to buyers only through the match flow.
-- **Housekeeping:** next migration prefix is `0012` (0010 AND 0011 are taken — check before numbering). My board page still needs commit + push (tsc + eslint verified clean Jul 28).
-
-### Key takeaways — Aug 1 (planning-process adoption)
-- **Adopted a planning discipline: "The Dry-Run Interview."** For any build/fix/refactor/migrate/integrate/decide/design ask, the method is: recon the repo + connected folder before asking; classify the task track; ask only the few forks that are expensive to get wrong (one question per turn, ≤14 total); tag every fact `(user)` / `(verified: source)` / `[assumed: default — if wrong: …]`; then deliver a self-contained plan an executor-with-zero-context could run. Full meta-prompt is the source of truth Kyle pasted; the intent is to run this before jumping to code on non-trivial asks.
-- **Heavy planning belongs in Opus 5.** The skill was first installed in this (non-Opus) session and Kyle reverted it — he wants the methodology set up and run from an Opus 5 session. Redo the skill install there.
-- **Cleanup done this session:** the `dry-run-interview` account skill was created then left in place (no delete-skill tool available — remove via app skill settings if unwanted); the memory file + MEMORY.md index line for it were reverted; no reference file was written to the project folder.
+- Prove webhook auto-funding end-to-end (has **never once** completed locally).
+- `markShipped` / `confirmDelivery` UI (server actions exist, no buttons).
+- Auto-release cron; identity-reveal-on-funding; migrate to Stripe **Accounts v2** before live; dashboard toggles (loss liability, Radar for Platforms).
 
 ---
 
-## ⚙️ Aug 1 — Planning protocol installed (process, no app code touched)
+## Locked decisions
 
-No Exprifi code changed today. The work was to the *process* that produces the code: the **Dry-Run Interview** protocol is now the standing way any build/fix/decide ask gets scoped before a line is written.
+Do not relitigate these without a deliberate reopening.
 
-**What landed:**
+- **Two lanes.** Lane 2 (open request board) is the MVP. Lane 1 (instant price-match against seller inventory) is the moat and is **M2**. Earn Lane 1 with Lane 2.
+- **Free/paid boundary — the standing constraint.** *Free = you come look. Paid (M2) = it comes to you.* **Anything that reaches a seller unprompted — email, push, SMS, digest — is Lane 1 and is not free.**
+- **The board contains only demand.** **Sellers** filter it ("find demand I can fill"). **Buyers act by posting a need, never by searching.** There is no "search for cards to buy" on Exprifi — adding one rebuilds eBay and discards the thesis. The beachhead is buyer *and* seller in one person, so the same account does both, **but never in the same surface. Two doors, always.**
+- **Leak defense is core.** Structured offers, no free-text chat. Masked identity until a deal funds. Escrow on-platform only. `seller_inventory` is a want-list in reverse — owner-only RLS, surfaced only through a SECURITY DEFINER match function, never a cross-user query.
+- **Monetization.** Subscription/flat for bulk, 5% finder's fee for high-end singles ($250 threshold, integer cents). **MVP charges nothing.**
+- **Money is integer cents everywhere.** Never a float.
+- **Never put a secret in a `NEXT_PUBLIC_` var.**
+- **Own the vocabulary:** *needs, hunts, offers, demand, the board*. Never *listings, watchlist, Buy It Now, feedback score*. Brand hygiene that also eliminates a whole class of eBay-similarity concern.
+- **Legal parameters** (resolved in `lib/legal.ts` so policy text and product can't drift): Connecticut · individual arbitration + class waiver, small-claims carve-out, 30-day opt-out · 18+ · 14-day grace then anonymise, deal records retained · $250 high-end threshold.
+- **Design: 3a locked** — light platform chrome around a dark live board; green (#00A968) is a *data* colour, buttons are ink; `text-primary-deep` (#00794B) for green on light surfaces (AA contrast); 5c notched corner; urgent <12h is the board's only motion. Full spec: `exprifi-brand-system.md`.
+- **Planning protocol: the Dry-Run Interview** runs before any non-trivial build ask. Full text: `Board-Reference/dry-run-interview-protocol.md`.
 
-- **`dry-run-interview` skill installed** to the account (skill id `skill_013xWjpwyjUEx2vyXmibSrhp`), so it persists across every session and auto-triggers on plan/build/fix/refactor/migrate/integrate/decide-shaped asks. It had been deleted mid-session and was recreated from Kyle's full prompt text — nothing trimmed.
-- **Canonical full text** saved to `Board-Reference/dry-run-interview-protocol.md`. That file is the source of truth; the skill body is the operating copy. If they ever disagree, the Board-Reference file wins.
-- **Memory written** (`dry-run-interview-protocol`) tying the protocol to Exprifi specifically, with the locked guardrails wired in as plan-check criteria: Lane 2 before Lane 1, money as integer cents, no secret in a `NEXT_PUBLIC_` var.
+---
 
-**What changes in practice:** a build ask no longer returns a plan immediately. It returns a status line, **one** sharp question carrying a `Recommended:` line acceptable with a single word, and a hard 14-question ceiling (target 3–8). Then a standalone plan.
+## System map
 
-### Key takeaways — Aug 1
+**Stack.** Next.js App Router + TypeScript on Vercel · Supabase (Postgres/Auth/RLS/Storage) via `@supabase/ssr` · Tailwind + shadcn/ui.
 
-- **Evidence tagging is the part that matters most here.** Every factual claim now carries exactly one of `(user)` / `(verified: <source>)` / `[assumed: default X — if wrong: Y]`, and *memory or training is never a valid source*. Given how much of this build has been unverified-assumption bugs found late — the PKCE `pkce_` token prefix, `NEXT_PUBLIC_SITE_URL` silently missing from Vercel, the redirect allowlist without `exprifi.com` — the rule that a version, API shape, or config key must come from a lockfile or a live check rather than recall is aimed straight at this project's actual failure mode.
-- **"Look, don't ask" is the standing instruction for this folder.** Anything answerable by reading the repo, a migration file, or a Board-Reference doc is a lookup, not a question. Question budget gets spent only on intent, stakes, and constraints that live outside the machine.
-- **The executor-is-a-stranger constraint fits how this project actually runs.** Plans get handed to Cursor or a fresh session with no memory of the conversation. Any plan with an "as discussed" in it was already broken; now the format forbids it, and every phase must carry a provable `Done when:` check.
-- **Landmine falsifiers, not catch-alls.** At least two questions per interview must be sharp falsifiers ("I'm planning X — is Y true?") rather than "any constraints?" A confirmed landmine has to *visibly change the plan* — reordered phases, a guard phase, narrowed scope — not get patched with one sentence.
-- **Danger rule now formalized.** Any destructive or irreversible step earns its own explicit confirmation naming the irreversibility, plus a backup/dry-run/rollback phase. Relevant with real seeded accounts and live migrations ahead.
-- **Assumptions Ledger is the veto surface.** Every default adopted without asking gets a row with blast radius and the phase that checks it, so Kyle can kill any one of them cheaply instead of discovering it three phases in.
+**Config lives in four places and a fix isn't done until all four agree** — this has caused three separate outages:
 
-**Unchanged and still open** from Jul 29 — Phase 4 password-form pass (confirm field, reveal toggle, HIBP + min length 10) bundled with the **Confirm sign up** template switch to `{{ .TokenHash }}` before email confirmation is flipped on. Nothing today touched those.
+| Where | Holds |
+|---|---|
+| Repo | `lib/site.ts` (canonical origin), `next.config.ts` (headers/CSP), `lib/supabase/proxy.ts` (protected-route denylist) |
+| Vercel | env vars — `RESEND_API_KEY`, `NEXT_PUBLIC_SITE_URL`, `NOTIFY_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `EMAIL_FROM`, Stripe keys |
+| Supabase dashboard | SMTP, Auth URL config + redirect allowlist, email templates, **Database Webhooks** |
+| Resend | domain verification, API keys, suppression list |
 
-## 🎓 Takeaways — Jul 29, 2026 auth/email day
+**Three email systems — do not confuse them:**
 
-Written down because the next person to hit "the email didn't arrive" will otherwise repeat the whole night.
+1. **Resend REST** (`/api/notifications/email`) — app notifications. Fired by the Supabase DB webhook `notify_email` on `notifications` INSERT.
+2. **Resend SMTP** (`smtp.resend.com:465`, user literally `resend`) — Supabase **Auth** email: confirmation, password reset, email change. Separate pipe; "our email works" says nothing about this one.
+3. **Google Workspace** — the human *inbox* (`support@`, `kyle@`). Different MX host from Resend's `send.` subdomain, which is why they coexist. See `lib/contact.ts`.
 
-**1. It was never one bug. It was four, stacked — and none of them was spam.**
-The reported symptom ("new signups never get their confirmation email") had four independent causes: the app dead-ended users itself regardless of email; auth email had never been connected to Resend; `exprifi.com` wasn't in the redirect allowlist; and the reset token was in a format `verifyOtp` rejects. Fixing any one alone would have produced no visible improvement — which is precisely why the earlier "I turned confirmation off" fix appeared to do nothing. **When a fix that should work produces zero change, assume a second fault downstream rather than assuming the fix failed.**
+**Auth chain coverage** (audited Aug 1):
 
-**2. Two email systems that share a vendor are still two systems.**
-Resend was live and delivering notifications since Jul 2. That proved *nothing* about auth email, which Supabase sends through its own pipe unless custom SMTP is explicitly configured. "Our email works" was true and irrelevant. Ask *which* email, sent by *which* service, every time.
+| Path | Status |
+|---|---|
+| Login by email / by username (`resolve_login_email`) | ✅ verified |
+| Password reset — request → email → `verifyOtp` → new password | ✅ verified end-to-end |
+| Fresh signup → `/onboarding` → username → board (confirmation OFF) | ✅ verified end-to-end |
+| Signup with confirmation ON → Confirm-signup email | ❌ untested, template known-broken — see open item (6) |
+| `/auth/callback` PKCE exchange | ❌ untested; only serves links already in inboxes + future OAuth |
+| Email change from Settings | ❌ untested, still on Supabase's default template |
+| `signOutEverywhere` / account closure | ❌ untested |
+| Rate limits (`loginPerIp`, `passwordResetPerIp`) | ❌ never fired live; Upstash unset → in-process fallback |
 
-**3. Config lives in three places and a fix isn't done until all three agree.**
-Code (repo), Supabase dashboard (SMTP, URL config, templates), Vercel (env vars). Tonight had faults in all three. Neither "it's fixed in code" nor "it's fixed in the dashboard" was ever the whole answer, and nothing in the repo would have revealed the missing `NEXT_PUBLIC_SITE_URL` or the empty SMTP toggle.
+**Migrations** — one home only: `needit/supabase/migrations/`. All idempotent. **Claim the number in this log the moment a migration is drafted, not when it runs** — the log is the reservation system.
 
-**4. "Delivered" is a proxy metric. Follow the actual link.**
-After the first test, Resend logged *Sent → Delivered* and it looked finished. It wasn't: the link was dead on arrival. The bug only surfaced by *following the link like a member would*. A green status from a vendor dashboard means the vendor did its job, not that the user can do theirs. **Test the journey, not the hop.**
+| # | What |
+|---|---|
+| 0002 | `requests.visibility` (public/private) + owner-only SELECT for private |
+| 0003 | Counter-offers — `current_price_cents`, `counter_by`, `counter_round`; party-aware `accept_offer`, `counter_offer` |
+| 0004 | `notifications` + `notify_offer_change` trigger |
+| 0005 | `profiles.email_notifications` (default **true**) |
+| 0006 | `profiles.is_admin` + `admin_metrics()` SECURITY DEFINER |
+| 0007 | Denormalised `requests.offer_count` + sync trigger |
+| 0008 | `demand_alerts` + `notify_demand_match()` |
+| 0009 | Stripe payments — deal payment columns, `profiles.stripe_account_id`, `stripe_events` |
+| 0011 | `profiles insert own` / `update own` RLS — **load-bearing for onboarding** |
+| 0012 | Account settings |
+| 0013 | Username login — `resolve_login_email`, REVOKEd from anon *and* authenticated |
+| 0014 | Card catalog — `card_sets`, `cards` (each parallel its own row), `seller_inventory`; `requests.card_id`/`grade_min` |
+| 0015 | Public-browsing RLS + column privileges + anon deny-tests ✅ RUN |
+| 0016 | `card_refs` / `card_set_refs` — provider-agnostic ID mapping, RLS on with **zero policies** (service-role only) ✅ RUN |
+| 0017 | Free-alert limits — `profiles.notify_demand_match`, `last_demand_digest_at`, `enforce_free_alert_limit()` trigger ⚠️ **NOT YET RUN** |
 
-**5. PKCE is the wrong flow for anything that arrives by email.**
-It stores its code verifier in the browser that began the flow, so request-on-laptop → tap-on-phone can never work. Email is the one context where cross-device is the *normal* case. Anything email-delivered should verify server-side (`token_hash` + `verifyOtp`), not PKCE.
+Numbering is clean and sequential 0002–0017. *(The payments session's note claiming its profiles-insert-policy was `0010` was wrong — the live set has `0010_metrics_service` and `0011_profiles_insert_policy`. Resolved, no action.)* Next number is **0018**.
 
-**6. Scaffold defaults are liabilities that look like finished features.**
-This one page came from the Supabase starter and shipped with: an unconditional "check your email" redirect, a redirect to a placeholder `/protected` route, a password field with no confirmation, a personal username as the public placeholder, and email templates pointing at `supabase.co`. All of it *looked* done. **Anything not deliberately written for Exprifi should be treated as unreviewed, especially on auth screens.** Worth a sweep of what else the scaffold still owns.
+---
 
-**7. Raw SDK strings are not error messages.**
-`Auth session missing!` told a locked-out member nothing and read as a broken site, on the screen where trust is thinnest. Replaced with plain language and a way out. Any error a member can reach should say what happened and what to do next.
+## Session history
 
-**8. Silent-failure surfaces — check these before blaming the pipeline.**
-- **Resend suppression list.** A hard bounce auto-suppresses an address; later sends vanish with no error. `fhuiweou@gmail.com` is already on it.
-- **Vercel "Sensitive" env vars are write-only** — not recoverable, even by the owner. Mint a new secret rather than hunting for the old one.
-- **Env changes need a redeploy**, and `NEXT_PUBLIC_*` is inlined at *build* time — so redeploy **without** the build cache or you'll ship the old value and misread it as the fix not working.
+Reverse chronological. Most recent first.
 
-**9. Tooling notes for next session.**
-- The sandbox cannot delete `.git/index.lock`; Kyle runs git commands in Terminal. Stage-and-hand-off, don't fight it.
+### 🚨 Aug 1 (evening) — notification email had been dead for 3 days
+
+Session goal was housekeeping. It turned up a live outage nobody had noticed.
+
+**Closed:** docs committed · **old Resend `Onboarding` key revoked** (rotation complete) · **fresh signup verified end-to-end** — the last unproven link in the auth chain. The `router.refresh()` race I expected did not materialise, and 0011's insert policy survived 0015's policy-drop loop (that loop filters `cmd = 'SELECT'`, so INSERT/UPDATE policies were never at risk — checked, not assumed).
+
+**The find.** A test offer produced correct rows (`new_offer`, `accepted`) and the in-app bell worked, but no email arrived and **Resend showed no send attempt at all** — so the failure was upstream of Resend, and the key revocation was innocent. `net._http_response` gave it cold:
+
+```
+status_code  body                    created
+404          DEPLOYMENT_NOT_FOUND    2026-08-01 15:28:32
+404          DEPLOYMENT_NOT_FOUND    2026-08-01 15:28:06
+```
+
+The Supabase webhook `notify_email` was still POSTing to `https://need-it.vercel.app/api/notifications/email`. That host is no longer attached to the Vercel project, so it 404s at the edge. **Every `new_offer` / `counter` / `accepted` / `declined` / `demand_match` email had been firing into a 404 since the domain cutover.**
+
+**Fixed and verified:** webhook URL → `https://exprifi.com/api/notifications/email`. Test insert → `200 {"sent":true}` → Resend **Delivered**. The 200 also proves `x-webhook-secret` matches Vercel's `NOTIFY_WEBHOOK_SECRET` (a mismatch 401s at the top of the route).
+
+**Legacy host retired — Kyle's call.** `need-it.vercel.app` removed from all four places that still referenced it: the `redirects()` block in `next.config.ts`, `LEGACY_HOST` in `lib/site.ts`, the hard-coded fallback in `app/api/notifications/email/route.ts` (which now imports `SITE_URL` from `lib/site` — the exact drift that file was written to prevent), and the Supabase redirect allowlist. Old links now 404 **by decision**. To reverse: re-attach the domain in Vercel **first** — restoring the code alone does nothing.
+
+**Also fixed while in there:** added `https://www.exprifi.com/**` to the Supabase redirect allowlist. Vercel serves both apex and www as Production but only apex was allowlisted — a visitor who signed up from www would have had `emailRedirectTo` silently downgraded to Site URL. The Jul 29 bug, one subdomain over. Latent while confirmation is OFF; would have surfaced at launch.
+
+### 🗓 Aug 1 — Free-alert limits: the boundary applied to a feature already shipped
+
+Parallel session, same day. `demand_alerts` had shipped **unlimited, instant and specific** — the moment a matching need was published, the seller got an email naming the card and telling them to hurry. That is, in substance, exactly what M2 is meant to sell, given away in the MVP. Selling "we tell you, but faster" is a far weaker pitch than selling "we tell you" to someone who currently has to come and look.
+
+**Kyle's call: keep the feature, trim the free version so the paid one has somewhere to go.** Nothing is removed from anyone; the free version is slower, smaller and deliberately vague.
+
+- **Free** — up to **3** saved alerts · at most one email **every 3 days** · that email says only that there is new matching demand, **never what it is**, and links to the board rather than deep-linking the need.
+- **M2** — unlimited, instant, specific, matched against real inventory, with the broadcast/claim-race mechanic.
+- **The in-app bell is not throttled and not vague.** It's on-site, so it costs nothing against the boundary — you only see it once you've already arrived.
+
+Both numbers live in `lib/alerts.ts` so UI copy, server action and email route can't disagree. The limit is enforced **twice** — in the server action for a friendly message, and again by a DB trigger in `0017`, because the action isn't the only path to an insert. The digest window is claimed with a **conditional UPDATE rather than read-then-write**, since several needs can be published in the same second and each POSTs the route independently: whichever request wins the update sends, the rest see zero rows and skip.
+
+This is the free/paid boundary being applied *retroactively to something already built* — the second time in two days that rule caught a Lane 1 giveaway (the first was the saved-searches-with-email draft in the board addendum).
+
+### 🗓 Aug 1 — Board-filtering addendum + onboarding spec (design only)
+
+`exprifi-3b-addendum-board-filtering.md` + `design-mockups/exprifi-3b-rail-mockups.html`, `design-mockups/exprifi-onboarding-tutorial.html`. **No app code changed.** Amends Block C of `exprifi-3b-facelift-and-access-spec.md`; touches no locked token, anatomy, access or fee decision.
+
+- **Legal worry (eBay similarity) resolved and dismissed** (§1, not legal advice): faceted filtering is ubiquitous prior art, "Refine" is a generic verb, eBay's patents cover backend transaction mechanics not filter chrome. **Do not slow the build for this.** Real exposure is elsewhere: verbatim copy lifted from eBay, their assets, **scraping their listings or sold-comps** (a live risk against the catalog spec, not the board), and using their name in paid marketing.
+- **§1.3 amended narrowly:** one filter component, two presentations — docked **left rail** ≥1024px, **bottom sheet** behind a "Refine" button below. Auto-apply on change (debounced). 44px checkbox rows, **zero native `<select>` left on the page**. Sticky board header carries free-text search + active chips + sort.
+- **The rule that makes two filter surfaces safe:** search owns free text only (title + description, no NLP, never parses price or dates); the rail owns every structured field and never accepts free text. They compose with AND. Typing "under 500" searches literally and honestly finds nothing rather than silently mis-parsing.
+- **Zero-count options render dimmed with their real count** — never hidden, never faked.
+
+### ⚙️ Aug 1 — Dry-Run Interview protocol installed (process, no app code)
+
+Standing method for any build/fix/refactor/migrate/decide ask: recon the repo before asking; ask only the few forks expensive to get wrong (one per turn, ≤14 total, target 3–8); tag every fact `(user)` / `(verified: source)` / `[assumed: default — if wrong: …]`; deliver a plan an executor with zero context could run. Skill installed to the account; canonical text in `Board-Reference/dry-run-interview-protocol.md` (that file wins if they disagree).
+
+### 🗓 Aug 1 — Card catalog licensing (Phase 1 gate)
+
+Outreach tracked in `card-catalog-vendor-outreach.md`. **PriceCharting/SportsCardsPro sent**; **TCDb** and **Card Hedge** drafted.
+
+- **The load-bearing question, ask it of every source before paying anyone:** *is there a stable unique identifier per card that persists across exports?* If IDs don't persist, every refresh becomes fuzzy matching instead of a clean upsert on `(source, source_key)` — which is exactly what 0014's constraints and 0016's ref tables are built around.
+- Also ask about **shape**, not just permission and coverage: sample export, whether parallels are their own rows or attributes, whether fields arrive discrete or as one concatenated name string, refresh cadence.
+- **TCDb has a formal application** at `tcdb.com/DataServices.cfm`. Check **both** Set Listings and Checklists (they map to `card_sets` and `cards` — one without the other is a catalog of empty sets). Market segment "Marketplace". Answer the usage box unprompted: text-only, no image re-hosting, catalog never browsable or exportable from our UI, periodic ingest not live per-request calls, happy to attribute. **Get the licence in writing** — community-contributed data plus a friendly approval email is not a licence, and that bites at diligence time.
+- **Coverage audit scoped down, not skipped:** spot-check **10 of the nastiest cards** (a '90s parallel, a variation, an oddball insert, something serial-numbered) against the real sample file once terms arrive. Familiarity with a vendor's *website* says nothing about the *export tier*'s field granularity.
+- **Disclosure posture:** describing the reverse-marketplace concept on vendor forms is low risk — the moat is the audience, the leak defense, the Lane 1 race mechanic and the pricing model, none of which appear on these forms. Vague applications get rejected as suspected scrapers. **Withhold two things anyway: the launch date, and that the audience concentrates in bulk/junk-wax.**
+
+### 🗓 Jul 29 (late) — the auth/email night
+
+Reported symptom: new signups told to check email for a confirmation that never arrived, and turning confirmation off didn't help. **Four independent faults, stacked. None of them was spam.**
+
+1. **The app dead-ended users itself** — `sign-up-form.tsx` pushed to `/auth/sign-up-success` unconditionally. With confirmation OFF, `signUp()` returns a live session and the user is *already signed in*. Now session-aware: `data.session → /onboarding`, else the check-your-email page. Correct under both modes with no further code change.
+2. **Supabase Auth email had never been connected to Resend.** It was still on Supabase's built-in demo sender — 2 emails/hour, best-effort, explicitly not for production. Custom SMTP was off, and the saved SMTP username was `NeedIt` where Resend requires literally `resend`. Now `smtp.resend.com:465`, sender `Exprifi <notifications@exprifi.com>`, rate limit 2/hr → 30/hr.
+3. **`exprifi.com` was absent from the redirect allowlist.** A reset started from exprifi.com sends `redirectTo=https://exprifi.com/...`, which Supabase rejects as un-allowlisted and silently downgrades to Site URL. Working SMTP alone would not have produced a working reset. Site URL → `https://exprifi.com`.
+4. **`NEXT_PUBLIC_SITE_URL` was missing from Vercel entirely** — found in passing. Every notification email ever sent linked to the vercel.app host; canonical tags, OG images and the sitemap resolved through the same var.
+
+**Then the reset still failed — the PKCE gap.** `resetPasswordForEmail` from the *browser* client runs PKCE, so `{{ .TokenHash }}` inherited a `pkce_` prefix and server-side `verifyOtp()` rejected it outright. Fixed in layers: `app/auth/callback/route.ts` (new — exchanges `?code=`), `app/auth/update-password/page.tsx` (server component, gates on a session, honest expiry message), email templates moved to `token_hash`, `lib/safe-next.ts` (new — open-redirect guard, shared by sign-in, `/auth/confirm` and `/auth/callback`, because three copies of that rule eventually become three different rules), and finally **`app/auth/forgot-password/actions.ts`** — a server action using `flowType: "implicit"`, which mints a plain token hash `verifyOtp` accepts, from any device. Rate-limited with `passwordResetPerIp`; always returns the same "if that address has an account…" response (the form was previously an account-enumeration oracle).
+
+**Why implicit rather than PKCE:** PKCE stores its verifier in the browser that began the flow, so request-on-laptop → tap-on-phone can never work. Email is the one context where cross-device is *normal*.
+
+**Result: password recovery works end to end** — the link that mattered most for seeding, since a seeded seller who loses their password now has a self-serve way back in.
+
+**Deliberate:** email confirmation stays **OFF** through the seeding sprint. Every extra signup step costs a seeded seller. Flip it before Sep 26 — after (6) above.
+
+### 🗓 Jul 29 — Phase 1: legitimacy + doors open
+
+**The headline: the auth gate flipped from allowlist to denylist, so Exprifi is a public marketplace for the first time.**
+
+- **Proxy inverted (`lib/supabase/proxy.ts`).** `PROTECTED` is an explicit regex list; everything else renders publicly. Two bonuses beyond the ask: webhooks no longer need bespoke exemptions (this is what caused the July Resend 307 *and* the Stripe 307), and adding a public page requires no change here. ⚠️ **The guardrail at the top of that file must survive: the proxy is never the only auth check.** Every protected page still calls `getClaims()`, every action re-checks the caller, RLS is the real boundary.
+- **Migration 0015** — anon-role policies, **column privileges** (RLS filters rows and cannot hide columns; without the explicit grant list an anonymous visitor reading a public profile also reads `is_admin`, `stripe_account_id` and every notification pref), `revoke all` on the private tables, and a runnable **deny-test block**. All pre-existing SELECT policies on `profiles` are dropped first — policies are OR'd, so adding one next to an unknown permissive policy is theatre.
+  - **Deliberate spec deviation, documented in the file:** anon may read public needs at *any* status, not just open. Status carries no privacy, and restricting it would 404 every link Kyle shares the moment the need fills — precisely when it's most worth clicking. The sitemap still lists open needs only.
+- **Rate limiting (`lib/rate-limit.ts`)** shipped *with* public access, not after. No `@upstash/ratelimit` dependency — the REST API is INCR + EXPIRE. Fails open (it's an abuse brake, not an authorization boundary). ⚠️ `clientIp()` reads the **left-most** `x-forwarded-for` entry; the common copy-paste reads the right-most and buckets every visitor together.
+- **Auth wall** — `/request/[id]` renders in full for anonymous visitors with the offer form inert *underneath* a sign-in bar: `pointer-events-none`, `aria-hidden`, `tabIndex={-1}`. A "disabled" form a keyboard user can still tab into and submit is worse than no preview. Seeing the shape of the thing is the conversion event.
+- **sitemap + robots + per-need metadata.** Every need is a long-tail page nobody else can write — it's *demand*, not a listing — and it was completely invisible behind a login. Sitemap fails soft to static pages if Supabase is unreachable (a 500 on `/sitemap.xml` drops the whole file from Search Console). Robots disallows auth screens: a "Sign in to Exprifi" page ranking for the brand is free real estate for a phishing lookalike.
+- **Canonical origin pinned (`lib/site.ts`).** `metadataBase` had been derived from `VERCEL_URL`, which is the *deployment-specific* hostname — so every OG image on exprifi.com pointed at a preview URL and crawlers saw two hosts serving identical content.
+- **Legal pages, `/help` (a real ten-question FAQ, not a stub — "coming soon" is worse than nothing on the screen someone reaches when they're already unsure), utility strip, `/api/health`** (actually queries the DB, because a check that only proves "Next.js is running" goes green during the exact outage you care about; reports config **shape, never values**), and **`lib/observability.ts`** (Sentry-compatible, zero dependencies, never throws — a monitoring failure must not become a second incident).
+
+**Same day: two parallel Cowork sessions both minted a migration numbered 0015.** Different intent, disjoint objects, resolved by renaming the card-refs one to 0016. It worked out by luck — if both had touched `profiles` policies, whichever ran last would have silently defined who can read profiles with no error to catch it. **One session per repo at a time.** If two are ever needed: one owns the schema, the other stays out of SQL entirely.
+
+### 🗓 Jul 28 — My board facelift + catalog schema
+
+`/u/[username]` rebuilt to the 3a system (Kyle picked Sample A from two rendered mockups): light chrome, dark notched want-board matching the home live board, mono money, ink CTAs, amber urgent notch, compact light rows. Data logic untouched.
+
+**Card catalog schema live (0014).** Three tables. Each **parallel is its own row**, not a flag — a Gold /50 is a different object at a different price and matching has to treat it that way. `requests.card_id` is nullable on purpose: bulk lots and oddballs stay free-text Lane 2 forever.
+
+⚠️ **Gotcha:** a generated column can't reference another table, so `cards.search` (weighted tsvector, `simple` config so player names aren't stemmed) couldn't pull the set name from `card_sets`. Fix: a denormalised `cards.set_name` kept in sync by trigger. **`card_sets.name` stays canonical — never write `set_name` by hand.** Also: the `pg_trgm` operator class is schema-qualified from `pg_extension` at run time, because Supabase installs extensions into `extensions`, not `public`.
+
+### 💳 Payments (M3) — Stripe Connect test-mode, wired but unproven
+
+Pulled forward for a build pass. Architecture per §4C: marketplace, **separate charges & transfers**, US-only, integer cents, **0% platform fee at launch**. Buyer funds the *platform*; released to the seller on delivery confirm. Test mode only.
+
+Shipped: `lib/stripe/*`, seller onboarding (v1 controller, **transfers-only recipient — not `card_payments`**), buyer checkout (hosted Session charging the platform, no `transfer_data`), signature-verified idempotent webhook driving `unfunded→funded→shipped→released`, release/ship/refund server actions, migration 0009.
+
+**Bugs found — most of the day was these, stacked:**
+
+1. **The Stripe webhook 307'd to `/auth/login`.** The tree still had the old allowlist proxy, which redirected the unauthenticated webhook POST before the handler ran → deals never got marked paid, **silently**. Same seam as the July Resend 307. The Jul 29 denylist proxy is the permanent fix. **If a webhook ever 307s again, an old allowlist proxy has been deployed.**
+2. **Onboarding infinite loop** — `setUsername` did an UPDATE assuming a profiles row exists; a missing row = 0-row no-op → redirect → bounce forever. Root cause: profiles had no INSERT-own RLS policy (now 0011). Action changed to **upsert** and to surface the real DB error instead of looping silently.
+3. **`profiles_id_fkey` violation** — a "ghost" session (auth user deleted during testing, JWT still valid) can't insert a profile. Don't reuse deleted accounts; sign up fresh.
+4. **`stripe listen` is fragile** — dies on a network blip and must be running for local webhook delivery. **A crashed listener looks exactly like "the payment didn't confirm."**
+5. **`.env.local` unsaved-in-editor trap** — keys typed into Cursor but never *saved* read as blank to the running app. Verify secrets on disk, not in the editor buffer.
+
+⚠️ **Never proven:** the webhook auto-mark-funded is correct in code but **has never once completed end-to-end**. The test deal was set `funded` via SQL for closure. Get one clean webhook-driven funding proof before trusting it.
+
+### 📦 Jun 25 – Jul 4 — the MVP build (condensed)
+
+Scaffold (`create-next-app -e with-supabase`) → Supabase project → Vercel. Then, one feature at a time, testing after each:
+
+**Core loop** — onboarding/username · post a need + the board (type/sport/condition/budget/expiry, optional reference photo) · request detail + **structured offer** (price/condition/photo/note, **no chat**) · **accept/decline** via SECURITY DEFINER `accept_offer`/`decline_offer` (buyer-authed, atomic: offer→accepted, siblings→declined, request→matched, deal inserted, double-accept guarded).
+
+**Then** — public pseudonymous profiles at `/u/<username>` doubling as the buyer command center · **private wants** (wishlist now, publish later; **expiry starts at publish**) · editable private wants + avatar menu · **counter-offers** (structured price negotiation, no chat; party-aware turn tracking, round cap 10) · seller-side "Your offers" · paginated History · `/completed-deals`.
+
+**Notifications** — `notifications` table + trigger → header bell polling every 15s and on tab-focus, with hover preview · `/settings` email toggle · Resend delivery via DB webhook.
+
+**Then** — admin-only `/metrics` liquidity dashboard (% needs with ≥1 offer, median/p90 time-to-first-offer, offers per need, counter rounds, match rate, 7-day trends — all computed live, no tracking events; gated by `is_admin` + a definer function, because **RLS alone can't gate cross-user aggregates**) · public offer-count badges via denormalised counter + trigger · board filters/sort · **demand alerts** (inverted saved search — the criteria-only bridge built instead of the seller-inventory auto-match Kyle originally asked for, which is Lane 1) · **3a brand system + 5c notch**.
+
+**The Jul 2 email saga, worth remembering:** three faults stacked. Domain verified in Resend with DNS at Namecheap (DKIM, SPF, **MX on host `send`** — required switching Namecheap from Email Forwarding to Custom MX). Then **bug 1**, the webhook POST was 307'd to `/auth/login` by the allowlist proxy so the route never ran; then **bug 2**, the webhook's `x-webhook-secret` header contained the literal string `NOTIFY_WEBHOOK_SECRET` — the variable *name* pasted instead of a value. Vercel logs showed `307 → 401 → 200` as each layer was fixed.
+
+**Recurring migration gotcha, hit twice** (0003 counter-offers, 0004 notifications): the migration was run **in parts**, so the columns/tables applied but the **functions and triggers were never created**. Both times the feature failed *silently*. **Run the whole migration, then verify in Supabase → Database → Functions, and never swallow `supabase.rpc` errors.**
+
+---
+
+## 🎓 Standing lessons
+
+Merged from every session. These are the ones that have already cost real time twice.
+
+**1. Debug the seams, not the systems.** Every serious fault on this project has sat *between* two systems that each looked healthy alone — Resend 307 (Jul), Stripe 307 (Jul), auth SMTP never connected (Jul 29), webhook 404 (Aug 1). Nothing was ever broken *inside* Resend, Supabase, Vercel or the repo.
+
+**2. After any domain or credential change, enumerate every external system holding a URL** — Vercel env, Supabase Auth URL config, **Supabase webhooks**, and the repo. The Aug 1 outage was the domain cutover surviving in a fourth location after being fixed in three. Three out of four was not enough.
+
+**3. A working UI in front of a dead pipeline is the most dangerous failure mode.** The bell worked, the app looked healthy, offers appeared — and no email had sent for three days. The wrong conclusion ("no demand") is far more expensive than the bug. Anything asynchronous needs a way to check it: `net._http_response` for pg_net, Resend's log, Vercel function logs.
+
+**4. When a fix that should work produces zero change, assume a second fault downstream** rather than assuming the fix failed. Jul 29 was four stacked faults; fixing any one alone produced no visible improvement.
+
+**5. "Delivered" is a proxy metric — follow the actual link.** Resend logged Sent → Delivered and it looked finished; the link was dead on arrival. **Test the journey, not the hop.**
+
+**6. Verify, don't reason.** "Has it been applied?" is answerable read-only. Reasoning about policies on paper is how the 0004 trigger was believed-in for a week while it didn't exist. Deny-tests, `information_schema` probes and status codes settle questions that argument doesn't.
+
+**7. Scaffold defaults are liabilities that look like finished features.** The Supabase starter shipped an unconditional "check your email" redirect, a redirect to a placeholder `/protected` route, a password field with no confirmation, a personal username as the public placeholder, and email templates pointing at `supabase.co`. All of it *looked* done. **Anything not deliberately written for Exprifi should be treated as unreviewed, especially on auth screens.**
+
+**8. Raw SDK strings are not error messages.** `Auth session missing!` told a locked-out member nothing and read as a broken site, on the screen where trust is thinnest. Any error a member can reach should say what happened and what to do next.
+
+**9. PKCE is the wrong flow for anything that arrives by email.** Verify server-side (`token_hash` + `verifyOtp`).
+
+**10. Don't re-derive shared config locally.** `lib/site.ts` exists so there's one answer to "what is our address." A second copy in `route.ts` with a stale default is what turned a dead host into three days of silent failure.
+
+**11. The DB-side tightening ships before the app-side loosening, never after.** 0015 had to land before the proxy denylist deployed, because the flip made the database the only boundary.
+
+**12. Idempotent migrations turn an ambiguous state into a non-problem.** The 0015 collision was cheap instead of scary purely because both files were safe to re-run. Every migration keeps this property.
+
+**13. Absence of output is often the pass signal — know which silence means what.** "Success. No rows returned" is what a passing deny-test looks like (assertions live in `raise exception`). `rm` is silent on success too.
+
+**14. The guardrails catch Claude, not just Kyle.** An earlier draft of the board addendum specified saved searches **with email notifications** — which *is* Lane 1 matching, hand-built and given away in the MVP, spending M2's entire value proposition before M2 ships. Kyle rejected it. Worth recording that the standing guardrail earned its keep against the assistant.
+
+**15. Silent-failure surfaces to check before blaming the pipeline.**
+- **Resend suppression list** — a hard bounce auto-suppresses an address and later sends vanish with no error.
+- **Vercel "Sensitive" env vars are write-only** — not recoverable even by the owner. Mint a new secret rather than hunting for the old one.
+- **Env changes need a redeploy**, and `NEXT_PUBLIC_*` is inlined at *build* time — redeploy **without** the build cache or you'll ship the old value and misread it as the fix not working.
+- **`stripe_payouts_enabled` goes stale** if the webhook path is down, and the buyer's Fund button silently hides.
+
+**16. Tooling notes.**
+- The sandbox cannot delete `.git/index.lock`; Kyle runs git in Terminal. If seen: `rm -f ~/Desktop/NeedIt/.git/index.lock`.
+- The sandbox times out running `tsc` over the mounted volume — type-check locally before pushing.
 - The Supabase template editor auto-closes tags: type `</p` and let it supply the `>`, or you get `</p>>`.
 - The Supabase dashboard intermittently renders blank; reload rather than assuming a permissions problem.
-
-**10. The through-line.** Every fault tonight sat between two systems that each looked healthy on their own. Nothing was broken *inside* Resend, Supabase, Vercel or the repo — the breaks were all in the seams. Debug the seams first.
+- Next 16 dropped the top-level `eslint` config key (adding it is a type error) and ships `cacheComponents: true`, which breaks builds for auth/cookie pages. Keep it off.
+- Two accounts are needed to test any two-sided flow. Recover locked test accounts with `scripts/reset-user-password.mjs` rather than fighting the reset email.
 
 ---
 
-## 🗓 Aug 1, 2026 (later) — Catalog licensing, round 2: data *shape*, TCDb form, audit scope
+## 💡 Deferred — post-MVP, not scheduled
 
-Addendum to the Aug 1 vendor-outreach entry above. No code changed; 0014 is live and pushed (`f0e50c1`, `6032eef`).
+- **Seller inventory / vault + auto-match** — Lane 1, M2. The demand-alerts criteria are already Lane 1 training data.
+- **Seller "Showcase"** carousel on the profile — Lane 1 surface, deferred Jun 29.
+- **Card variant taxonomy / fuzzy matching** — a loose request ("CJ Stroud Prizm #88") should match all parallels; a specific one narrows. Needs the catalog plus a broad-vs-specific matching layer.
+- **Saved views, badges only** — no outbound anything (see the free/paid boundary). Worth building as the natural *on-ramp* to Lane 1: "you check this view every day — want us to just tell you?"
+- **Preset buyer questions on an offer** — canned-only Q&A, leak-safe: "Is price firm?", "Bundle?", "More photos?", "In hand?".
+- **Mandatory offer photos** — lean: required for single-card offers (trust/anti-fake), optional for bulk (don't suppress liquidity). Kyle's call.
+- **Supabase Realtime** for a truly instant bell instead of the 15s poll.
+- **Unified transaction log** — History is buyer-side; seller-side sales live in `/completed-deals` and "Your offers".
+- **`published_at` column** — TTFO currently measures from `created_at`, which is wrong for private→published wants.
+- **Split buyer/seller landing** — deferred until the follower-marketing plan exists. Frame as intent/mode, never as an account-type gate.
+- **Owned sports-news content arm** — very long-term. Do not pull scope forward.
 
-**The gap in the outreach so far: every question was about permission and coverage, none about structure.** Drafted a same-thread follow-up to PriceCharting asking about the shape of the data itself — sample export (NDA fine), whether parallels arrive as their own rows or as attributes on a base row, whether set/year/brand/player/number/parallel come as discrete fields or one concatenated name string, update cadence for CSV vs API, and:
+---
 
-- ⚠️ **The load-bearing question: is there a stable unique identifier per card that persists across exports?** If IDs don't persist, every refresh becomes a fuzzy-matching problem instead of a clean upsert on `(source, source_key)` — which is exactly what 0014's unique constraints are built around, and what `0016_card_refs.sql` maps. **Ask this of every source before paying anyone.**
+## 📁 Companion documents
 
-**TCDb has a formal application form — corrects the Aug 1 note above.** It's at `tcdb.com/DataServices.cfm` ("Data Services Application Form"), so there IS a documented commercial path, not just a cold "would you license at all" ask. Fields: name, email, company name, company website, market segment, service-type checkboxes (Set Listings / Checklists / Custom / Other), a long "how do you plan on using the data" box, and additional comments. Guidance given:
+`Board-Reference/` holds the canonical strategy set — read before advising. Also in the working folder:
 
-- **Check BOTH Set Listings and Checklists** — they map to `card_sets` and `cards` respectively. One without the other is a catalog of empty sets.
-- Market segment = "Marketplace". Company = Exprifi even with no entity formed (don't invent one).
-- The usage box is what the whole application turns on — their real screen is "is this person a scraper or a future competitor." Answer it unprompted: text-only (no image re-hosting, photos are user-uploaded), catalog never browsable/exportable from our UI (autocomplete surfaces one card at a time), periodic ingest rather than live per-request calls, not reselling or building a competing database, happy to attribute visibly.
-- **Still true: get the commercial license in writing.** TCDb data is community-contributed; a friendly approval email is not a license, and that distinction bites at diligence/acquisition time.
+| File | What |
+|---|---|
+| `needit-build-plan.md` | Source-of-truth build plan |
+| `exprifi-launch-roadmap.md` | Phased plan to Sep 26 |
+| `exprifi-full-business-brief.md` | Business thesis |
+| `exprifi-brand-system.md` | 3a design system (locked) |
+| `exprifi-3b-facelift-and-access-spec.md` | Facelift + access model |
+| `exprifi-3b-addendum-board-filtering.md` | Rail/sheet filtering amendment (keep — dated independent-derivation record) |
+| `card-catalog-and-automatch-spec.md` | Catalog + Lane 1 matching plan |
+| `card-data-vendor-comparison.md`, `cardhedge-reply-draft.md`, `card-catalog-vendor-outreach.md` | Vendor evaluation + outreach |
+| `secret-rotation-runbook.md` | Three secrets, in order, verify-before-revoke |
+| `legal-drafts-for-review.md` | Policy drafts pending Kyle's read |
+| `STRIPE_SETUP_STATUS.md` | Stripe test-mode local-setup reference |
+| `design-mockups/` | Rendered design directions + onboarding tutorial |
 
-**Coverage audit — scope reduced, not skipped.** Kyle knows SportsCardsPro's site well and argued the 50-card audit is unnecessary. Partly right — his hands-on time is the best evidence available. But what he knows is that their *website* covers his cards; the audit tests whether the *export tier we'd actually buy* exposes the same depth in an **ingestible shape**. Those come apart: web products often sit on richer internal data than the paid export, and a row that mashes set+player+number into one string still breaks the picker even at 100% coverage. **Compromise: spot-check 10 of the nastiest cards** (a '90s parallel, a variation, an oddball insert, something serial-numbered) against the real sample file once terms arrive. All 10 clean and well-structured → skip straight to ingest.
-
-**Disclosure posture (Kyle raised).** Worried that describing the reverse-marketplace concept on vendor forms invites a copycat. Read: risk is low — TCDb licenses data, they don't build marketplaces, and "buyers post, sellers respond" isn't the secret. The moat is the audience, the leak defense, the Lane 1 race/final-confirm mechanic, and the pricing model — none of which appear on these forms. Vague applications also get rejected as suspected scrapers, so specificity actively helps. **Two things to withhold anyway: the launch date, and that our audience concentrates in bulk/junk-wax** — that second one is genuinely strategic; ask about 1980s–2000s depth neutrally instead.
-
-### Key takeaways — Aug 1 (later)
-- **Coverage ≠ ingestibility.** Familiarity with a vendor's website tells you nothing about the export tier's field granularity. Always test the artifact you'd actually buy.
-- **Stable cross-export IDs are the single make-or-break vendor attribute** for a re-ingestible catalog. Higher stakes than price or coverage depth.
-- **Running two sources in parallel is deliberate** — you want two viable options before negotiating price with either.
-- **Everything downstream stays hard-blocked** on a licensing answer: no ingest, no picker, no vault. And the board being at 0 remains what actually decides Sep 26 — catalog work does not substitute for the seeding sprint.
+**Historical, safe to delete after commit:** `handoff-0015-reconcile.md`, `HANDOFF-0015-collision-check.md`, `RUN-THIS-IN-SUPABASE.sql` (0012+0013+0014, already applied), `recap-2026-06-29.md`, `handoff-0015-*`, `exprifi-status-and-next-steps.md` (superseded by this log's Status + Open items).
