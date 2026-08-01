@@ -4,7 +4,7 @@ _MVP = Lane 2 (open request board). No payments, no catalog, no Lane 1 yet._
 
 ## Status at a glance
 - **Milestone:** M0 — vertical slice (Lane 2)
-- **Last updated:** Jun 25, 2026
+- **Last updated:** Aug 1, 2026
 
 ---
 
@@ -211,6 +211,18 @@ See `exprifi-status-and-next-steps.md` for the full kickoff brief (open in new c
 - Related docs from the card-refs session, also untracked: `card-data-vendor-comparison.md`, `cardhedge-reply-draft.md`, `card-catalog-and-automatch-spec.md`.
 - ⚠️ A stale zero-byte `.git/index.lock` (19:04) exists — sandbox can't delete it; Kyle: `rm ~/Desktop/NeedIt/.git/index.lock` before the next git command. The two handoff docs (`handoff-0015-reconcile.md`, `HANDOFF-0015-collision-check.md`) are now historical; safe to delete after commit.
 
+**Resolution (later that evening):** Kyle applied **0015** ("Success. No rows returned" = every deny-test passed; failures raise hard errors, Supabase just hides the NOTICEs) and then **0016** (VERIFY confirmed: all three ref tables exist, RLS on, `policy_count = 0`). Stale git lock deleted. **Both migrations are LIVE.** The database boundary is now verified, so the proxy-denylist code is safe to deploy whenever it's committed and pushed.
+
+### 🧠 Key takeaways from Jul 29 (the two-session day)
+
+- **One session per repo at a time.** Two parallel Cowork chats each minted a "0015" within 42 minutes of each other. It resolved cleanly only by luck — the migrations happened to touch disjoint objects. If both had touched `profiles` policies, whichever ran last would have silently defined who can read profiles, with no error to catch it. If two chats are ever needed again: one owns the schema, the other stays out of SQL entirely.
+- **Migrations have exactly one home: `needit/supabase/migrations/`.** The collision happened partly because one session wrote to the working folder and believed "there is no migrations directory." Numbered SQL never lives anywhere else, even though applying stays manual via the SQL Editor.
+- **Claim the number in the build log the moment a migration is drafted, not when it runs.** The card-refs session never logged, so nothing recorded that 0015 was taken. The log is the reservation system.
+- **"Has it been applied?" is answerable read-only — probe before reasoning.** The `information_schema.column_privileges` check settled 0015's state definitively: anon holding per-column SELECT on *every* profiles column (incl. `is_admin`, `stripe_account_id`) is the fingerprint of the default table-level grant, i.e. the migration had NOT run. A table-level grant expands to one row per column in that view — don't misread "many rows" as "column grants exist."
+- **Idempotent migrations turned an ambiguous DB state into a non-problem.** Because both files are safe to re-run (`if not exists`, `on conflict do nothing`, conditional constraint blocks, policy drop-then-recreate), the fix was "run both in order" with no forensics needed. Every future migration keeps this property — it's what made the collision cheap instead of scary.
+- **"Success. No rows returned" is what a passing deny-test looks like** in the Supabase editor — assertions live in `raise exception`, so success ≡ all passed. Likewise `rm` is silent on success. Absence of output is often the pass signal; know which silence means what.
+- **Sequencing mattered more than either file:** 0015 (RLS) had to land before the proxy denylist deploys, because the flip makes the database the only boundary. Rule of thumb going forward: the DB-side tightening ships before the app-side loosening, never after.
+
 ### ✅ Jul 29 (later) — migration 0015 RUN, deny-tests passed
 Kyle confirmed 0015 applied in Supabase with every deny-test NOTICE reporting pass. Anonymous access is now verified, not assumed: anon can read public needs and public profiles (whitelisted columns only) and can read nothing else — no offers, no private wants, no inventory, no deals, no `is_admin`, no `stripe_account_id`, no `resolve_login_email`, no writes. **The database boundary is confirmed, which is what makes the proxy denylist inversion safe to ship.** Remaining Phase 1 handoffs: legal review + `LEGAL_ADDRESS`, secret rotation, Supabase Auth URL configuration, `offer-photos` bucket check, commit + push. Search-indexing policy is being handled in a separate thread — **do not edit `app/robots.ts` from this session.**
 
@@ -288,6 +300,17 @@ Followed it: **"That link has expired or was already used"** on the very first c
 ### ✅ Jul 29 — password reset CONFIRMED WORKING end to end
 Kyle ran a real reset after the implicit-flow server action deployed: email delivered, link accepted, new password set. **Password recovery works.** That was the last unproven link in the auth chain and the one that mattered most for the seeding sprint — a seeded seller who loses their password now has a self-serve way back in.
 
+## 🗓 Aug 1, 2026 — Card catalog Phase 1: vendor outreach + migration status check
+
+**Vendor outreach (spec Phase 1, licensing gate).** Drafted and tracked three commercial-licensing emails, saved to `card-catalog-vendor-outreach.md`:
+- **PriceCharting/SportsCardsPro — SENT.** Asks whether storing checklist data (set/year/brand/player/number/parallel) in our own DB for autocomplete counts as the "accessible to third parties" use their ToS flags as needing express written permission beyond a subscription; also asks about Legendary-tier CSV coverage for bulk/junk-wax era (1980s–2000s), scheduled-refresh vs. live-call pattern, and image rights (assumed unlicensed, catalog stays text-only).
+- **TCDB — drafted, not yet sent.** Their terms default to personal/non-commercial use only and there's no documented public API, so this one leads with "would you license this commercially at all" rather than assuming a subscription path exists.
+- **Card Hedge AI — drafted, not yet sent.** Their $49/mo tier is a real commercial API (3.7M+ cards), so this one asks for enterprise terms + bulk-era coverage depth rather than a permission-to-use question.
+
+⚠️ **Reconcile before sending Card Hedge/TCDB:** the Jul 29 collision-reconcile entry above already lists `cardhedge-reply-draft.md` and `card-data-vendor-comparison.md` as untracked files from a parallel card-refs session — there may already be vendor contact in flight that this thread didn't have visibility into. Check those files before sending duplicate outreach.
+
+**Migration status — corrected an assumption, then found the work already done.** Walked through drafting an Opus prompt to build the `0012_card_catalog.sql` migration from the original spec. Caught mid-draft that 0012/0013 were already taken (account settings, username login) — but a full re-read of this log shows the catalog schema **already shipped** as `0014_card_catalog.sql` (Jul 28, commit `f0e50c1`) with a follow-on `0016_card_refs.sql` (Jul 29, provider-agnostic vendor ID mapping, service-role-only RLS per TCDB §3.6(c)). **The drafted Opus prompt was not sent — it would have duplicated existing work.** No code changed this session.
+
 ### 📌 Queued (Phase 4, one pass with the Confirm signup template switch)
 Kyle's asks, deliberately not built tonight:
 
@@ -296,3 +319,106 @@ Kyle's asks, deliberately not built tonight:
 3. **Fold in the security-list items on the same form:** HIBP leaked-password protection + min length 10 (roadmap §246). All three touch the same two components; doing them in one pass avoids three separate rounds of "change the password form, redeploy, retest".
 
 Grouped in the command center under Phase 4 next to the Confirm signup template item, since email confirmation ON and the password-form work will both want a real test signup afterwards — one test run, not two.
+
+### Key takeaways — Jul 28
+- **Decision process that worked:** two rendered samples (dark-board vs all-light) beat describing options in prose — Kyle picked A ("trusting the vision") in one turn. Reuse for future design forks.
+- **Design rule confirmed:** profile pages are "light platform chrome around a dark live board" — the want board is a *slice of the live board*, so it reuses the exact home-board anatomy (notched `bg-board` section, microlabel header, `num` money, urgent = amber border + `notch-fill`). Green money on light surfaces uses `text-primary-deep` (#00794B), never #00A968 — AA contrast.
+- **Guardrail reconciliation, not override:** "build the database now" and "earn Lane 1 with Lane 2" coexist — split by *who pays the time*. Catalog ingest/picker/vault = Claude-lane, zero seeding-sprint hours, ship pre-gate; the match engine (race + final confirm) is the only piece the guardrail actually protects → stays behind Sep 14.
+- **Card picker is secretly a Lane 2 upgrade:** structured `card_id` on needs improves board quality and seeding *now*, and is the exact data auto-match needs later. It's the bridge feature.
+- **Data-source findings (Jul 2026):** SportsCardsPro/PriceCharting = best fit (paid API, CSV set lists, prices already integer pennies — matches our cents rule). Coverage audit vs 50 real bulk-era cards is Phase 1 *before any code*. Catalog ships text-only — source images aren't licensed to us; photos stay user-uploaded.
+- **Leak defense extends to inventory:** `seller_inventory` is a want-list leak in reverse — RLS owner-only pre-match, surfaced to buyers only through the match flow.
+- **Housekeeping:** next migration prefix is `0012` (0010 AND 0011 are taken — check before numbering). My board page still needs commit + push (tsc + eslint verified clean Jul 28).
+
+### Key takeaways — Aug 1 (planning-process adoption)
+- **Adopted a planning discipline: "The Dry-Run Interview."** For any build/fix/refactor/migrate/integrate/decide/design ask, the method is: recon the repo + connected folder before asking; classify the task track; ask only the few forks that are expensive to get wrong (one question per turn, ≤14 total); tag every fact `(user)` / `(verified: source)` / `[assumed: default — if wrong: …]`; then deliver a self-contained plan an executor-with-zero-context could run. Full meta-prompt is the source of truth Kyle pasted; the intent is to run this before jumping to code on non-trivial asks.
+- **Heavy planning belongs in Opus 5.** The skill was first installed in this (non-Opus) session and Kyle reverted it — he wants the methodology set up and run from an Opus 5 session. Redo the skill install there.
+- **Cleanup done this session:** the `dry-run-interview` account skill was created then left in place (no delete-skill tool available — remove via app skill settings if unwanted); the memory file + MEMORY.md index line for it were reverted; no reference file was written to the project folder.
+
+---
+
+## ⚙️ Aug 1 — Planning protocol installed (process, no app code touched)
+
+No Exprifi code changed today. The work was to the *process* that produces the code: the **Dry-Run Interview** protocol is now the standing way any build/fix/decide ask gets scoped before a line is written.
+
+**What landed:**
+
+- **`dry-run-interview` skill installed** to the account (skill id `skill_013xWjpwyjUEx2vyXmibSrhp`), so it persists across every session and auto-triggers on plan/build/fix/refactor/migrate/integrate/decide-shaped asks. It had been deleted mid-session and was recreated from Kyle's full prompt text — nothing trimmed.
+- **Canonical full text** saved to `Board-Reference/dry-run-interview-protocol.md`. That file is the source of truth; the skill body is the operating copy. If they ever disagree, the Board-Reference file wins.
+- **Memory written** (`dry-run-interview-protocol`) tying the protocol to Exprifi specifically, with the locked guardrails wired in as plan-check criteria: Lane 2 before Lane 1, money as integer cents, no secret in a `NEXT_PUBLIC_` var.
+
+**What changes in practice:** a build ask no longer returns a plan immediately. It returns a status line, **one** sharp question carrying a `Recommended:` line acceptable with a single word, and a hard 14-question ceiling (target 3–8). Then a standalone plan.
+
+### Key takeaways — Aug 1
+
+- **Evidence tagging is the part that matters most here.** Every factual claim now carries exactly one of `(user)` / `(verified: <source>)` / `[assumed: default X — if wrong: Y]`, and *memory or training is never a valid source*. Given how much of this build has been unverified-assumption bugs found late — the PKCE `pkce_` token prefix, `NEXT_PUBLIC_SITE_URL` silently missing from Vercel, the redirect allowlist without `exprifi.com` — the rule that a version, API shape, or config key must come from a lockfile or a live check rather than recall is aimed straight at this project's actual failure mode.
+- **"Look, don't ask" is the standing instruction for this folder.** Anything answerable by reading the repo, a migration file, or a Board-Reference doc is a lookup, not a question. Question budget gets spent only on intent, stakes, and constraints that live outside the machine.
+- **The executor-is-a-stranger constraint fits how this project actually runs.** Plans get handed to Cursor or a fresh session with no memory of the conversation. Any plan with an "as discussed" in it was already broken; now the format forbids it, and every phase must carry a provable `Done when:` check.
+- **Landmine falsifiers, not catch-alls.** At least two questions per interview must be sharp falsifiers ("I'm planning X — is Y true?") rather than "any constraints?" A confirmed landmine has to *visibly change the plan* — reordered phases, a guard phase, narrowed scope — not get patched with one sentence.
+- **Danger rule now formalized.** Any destructive or irreversible step earns its own explicit confirmation naming the irreversibility, plus a backup/dry-run/rollback phase. Relevant with real seeded accounts and live migrations ahead.
+- **Assumptions Ledger is the veto surface.** Every default adopted without asking gets a row with blast radius and the phase that checks it, so Kyle can kill any one of them cheaply instead of discovering it three phases in.
+
+**Unchanged and still open** from Jul 29 — Phase 4 password-form pass (confirm field, reveal toggle, HIBP + min length 10) bundled with the **Confirm sign up** template switch to `{{ .TokenHash }}` before email confirmation is flipped on. Nothing today touched those.
+
+## 🎓 Takeaways — Jul 29, 2026 auth/email day
+
+Written down because the next person to hit "the email didn't arrive" will otherwise repeat the whole night.
+
+**1. It was never one bug. It was four, stacked — and none of them was spam.**
+The reported symptom ("new signups never get their confirmation email") had four independent causes: the app dead-ended users itself regardless of email; auth email had never been connected to Resend; `exprifi.com` wasn't in the redirect allowlist; and the reset token was in a format `verifyOtp` rejects. Fixing any one alone would have produced no visible improvement — which is precisely why the earlier "I turned confirmation off" fix appeared to do nothing. **When a fix that should work produces zero change, assume a second fault downstream rather than assuming the fix failed.**
+
+**2. Two email systems that share a vendor are still two systems.**
+Resend was live and delivering notifications since Jul 2. That proved *nothing* about auth email, which Supabase sends through its own pipe unless custom SMTP is explicitly configured. "Our email works" was true and irrelevant. Ask *which* email, sent by *which* service, every time.
+
+**3. Config lives in three places and a fix isn't done until all three agree.**
+Code (repo), Supabase dashboard (SMTP, URL config, templates), Vercel (env vars). Tonight had faults in all three. Neither "it's fixed in code" nor "it's fixed in the dashboard" was ever the whole answer, and nothing in the repo would have revealed the missing `NEXT_PUBLIC_SITE_URL` or the empty SMTP toggle.
+
+**4. "Delivered" is a proxy metric. Follow the actual link.**
+After the first test, Resend logged *Sent → Delivered* and it looked finished. It wasn't: the link was dead on arrival. The bug only surfaced by *following the link like a member would*. A green status from a vendor dashboard means the vendor did its job, not that the user can do theirs. **Test the journey, not the hop.**
+
+**5. PKCE is the wrong flow for anything that arrives by email.**
+It stores its code verifier in the browser that began the flow, so request-on-laptop → tap-on-phone can never work. Email is the one context where cross-device is the *normal* case. Anything email-delivered should verify server-side (`token_hash` + `verifyOtp`), not PKCE.
+
+**6. Scaffold defaults are liabilities that look like finished features.**
+This one page came from the Supabase starter and shipped with: an unconditional "check your email" redirect, a redirect to a placeholder `/protected` route, a password field with no confirmation, a personal username as the public placeholder, and email templates pointing at `supabase.co`. All of it *looked* done. **Anything not deliberately written for Exprifi should be treated as unreviewed, especially on auth screens.** Worth a sweep of what else the scaffold still owns.
+
+**7. Raw SDK strings are not error messages.**
+`Auth session missing!` told a locked-out member nothing and read as a broken site, on the screen where trust is thinnest. Replaced with plain language and a way out. Any error a member can reach should say what happened and what to do next.
+
+**8. Silent-failure surfaces — check these before blaming the pipeline.**
+- **Resend suppression list.** A hard bounce auto-suppresses an address; later sends vanish with no error. `fhuiweou@gmail.com` is already on it.
+- **Vercel "Sensitive" env vars are write-only** — not recoverable, even by the owner. Mint a new secret rather than hunting for the old one.
+- **Env changes need a redeploy**, and `NEXT_PUBLIC_*` is inlined at *build* time — so redeploy **without** the build cache or you'll ship the old value and misread it as the fix not working.
+
+**9. Tooling notes for next session.**
+- The sandbox cannot delete `.git/index.lock`; Kyle runs git commands in Terminal. Stage-and-hand-off, don't fight it.
+- The Supabase template editor auto-closes tags: type `</p` and let it supply the `>`, or you get `</p>>`.
+- The Supabase dashboard intermittently renders blank; reload rather than assuming a permissions problem.
+
+**10. The through-line.** Every fault tonight sat between two systems that each looked healthy on their own. Nothing was broken *inside* Resend, Supabase, Vercel or the repo — the breaks were all in the seams. Debug the seams first.
+
+---
+
+## 🗓 Aug 1, 2026 (later) — Catalog licensing, round 2: data *shape*, TCDb form, audit scope
+
+Addendum to the Aug 1 vendor-outreach entry above. No code changed; 0014 is live and pushed (`f0e50c1`, `6032eef`).
+
+**The gap in the outreach so far: every question was about permission and coverage, none about structure.** Drafted a same-thread follow-up to PriceCharting asking about the shape of the data itself — sample export (NDA fine), whether parallels arrive as their own rows or as attributes on a base row, whether set/year/brand/player/number/parallel come as discrete fields or one concatenated name string, update cadence for CSV vs API, and:
+
+- ⚠️ **The load-bearing question: is there a stable unique identifier per card that persists across exports?** If IDs don't persist, every refresh becomes a fuzzy-matching problem instead of a clean upsert on `(source, source_key)` — which is exactly what 0014's unique constraints are built around, and what `0016_card_refs.sql` maps. **Ask this of every source before paying anyone.**
+
+**TCDb has a formal application form — corrects the Aug 1 note above.** It's at `tcdb.com/DataServices.cfm` ("Data Services Application Form"), so there IS a documented commercial path, not just a cold "would you license at all" ask. Fields: name, email, company name, company website, market segment, service-type checkboxes (Set Listings / Checklists / Custom / Other), a long "how do you plan on using the data" box, and additional comments. Guidance given:
+
+- **Check BOTH Set Listings and Checklists** — they map to `card_sets` and `cards` respectively. One without the other is a catalog of empty sets.
+- Market segment = "Marketplace". Company = Exprifi even with no entity formed (don't invent one).
+- The usage box is what the whole application turns on — their real screen is "is this person a scraper or a future competitor." Answer it unprompted: text-only (no image re-hosting, photos are user-uploaded), catalog never browsable/exportable from our UI (autocomplete surfaces one card at a time), periodic ingest rather than live per-request calls, not reselling or building a competing database, happy to attribute visibly.
+- **Still true: get the commercial license in writing.** TCDb data is community-contributed; a friendly approval email is not a license, and that distinction bites at diligence/acquisition time.
+
+**Coverage audit — scope reduced, not skipped.** Kyle knows SportsCardsPro's site well and argued the 50-card audit is unnecessary. Partly right — his hands-on time is the best evidence available. But what he knows is that their *website* covers his cards; the audit tests whether the *export tier we'd actually buy* exposes the same depth in an **ingestible shape**. Those come apart: web products often sit on richer internal data than the paid export, and a row that mashes set+player+number into one string still breaks the picker even at 100% coverage. **Compromise: spot-check 10 of the nastiest cards** (a '90s parallel, a variation, an oddball insert, something serial-numbered) against the real sample file once terms arrive. All 10 clean and well-structured → skip straight to ingest.
+
+**Disclosure posture (Kyle raised).** Worried that describing the reverse-marketplace concept on vendor forms invites a copycat. Read: risk is low — TCDb licenses data, they don't build marketplaces, and "buyers post, sellers respond" isn't the secret. The moat is the audience, the leak defense, the Lane 1 race/final-confirm mechanic, and the pricing model — none of which appear on these forms. Vague applications also get rejected as suspected scrapers, so specificity actively helps. **Two things to withhold anyway: the launch date, and that our audience concentrates in bulk/junk-wax** — that second one is genuinely strategic; ask about 1980s–2000s depth neutrally instead.
+
+### Key takeaways — Aug 1 (later)
+- **Coverage ≠ ingestibility.** Familiarity with a vendor's website tells you nothing about the export tier's field granularity. Always test the artifact you'd actually buy.
+- **Stable cross-export IDs are the single make-or-break vendor attribute** for a re-ingestible catalog. Higher stakes than price or coverage depth.
+- **Running two sources in parallel is deliberate** — you want two viable options before negotiating price with either.
+- **Everything downstream stays hard-blocked** on a licensing answer: no ingest, no picker, no vault. And the board being at 0 remains what actually decides Sep 26 — catalog work does not substitute for the seeding sprint.
