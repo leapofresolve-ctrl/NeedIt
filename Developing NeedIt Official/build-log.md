@@ -32,7 +32,6 @@ Everything genuinely outstanding, in one place. Nothing else in this document is
 
 ### Kyle only — blocking or near-blocking
 
-0. **▶ RUN migration `0017_free_alert_limits.sql`** in the Supabase SQL editor. The free-alert code (server action, form copy, email cadence) is already in the tree and **assumes the columns and trigger exist** — `profiles.notify_demand_match`, `last_demand_digest_at`, `enforce_free_alert_limit()`. Until it runs, the notification route's `.select()` on those columns fails and demand-alert email degrades. The file has a self-verify block that raises on failure.
 1. **Read the four `/legal/*` pages, set `LEGAL_ADDRESS`, flip `LEGAL_PUBLISHED = true`.** Pages are live but unlinked; the flag gates the footer Legal column, trust-and-safety links and `/help` cross-links. One line after the read.
 2. **Rotate the three remaining secrets** — `SUPABASE_SERVICE_ROLE_KEY`, `NOTIFY_WEBHOOK_SECRET`, `METRICS_API_TOKEN`. See `secret-rotation-runbook.md`, ~20 min. *(The Resend key is done — rotated Jul 29, old key revoked Aug 1.)*
 3. **Confirm the `offer-photos` storage bucket is NOT public** (Supabase → Storage). It was created public in June.
@@ -133,7 +132,7 @@ Do not relitigate these without a deliberate reopening.
 | 0014 | Card catalog — `card_sets`, `cards` (each parallel its own row), `seller_inventory`; `requests.card_id`/`grade_min` |
 | 0015 | Public-browsing RLS + column privileges + anon deny-tests ✅ RUN |
 | 0016 | `card_refs` / `card_set_refs` — provider-agnostic ID mapping, RLS on with **zero policies** (service-role only) ✅ RUN |
-| 0017 | Free-alert limits — `profiles.notify_demand_match`, `last_demand_digest_at`, `enforce_free_alert_limit()` trigger ⚠️ **NOT YET RUN** |
+| 0017 | Free-alert limits — `profiles.last_demand_digest_at`, `enforce_free_alert_limit()` + `demand_alerts_free_limit` trigger ✅ RUN |
 
 Numbering is clean and sequential 0002–0017. *(The payments session's note claiming its profiles-insert-policy was `0010` was wrong — the live set has `0010_metrics_service` and `0011_profiles_insert_policy`. Resolved, no action.)* Next number is **0018**.
 
@@ -142,6 +141,34 @@ Numbering is clean and sequential 0002–0017. *(The payments session's note cla
 ## Session history
 
 Reverse chronological. Most recent first.
+
+### Aug 1 (late) — board rail + locked header, and a near-miss on free-vs-paid
+
+Started as "the Refine button feels too much like eBay's, can they sue me?" Ended with Block C's filtering shipped and a monetisation decision that was hiding in already-shipped code.
+
+**The legal worry, resolved.** Nothing to fear on the filter UI: faceted filtering is ubiquitous prior art, "Refine" is a generic verb, and eBay's patents are on backend transaction mechanics. Real exposure is elsewhere and worth auditing — literal policy/help **text**, their assets, and above all **scraping their listings or sold comps**, which is a live risk against `card-catalog-and-automatch-spec.md`, not against the board. Cheapest insurance is vocabulary: needs, hunts, offers, demand, the board — never listings, watchlist, feedback score. Rationale kept in the addendum §1 as a dated independent-derivation record.
+
+**Shipped — board filtering (Block C).** `RefinePanel` is now the **mobile presentation only**; at ≥1024px the rail docks in the left gutter that §1.4 flagged as dead space. New: `lib/board-filters.ts` (rewritten — multi-select facets, URL serialisation, threshold constants), `lib/board-facets.ts`, `components/exchange/board-rail.tsx`, `board-search.tsx`.
+
+- **Two surfaces, one rule:** search is **dumb** (title + description text only, never parses "under 500"), the rail is **smart** (everything structured). They compose with AND. That rule is what made it safe to adopt the search box at all — a silent mis-parse reads as the site being broken, and there's no usage data to tune a parser against. Empty results echo the query back, so both typos and structured phrases self-correct.
+- Rail is a **real `<form>` with real checkboxes**, auto-submitting on change. Keeps native a11y semantics, works without JS, keeps `searchParams` the source of truth. Checkboxes apply instantly; price inputs debounce 400ms.
+- **Rail is permanent, not reveal-on-click.** Hidden filters are unused filters, and the two options that matter most — *closing under 24h*, *no offers yet* — are how a seller finds a winnable deal. Escape hatch: "Hide filters" → 44px edge tab, remembered in `localStorage`.
+- **Volume threshold:** below 15 open needs the rail doesn't render at all. A column of zeros makes the board look emptier than it is. Measured against the *unfiltered* total so it can't vanish mid-narrowing.
+- Facet counts computed **in memory** from one query — proper faceting excludes each facet's own selection, which in SQL is one query per group and N places for the logic to drift. ⚠️ `matches()` in `board-facets.ts` and the query in `app/page.tsx` must stay in step; revisit when the open board passes a few thousand rows.
+
+**Shipped — teaching surfaces.** `TeachStrip` (three cards above the board, shrinks to a one-liner on dismiss rather than vanishing) and `FirstRunHint` (one line at the moment of confusion — board, /post, offer form). `localStorage`, not profile columns: it works signed-out and needs no migration. Explicitly **not** built: modal carousel, coach-marks, Next/Skip tour, progress bar, "finish your setup" emails. The insight was Kyle's — the empty state was already doing tutorial work because it has nothing to sell you.
+
+**🚨 The near-miss.** Two specs an hour apart contradicted shipped code in *opposite directions*, in the same feature area. First a proposal to add notifiable saved searches — which Kyle rejected as colliding with M2. Then, mid-build, `demand_alerts` turned up **already live**: unlimited, instant, and naming the card ("Get there before another seller does"). Free. So M2's headline benefit was already being given away.
+
+**Resolved by trimming, not removing** (`0017_free_alert_limits.sql`, `lib/alerts.ts`): free = 3 alerts, one email per seller per ~3 days, and that email is **deliberately vague** — it never names the card and links to the board, not the need. Bell stays instant and specific because it's on-site. This also **refines the boundary rule**: the test isn't whether we contact a seller, it's **whether the message does their matching for them**. A vague nudge is still "you come look".
+
+Timing made it cheap: board at 0, so nobody was receiving these. The same decision in six months means taking something away from sellers who rely on it.
+
+**Fixed on sight:** the email route ignored `profiles.notify_demand_match` entirely — sellers who turned demand alerts off in Settings were still getting them.
+
+**Lesson.** *Read `supabase/migrations/` and the relevant `app/` route before locking any decision about what is free.* Two specs got written against an imagined codebase.
+
+**Open:** run `0017_free_alert_limits.sql` in Supabase (self-verifying) · full `npm run build` locally — sandbox couldn't finish one (Google Fonts fetch blocked, deps incomplete); `tsc --noEmit` and `eslint` are clean · eyeball at 375 / 1024 / 1440.
 
 ### 🚨 Aug 1 (evening) — notification email had been dead for 3 days
 
@@ -178,6 +205,10 @@ Parallel session, same day. `demand_alerts` had shipped **unlimited, instant and
 Both numbers live in `lib/alerts.ts` so UI copy, server action and email route can't disagree. The limit is enforced **twice** — in the server action for a friendly message, and again by a DB trigger in `0017`, because the action isn't the only path to an insert. The digest window is claimed with a **conditional UPDATE rather than read-then-write**, since several needs can be published in the same second and each POSTs the route independently: whichever request wins the update sends, the rest see zero rows and skip.
 
 This is the free/paid boundary being applied *retroactively to something already built* — the second time in two days that rule caught a Lane 1 giveaway (the first was the saved-searches-with-email draft in the board addendum).
+
+**Shipped and verified live (Aug 1, 20:27).** 0017 applied — `last_demand_digest_at` present, `enforce_free_alert_limit()` + `demand_alerts_free_limit` trigger created. End-to-end proof on the deployed code: a `demand_match` notification insert produced `200 {"sent":true}`, the digest window was claimed one second later, and Resend delivered **"New demand on Exprifi"** — the deliberately vague subject, no card named, linking to the board rather than the need. Test row deleted and `last_demand_digest_at` reset to null afterwards so the real window is untouched.
+
+⚠️ **The code shipped one step ahead of its schema, and the failure was invisible.** For ~15 minutes `route.ts` selected three columns while only two existed. PostgREST fails the whole select, so `profile` came back **null** — and the code reads null as "no preferences found," not "the query broke." Net effect: demand emails silently suppressed, *and* every other notification email ignoring the recipient's opt-out. Harmless only because the board is empty and nobody has opted out. **The standing rule — DB change before app change — exists for exactly this, and putting the migration first in a list wasn't enough. From 0018 on, the migration is a separate confirmed step before `git push` is typed.**
 
 ### 🗓 Aug 1 — Board-filtering addendum + onboarding spec (design only)
 
@@ -300,7 +331,9 @@ Merged from every session. These are the ones that have already cost real time t
 
 **10. Don't re-derive shared config locally.** `lib/site.ts` exists so there's one answer to "what is our address." A second copy in `route.ts` with a stale default is what turned a dead host into three days of silent failure.
 
-**11. The DB-side tightening ships before the app-side loosening, never after.** 0015 had to land before the proxy denylist deployed, because the flip made the database the only boundary.
+**11. The DB-side change ships before the app-side change, never after — as a separate confirmed step, not as step one of a list.** 0015 had to land before the proxy denylist deployed, because the flip made the database the only boundary. 0017 proved the weaker version isn't enough: it *was* listed first and still got missed, because the surrounding commands were pasteable as one block. Run the migration, verify it, **then** type `git push`.
+
+**11b. A failed `.select()` returns null, and null reads like "no preferences set."** When 0017 was late, `route.ts` selected a column that didn't exist; PostgREST failed the whole query, `profile` came back null, and `if (profile && profile.email_notifications === false)` quietly stopped protecting anyone. **Distinguish "no row" from "query errored"** — destructure the `error` too, and treat an error as a hard stop rather than as an empty result.
 
 **12. Idempotent migrations turn an ambiguous state into a non-problem.** The 0015 collision was cheap instead of scary purely because both files were safe to re-run. Every migration keeps this property.
 
