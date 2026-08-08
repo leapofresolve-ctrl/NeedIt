@@ -16,3 +16,17 @@
 .vscode/
 .idea/
 Thumbs.db
+
+# Installed agent tooling — skills, agents and design/skill vaults. These are
+# libraries pulled in for Claude to use, not Exprifi source. ~500 files
+# including .ttf font binaries and Python caches; committing them would bloat
+# the repo and bury real diffs. Nothing here is deployed (Vercel root = needit/).
+.claude/
+.agents/
+skill-vault/
+design-vault/
+
+# Python + coverage droppings from those skill scripts.
+__pycache__/
+*.pyc
+.coverage

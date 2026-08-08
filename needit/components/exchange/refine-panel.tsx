@@ -25,11 +25,16 @@ import { Button } from "@/components/ui/button";
  */
 
 export type RefineValues = {
+  /** Owned by the search field in the locked header — carried, never edited
+   *  here. Without this, refining on a phone would wipe the seller's search. */
+  q?: string;
   type?: string;
   sport?: string;
   condition?: string;
   min?: string;
   max?: string;
+  closing?: boolean;
+  noOffers?: boolean;
   sort?: string;
 };
 
@@ -126,11 +131,12 @@ export function RefinePanel({
               action="/"
               className="flex min-h-0 flex-1 flex-col"
             >
-              {/* Sort lives outside the panel, so carry it through or
-                  refining would silently reset the user's sort order. */}
+              {/* Sort and search live outside the panel, so carry them through
+                  or refining would silently reset them. */}
               {values.sort && (
                 <input type="hidden" name="sort" value={values.sort} />
               )}
+              {values.q && <input type="hidden" name="q" value={values.q} />}
 
               <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
                 <label className={labelClass}>
@@ -162,17 +168,23 @@ export function RefinePanel({
                   </select>
                 </label>
 
+                {/* 0018 narrowed condition_pref from free buyer-typed text to
+                    'raw' | 'graded' | null. This was a text box doing an ilike
+                    against it, which after the migration can only ever match
+                    those two words — so typing "PSA 9" silently returned
+                    nothing. A picker of the values that actually exist can't
+                    lie to the seller. */}
                 <label className={labelClass}>
                   Condition
-                  <input
+                  <select
                     name="condition"
                     defaultValue={values.condition ?? ""}
-                    placeholder="e.g. PSA 9, raw, near mint"
                     className={rowClass}
-                  />
-                  <span className="text-xs font-normal text-muted-foreground">
-                    Matches anything containing what you type.
-                  </span>
+                  >
+                    <option value="">Any condition</option>
+                    <option value="raw">Raw only</option>
+                    <option value="graded">Graded</option>
+                  </select>
                 </label>
 
                 <fieldset className="flex flex-col gap-1.5">
@@ -205,6 +217,35 @@ export function RefinePanel({
                       />
                     </label>
                   </div>
+                </fieldset>
+
+                {/* The two filters that find a winnable deal rather than one
+                    with six offers already on it. They're the highest-value
+                    options in the rail, so they belong on mobile too. */}
+                <fieldset className="flex flex-col gap-1.5">
+                  <legend className="mb-1.5 text-sm font-medium">
+                    Closing
+                  </legend>
+                  <label className="flex min-h-11 items-center gap-3 text-base">
+                    <input
+                      type="checkbox"
+                      name="closing"
+                      value="1"
+                      defaultChecked={values.closing}
+                      className="size-[18px] rounded-sm border-input accent-foreground"
+                    />
+                    Under 24 hours
+                  </label>
+                  <label className="flex min-h-11 items-center gap-3 text-base">
+                    <input
+                      type="checkbox"
+                      name="nooffers"
+                      value="1"
+                      defaultChecked={values.noOffers}
+                      className="size-[18px] rounded-sm border-input accent-foreground"
+                    />
+                    No offers yet
+                  </label>
                 </fieldset>
               </div>
 

@@ -10,6 +10,7 @@ import { CounterForm } from "@/components/offer/counter-form";
 import { Button } from "@/components/ui/button";
 import { acceptOffer, declineOffer } from "./actions";
 import { FundDealButton } from "@/components/deal/fund-deal-button";
+import { conditionChip, tagLabel } from "@/lib/need-tags";
 
 const COUNTER_LIMIT = 10;
 
@@ -253,7 +254,7 @@ export default async function RequestDetail({
   const { data: request } = await supabase
     .from("requests")
     .select(
-      "id, buyer_id, title, description, type, sport, budget_cents, condition_pref, image_url, status, expires_at, created_at",
+      "id, buyer_id, title, description, type, sport, budget_cents, price_mode, condition_pref, grade_min, tags, image_url, status, expires_at, created_at",
     )
     .eq("id", id)
     .maybeSingle();
@@ -348,17 +349,36 @@ export default async function RequestDetail({
           <div className="flex items-start justify-between gap-3">
             <h1 className="text-2xl font-bold leading-tight">{request.title}</h1>
             <span className="text-xl font-bold whitespace-nowrap">
-              {formatMoney(request.budget_cents)}
+              {request.price_mode === "comp"
+                ? "At comp"
+                : formatMoney(request.budget_cents)}
             </span>
           </div>
+          {/* A comp need names no ceiling. Saying so plainly here is what stops
+              a seller reading the missing number as a broken page. */}
+          {request.price_mode === "comp" && (
+            <p className="-mt-2 text-sm text-muted-foreground">
+              This buyer hasn&apos;t set a maximum — name your price and they&apos;ll
+              accept or counter.
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
             <Badge variant="secondary">
               {request.type === "bulk" ? "Bulk lot" : "Single"}
             </Badge>
             {request.sport && <Badge variant="outline">{request.sport}</Badge>}
-            {request.condition_pref && (
-              <Badge variant="outline">{request.condition_pref}</Badge>
+            {conditionChip(request.condition_pref, request.grade_min) && (
+              <Badge variant="outline">
+                {conditionChip(request.condition_pref, request.grade_min)}
+              </Badge>
             )}
+            {/* Supabase infers text[] as any here, so name the type once rather
+                than letting `slug` fall through as implicit any. */}
+            {((request.tags ?? []) as string[]).map((slug) => (
+              <Badge key={slug} variant="secondary">
+                {tagLabel(slug)}
+              </Badge>
+            ))}
             {left && <Badge variant="outline">{left}</Badge>}
             {request.status !== "open" && (
               <Badge variant="secondary">{request.status}</Badge>

@@ -2,6 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import {
+  isCondition,
+  isGradeFloor,
+  normaliseTags,
+  type PriceMode,
+} from "@/lib/need-tags";
 
 export type PostNeedState = { error?: string };
 
@@ -19,7 +25,6 @@ export async function createNeed(
   const description = (formData.get("description") ?? "").toString().trim();
   const type = (formData.get("type") ?? "single").toString();
   const sport = (formData.get("sport") ?? "").toString().trim();
-  const conditionPref = (formData.get("condition_pref") ?? "").toString().trim();
   const budgetRaw = (formData.get("budget") ?? "").toString().trim();
   const expiry = (formData.get("expiry") ?? "7d").toString();
   const visibility =
@@ -31,14 +36,42 @@ export async function createNeed(
   if (type !== "single" && type !== "bulk")
     return { error: "Pick single or bulk." };
 
+  // ── Price mode ────────────────────────────────────────────────────────────
+  // 'comp' means the buyer named no number. It is a VERBATIM LABEL: nothing is
+  // looked up, nothing is stored, no pricing vendor is involved. The row reads
+  // AT COMP and sellers propose a price through the normal offer flow.
+  const priceMode: PriceMode =
+    (formData.get("price_mode") ?? "max").toString() === "comp"
+      ? "comp"
+      : "max";
+
   // Money as integer cents — never store floats.
   let budgetCents: number | null = null;
   if (budgetRaw) {
+    if (priceMode === "comp")
+      return { error: "Pick a max price or Comp, not both." };
     const dollars = Number(budgetRaw);
     if (!Number.isFinite(dollars) || dollars < 0)
       return { error: "Budget must be a positive number." };
     budgetCents = Math.round(dollars * 100);
   }
+
+  // ── Condition + grade floor ───────────────────────────────────────────────
+  // A grade floor only means something on a graded need, so it's cleared
+  // rather than rejected when condition isn't 'graded' — the client already
+  // clears it, and a stale value is a bug in our form, not the buyer's fault.
+  const conditionRaw = (formData.get("condition_pref") ?? "").toString().trim();
+  const conditionPref = isCondition(conditionRaw) ? conditionRaw : null;
+
+  const gradeRaw = (formData.get("grade_min") ?? "").toString().trim();
+  const gradeMin =
+    conditionPref === "graded" && isGradeFloor(gradeRaw) ? gradeRaw : null;
+
+  // ── Tags ──────────────────────────────────────────────────────────────────
+  const { tags, error: tagError } = normaliseTags(
+    formData.getAll("tags").map((t) => t.toString()),
+  );
+  if (tagError) return { error: tagError };
 
   // Private wants don't tick down — expiry starts when you publish to the board.
   const expiresAt =
@@ -53,7 +86,9 @@ export async function createNeed(
   const userId = claimsData?.claims?.sub;
   if (!userId) redirect("/auth/login");
 
-  // Optional reference photo.
+  // Optional reference photo. The client downscales anything large before it
+  // gets here (components/post/photo-picker.tsx), so this cap should now only
+  // fire for genuinely enormous files or a browser without canvas.
   let imageUrl: string | null = null;
   const file = formData.get("image");
   if (file instanceof File && file.size > 0) {
@@ -79,7 +114,10 @@ export async function createNeed(
     type,
     sport: sport || null,
     budget_cents: budgetCents,
-    condition_pref: conditionPref || null,
+    price_mode: priceMode,
+    condition_pref: conditionPref,
+    grade_min: gradeMin,
+    tags,
     image_url: imageUrl,
     status: "open",
     visibility,

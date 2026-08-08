@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { createOffer, type OfferState } from "@/app/request/[id]/actions";
+import { FirstRunHint } from "@/components/onboarding/first-run-hint";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -46,7 +47,14 @@ export function OfferForm({ requestId }: { requestId: string }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="flex flex-col gap-4">
+        <FirstRunHint id="offer">
+          <strong className="font-semibold">
+            The buyer can&apos;t see who you are
+          </strong>{" "}
+          — and neither can other sellers. Identities unmask only once a deal is
+          agreed.
+        </FirstRunHint>
+        <form action={formAction} className="mt-4 flex flex-col gap-4">
           <div className="grid gap-2">
             <Label htmlFor="price">Your price (USD)</Label>
             <Input

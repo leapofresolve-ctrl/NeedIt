@@ -3,6 +3,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import {
+  isCondition,
+  isGradeFloor,
+  normaliseTags,
+  type PriceMode,
+} from "@/lib/need-tags";
 
 export type OfferState = { error?: string; success?: boolean };
 
@@ -18,20 +24,41 @@ export async function updateNeed(
   const description = (formData.get("description") ?? "").toString().trim();
   const type = (formData.get("type") ?? "single").toString();
   const sport = (formData.get("sport") ?? "").toString().trim();
-  const conditionPref = (formData.get("condition_pref") ?? "").toString().trim();
   const budgetRaw = (formData.get("budget") ?? "").toString().trim();
 
   if (!title) return { error: "Please give your want a title." };
   if (type !== "single" && type !== "bulk")
     return { error: "Pick single or bulk." };
 
+  // Same validation as createNeed, deliberately duplicated rather than shared:
+  // these two actions write the same row, so if they ever disagree the symptom
+  // is an edit that silently drops what a post accepted.
+  const priceMode: PriceMode =
+    (formData.get("price_mode") ?? "max").toString() === "comp"
+      ? "comp"
+      : "max";
+
   let budgetCents: number | null = null;
   if (budgetRaw) {
+    if (priceMode === "comp")
+      return { error: "Pick a max price or Comp, not both." };
     const dollars = Number(budgetRaw);
     if (!Number.isFinite(dollars) || dollars < 0)
       return { error: "Budget must be a positive number." };
     budgetCents = Math.round(dollars * 100);
   }
+
+  const conditionRaw = (formData.get("condition_pref") ?? "").toString().trim();
+  const conditionPref = isCondition(conditionRaw) ? conditionRaw : null;
+
+  const gradeRaw = (formData.get("grade_min") ?? "").toString().trim();
+  const gradeMin =
+    conditionPref === "graded" && isGradeFloor(gradeRaw) ? gradeRaw : null;
+
+  const { tags, error: tagError } = normaliseTags(
+    formData.getAll("tags").map((t) => t.toString()),
+  );
+  if (tagError) return { error: tagError };
 
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
@@ -77,7 +104,10 @@ export async function updateNeed(
       type,
       sport: sport || null,
       budget_cents: budgetCents,
-      condition_pref: conditionPref || null,
+      price_mode: priceMode,
+      condition_pref: conditionPref,
+      grade_min: gradeMin,
+      tags,
       image_url: imageUrl,
     })
     .eq("id", requestId)

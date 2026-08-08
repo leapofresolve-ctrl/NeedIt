@@ -32,14 +32,35 @@ const STEPS = [
   },
 ];
 
-export function BoardEmptyState({ filtered }: { filtered: boolean }) {
+export function BoardEmptyState({
+  filtered,
+  query,
+}: {
+  filtered: boolean;
+  query?: string;
+}) {
   // Filtered-empty is a different situation with a different fix — don't
   // explain the product to someone who already understands it.
   if (filtered) {
     return (
       <div className="flex flex-col items-center gap-4 p-12 text-center">
         <p className="text-sm text-board-secondary">
-          Nothing on the board matches those filters right now.
+          {/* Echo the words back. Search is deliberately dumb — title and
+              description only — so the two ways to get here are a typo and a
+              structured phrase like "under 500" that search can't understand.
+              Seeing your own text is what makes both self-correcting. */}
+          {query ? (
+            <>
+              Nothing on the board matches{" "}
+              <span className="font-semibold text-board-fg">
+                &ldquo;{query}&rdquo;
+              </span>
+              . Search looks at need titles and descriptions — price and sport
+              live in the filters.
+            </>
+          ) : (
+            "Nothing on the board matches those filters right now."
+          )}
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Button asChild variant="outline">

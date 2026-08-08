@@ -19,7 +19,7 @@ export default async function EditNeedPage({
   const { data: request } = await supabase
     .from("requests")
     .select(
-      "id, buyer_id, title, description, type, sport, budget_cents, condition_pref, image_url, visibility",
+      "id, buyer_id, title, description, type, sport, budget_cents, price_mode, condition_pref, grade_min, tags, image_url, visibility",
     )
     .eq("id", id)
     .maybeSingle();
@@ -47,7 +47,10 @@ export default async function EditNeedPage({
             type: request.type === "bulk" ? "bulk" : "single",
             sport: request.sport,
             budget_cents: request.budget_cents,
+            price_mode: request.price_mode,
             condition_pref: request.condition_pref,
+            grade_min: request.grade_min,
+            tags: request.tags,
             image_url: request.image_url,
           }}
         />

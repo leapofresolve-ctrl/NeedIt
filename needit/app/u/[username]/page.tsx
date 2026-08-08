@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Countdown } from "@/components/exchange/countdown";
 import { publishNeed } from "./actions";
+import { conditionChip, tagLabel } from "@/lib/need-tags";
 
 type RequestRow = {
   id: string;
@@ -13,7 +14,10 @@ type RequestRow = {
   type: "single" | "bulk";
   sport: string | null;
   budget_cents: number | null;
+  price_mode: string | null;
   condition_pref: string | null;
+  grade_min: string | null;
+  tags: string[] | null;
   image_url: string | null;
   status: string;
   expires_at: string | null;
@@ -55,12 +59,22 @@ function summarizeAlert(a: DemandAlert) {
   return parts.join(" · ") || "Anything";
 }
 
+/**
+ * The price anchor. A comp need names no number by definition — it renders the
+ * words in the same slot at the same weight, because the anchor is what the
+ * eye lands on and it must not go missing. Offers on this page are always
+ * real amounts, so they keep the plain currency path.
+ */
 function formatBudget(cents: number | null) {
   if (cents == null) return "Open";
   return `$${(cents / 100).toLocaleString("en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   })}`;
+}
+
+function formatAnchor(priceMode: string | null, cents: number | null) {
+  return priceMode === "comp" ? "At comp" : formatBudget(cents);
 }
 
 /* Micro-label section header: mono, uppercase, restrained (3b). */
@@ -91,9 +105,18 @@ function Chips({
   r,
   dark,
 }: {
-  r: Pick<RequestRow, "type" | "sport" | "condition_pref">;
+  r: Pick<
+    RequestRow,
+    "type" | "sport" | "condition_pref" | "grade_min" | "tags"
+  >;
   dark?: boolean;
 }) {
+  // Wording comes from lib/need-tags so the profile can never say "graded"
+  // where the board says "Graded · PSA 9+". Tags truncate at 2 like the board.
+  const condition = conditionChip(r.condition_pref, r.grade_min);
+  const tags = r.tags ?? [];
+  const shownTags = tags.slice(0, 2);
+  const hiddenTags = tags.length - shownTags.length;
   return (
     <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
       {r.type === "bulk" ? (
@@ -115,7 +138,7 @@ function Chips({
           Single
         </span>
       )}
-      {[r.sport, r.condition_pref].filter(Boolean).map((chip) => (
+      {[r.sport, condition].filter(Boolean).map((chip) => (
         <span
           key={chip as string}
           className={`num text-[9px] uppercase tracking-[0.08em] border rounded-sm px-1.5 py-0.5 shrink-0 ${
@@ -127,6 +150,25 @@ function Chips({
           {chip}
         </span>
       ))}
+      {shownTags.map((slug) => (
+        <span
+          key={slug}
+          className={`num text-[9px] font-medium uppercase tracking-[0.08em] rounded-sm px-1.5 py-0.5 shrink-0 ${
+            dark ? "bg-[#1E2A24] text-live" : "bg-secondary text-primary-deep"
+          }`}
+        >
+          {tagLabel(slug)}
+        </span>
+      ))}
+      {hiddenTags > 0 && (
+        <span
+          className={`num text-[9px] uppercase tracking-[0.08em] rounded-sm px-1.5 py-0.5 shrink-0 ${
+            dark ? "text-board-faint" : "text-muted-foreground"
+          }`}
+        >
+          +{hiddenTags}
+        </span>
+      )}
     </div>
   );
 }
@@ -176,10 +218,10 @@ function BoardCard({
         {r.title}
       </h3>
       <div className="mt-auto pt-3 flex items-end justify-between gap-2">
-        <span className="num text-lg font-semibold text-live leading-none">
-          {formatBudget(r.budget_cents)}
-          {r.budget_cents != null && (
-            <span className="text-[9px] font-normal text-board-muted ml-1">
+        <span className="num text-lg font-semibold text-live leading-none uppercase">
+          {formatAnchor(r.price_mode, r.budget_cents)}
+          {r.price_mode !== "comp" && r.budget_cents != null && (
+            <span className="text-[9px] font-normal text-board-muted ml-1 normal-case">
               max
             </span>
           )}
@@ -238,7 +280,7 @@ function LightRow({
         </div>
         <div className="flex flex-col items-end gap-1.5 shrink-0">
           <span className="num text-[15px] font-semibold text-primary-deep leading-none">
-            {formatBudget(r.budget_cents)}
+            {formatAnchor(r.price_mode, r.budget_cents)}
           </span>
           {right}
         </div>
@@ -297,7 +339,7 @@ export default async function ProfilePage({
   const { data: openData } = await supabase
     .from("requests")
     .select(
-      "id, title, type, sport, budget_cents, condition_pref, image_url, status, expires_at, created_at",
+      "id, title, type, sport, budget_cents, price_mode, condition_pref, grade_min, tags, image_url, status, expires_at, created_at",
     )
     .eq("buyer_id", profile.id)
     .eq("status", "open")
@@ -353,7 +395,7 @@ export default async function ProfilePage({
     const { data: privateData } = await supabase
       .from("requests")
       .select(
-        "id, title, type, sport, budget_cents, condition_pref, image_url, status, expires_at, created_at",
+        "id, title, type, sport, budget_cents, price_mode, condition_pref, grade_min, tags, image_url, status, expires_at, created_at",
       )
       .eq("buyer_id", profile.id)
       .eq("status", "open")
@@ -377,7 +419,7 @@ export default async function ProfilePage({
     const { data: historyData, count } = await supabase
       .from("requests")
       .select(
-        "id, title, type, sport, budget_cents, condition_pref, image_url, status, expires_at, created_at",
+        "id, title, type, sport, budget_cents, price_mode, condition_pref, grade_min, tags, image_url, status, expires_at, created_at",
         { count: "exact" },
       )
       .eq("buyer_id", profile.id)

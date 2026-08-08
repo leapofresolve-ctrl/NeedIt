@@ -4,13 +4,27 @@ import { createClient } from "@/lib/supabase/server";
 import { hasEnvVars } from "@/lib/utils";
 import { X } from "lucide-react";
 
-import { isSport } from "@/lib/board-filters";
+import {
+  CLOSING_SOON_HOURS,
+  RAIL_MIN_NEEDS,
+  activeFilterCount,
+  hasAnyFilter,
+  hrefWithout,
+  parseBoardFilters,
+  resetHref,
+} from "@/lib/board-filters";
+import { FACET_COLUMNS, computeFacets, type FacetRow } from "@/lib/board-facets";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Countdown } from "@/components/exchange/countdown";
 import { RefinePanel } from "@/components/exchange/refine-panel";
 import { SortSelect } from "@/components/exchange/sort-select";
+import { BoardRail } from "@/components/exchange/board-rail";
+import { BoardSearch } from "@/components/exchange/board-search";
 import { BoardEmptyState } from "@/components/exchange/board-empty-state";
+import { TeachStrip } from "@/components/onboarding/teach-strip";
+import { FirstRunHint } from "@/components/onboarding/first-run-hint";
+import { NeedChips, priceAnchor } from "@/components/exchange/need-chips";
 
 type RequestRow = {
   id: string;
@@ -19,20 +33,15 @@ type RequestRow = {
   type: "single" | "bulk";
   sport: string | null;
   budget_cents: number | null;
+  price_mode: string | null;
   condition_pref: string | null;
+  grade_min: string | null;
+  tags: string[] | null;
   image_url: string | null;
   expires_at: string | null;
   created_at: string;
   offer_count: number;
 };
-
-function formatBudget(cents: number | null) {
-  if (cents == null) return "Open";
-  return `$${(cents / 100).toLocaleString("en-US", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  })}`;
-}
 
 export default async function Home({
   searchParams,
@@ -135,65 +144,97 @@ export default async function Home({
 
   // ----- Filters + sort from the URL -----
   const params = await searchParams;
-  const one = (v: string | string[] | undefined) =>
-    (Array.isArray(v) ? v[0] : v)?.trim() || undefined;
+  const filters = parseBoardFilters(params);
+  const { sort } = filters;
+  const hasFilters = hasAnyFilter(filters);
 
-  const fType = one(params.type);
-  const fSport = one(params.sport);
-  const fCondition = one(params.condition);
-  const fMin = one(params.min);
-  const fMax = one(params.max);
-  const sort = one(params.sort) ?? "newest";
-  const hasFilters = !!(fType || fSport || fCondition || fMin || fMax);
+  // ----- Facets + the unfiltered total, in one pass ------------------------
+  // Every open, public need, minimal columns. Serves two jobs: the per-option
+  // counts in the rail, and the unfiltered total that decides whether the rail
+  // renders at all. See lib/board-facets.ts for why this is counted in memory
+  // and when that stops being the right call.
+  const { data: facetData } = await supabase
+    .from("requests")
+    .select(FACET_COLUMNS)
+    .eq("status", "open")
+    .eq("visibility", "public");
+  const facetRows = (facetData ?? []) as unknown as FacetRow[];
+  const totalOpen = facetRows.length;
+  const counts = computeFacets(facetRows, filters);
+  // Threshold is measured against the UNFILTERED total so the rail doesn't
+  // vanish underneath someone the moment they narrow things down.
+  //
+  // `?rail=1` forces it on regardless. The board is at 0 needs, so without an
+  // override the rail is invisible on the live site and there's no way to eyeball
+  // it — and seeding fake needs to see a filter panel would break the one rule
+  // the board can't break. With the override you get real zero counts, dimmed,
+  // which is exactly the honest low-volume state we specced.
+  const showRail =
+    totalOpen >= RAIL_MIN_NEEDS ||
+    (Array.isArray(params.rail) ? params.rail[0] : params.rail) === "1";
 
-  // ----- Active-filter chips (3b) -----
+  // ----- Active-filter chips -----
   // Each active filter renders as a removable chip. `sort` is deliberately
   // excluded — it isn't a filter, it has its own always-visible control, and
-  // it's never "removable".
+  // it's never "removable". The text query gets a dashed chip so it reads as a
+  // different kind of filter from the structured ones.
   const money = (v: string) => `$${Number(v).toLocaleString("en-US")}`;
-  const activeFilters: { key: string; label: string }[] = [
-    fType && {
-      key: "type",
-      label: fType === "bulk" ? "Bulk lots" : "Single cards",
+  const activeFilters: { key: string; label: string; dashed?: boolean }[] = [
+    filters.q && { key: "q", label: `“${filters.q}”`, dashed: true },
+    ...filters.types.map((t) => ({
+      key: `type:${t}`,
+      label: t === "bulk" ? "Bulk lots" : "Single cards",
+    })),
+    ...filters.sports.map((s) => ({ key: `sport:${s}`, label: s })),
+    filters.condition && {
+      key: "condition",
+      label: filters.condition === "raw" ? "Raw only" : "Graded",
     },
-    fSport && { key: "sport", label: fSport },
-    fCondition && { key: "condition", label: `Condition: ${fCondition}` },
-    fMin && { key: "min", label: `Min ${money(fMin)}` },
-    fMax && { key: "max", label: `Max ${money(fMax)}` },
-  ].filter(Boolean) as { key: string; label: string }[];
-
-  /** Current URL with one filter dropped — powers the chip "×" links. */
-  const urlWithout = (dropKey: string) => {
-    const next = new URLSearchParams();
-    for (const [k, v] of Object.entries({
-      type: fType,
-      sport: fSport,
-      condition: fCondition,
-      min: fMin,
-      max: fMax,
-      sort: sort === "newest" ? undefined : sort,
-    })) {
-      if (v && k !== dropKey) next.set(k, v);
-    }
-    const qs = next.toString();
-    return qs ? `/?${qs}` : "/";
-  };
+    filters.min && { key: "min", label: `Min ${money(filters.min)}` },
+    filters.max && { key: "max", label: `Max ${money(filters.max)}` },
+    filters.closing && { key: "closing", label: "Closing under 24h" },
+    filters.noOffers && { key: "nooffers", label: "No offers yet" },
+  ].filter(Boolean) as { key: string; label: string; dashed?: boolean }[];
 
   let query = supabase
     .from("requests")
     .select(
-      "id, buyer_id, title, type, sport, budget_cents, condition_pref, image_url, expires_at, created_at, offer_count",
+      "id, buyer_id, title, type, sport, budget_cents, price_mode, condition_pref, grade_min, tags, image_url, expires_at, created_at, offer_count",
     )
     .eq("status", "open")
     .eq("visibility", "public");
 
-  if (fType === "single" || fType === "bulk") query = query.eq("type", fType);
-  if (fSport && isSport(fSport)) query = query.eq("sport", fSport);
-  if (fCondition) query = query.ilike("condition_pref", `%${fCondition}%`);
-  const minCents = fMin ? Math.round(parseFloat(fMin) * 100) : NaN;
-  const maxCents = fMax ? Math.round(parseFloat(fMax) * 100) : NaN;
+  // ⚠️ These rules must stay in step with `matches()` in lib/board-facets.ts.
+  // If they drift, the symptom is a count that doesn't match what you get when
+  // you click it.
+  if (filters.types.length) query = query.in("type", filters.types);
+  if (filters.sports.length) query = query.in("sport", filters.sports);
+  // Exact match since 0018 — condition_pref is now 'raw' | 'graded' | null, so
+  // the old substring ilike would only ever have matched those two words anyway.
+  if (filters.condition) query = query.eq("condition_pref", filters.condition);
+  if (filters.q) {
+    // Dumb on purpose: title + description, nothing else. Sanitised because
+    // PostgREST's or() is comma-separated and parenthesis-delimited — an
+    // unescaped comma in the query would corrupt the filter rather than just
+    // failing to match. `%` and `_` are ilike wildcards, so they go too.
+    const safe = filters.q.replace(/[,()%_*]/g, " ").trim();
+    if (safe) {
+      query = query.or(`title.ilike.%${safe}%,description.ilike.%${safe}%`);
+    }
+  }
+  const minCents = filters.min ? Math.round(parseFloat(filters.min) * 100) : NaN;
+  const maxCents = filters.max ? Math.round(parseFloat(filters.max) * 100) : NaN;
   if (Number.isFinite(minCents)) query = query.gte("budget_cents", minCents);
   if (Number.isFinite(maxCents)) query = query.lte("budget_cents", maxCents);
+  if (filters.closing) {
+    query = query
+      .gt("expires_at", new Date().toISOString())
+      .lt(
+        "expires_at",
+        new Date(Date.now() + CLOSING_SOON_HOURS * 3_600_000).toISOString(),
+      );
+  }
+  if (filters.noOffers) query = query.eq("offer_count", 0);
 
   if (sort === "expiring") {
     query = query.order("expires_at", { ascending: true, nullsFirst: false });
@@ -228,7 +269,7 @@ export default async function Home({
       {heroForLoggedOut}
       <div
         id="board"
-        className="w-full max-w-5xl flex flex-col gap-4 px-2.5 sm:px-5 py-4 scroll-mt-28"
+        className="w-full max-w-6xl flex flex-col gap-4 px-2.5 sm:px-5 py-4 scroll-mt-28"
       >
         {/* Category pills — sports cards live; the platform is category-agnostic */}
         <div className="flex flex-wrap gap-2 px-1">
@@ -275,59 +316,104 @@ export default async function Home({
           private until a deal is agreed
         </p>
 
-        {/* 3b: the six-select facet bar is gone. At rest this is TWO controls —
-            "Refine" and "Sort" — with any active filters shown as removable
-            chips between them. The searchParams contract is unchanged. */}
-        <div className="flex flex-wrap items-center gap-2 px-1">
-          <RefinePanel
-            values={{
-              type: fType,
-              sport: fSport,
-              condition: fCondition,
-              min: fMin,
-              max: fMax,
-              sort: sort === "newest" ? undefined : sort,
-            }}
-            activeCount={activeFilters.length}
-          />
+        {/* First-run teaching. Sits above the locked header so it scrolls away
+            naturally — it's an explanation, not a control. */}
+        <TeachStrip />
 
-          {activeFilters.map((f) => (
-            <Link
-              key={f.key}
-              href={urlWithout(f.key)}
-              className="group inline-flex min-h-11 items-center gap-2 rounded-sm border bg-card px-3 text-sm font-medium transition-colors hover:border-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              {f.label}
-              <X
-                className="size-3.5 text-muted-foreground group-hover:text-foreground"
-                aria-hidden
+        {/* ── THE LOCKED HEADER ──────────────────────────────────────────
+            Search + active filters + sort, pinned. A seller scanning forty
+            rows should never scroll away from their controls.
+
+            Two filter surfaces, one rule (lib/board-filters.ts): search is
+            dumb (text only), the rail is smart (everything structured), and
+            they compose with AND. Below lg the rail can't dock, so "Refine"
+            reappears here — it is the mobile presentation of the rail, not a
+            desktop control. */}
+        <div className="sticky top-0 z-20 -mx-2.5 flex flex-col gap-2.5 border-b bg-background/95 px-2.5 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-5 sm:px-5">
+          <div className="flex items-center gap-2.5">
+            <BoardSearch filters={filters} />
+            <div className="lg:hidden">
+              <RefinePanel
+                values={{
+                  q: filters.q,
+                  type: filters.types[0],
+                  sport: filters.sports[0],
+                  condition: filters.condition,
+                  min: filters.min,
+                  max: filters.max,
+                  closing: filters.closing,
+                  noOffers: filters.noOffers,
+                  sort: sort === "newest" ? undefined : sort,
+                }}
+                activeCount={activeFilterCount(filters)}
               />
-              <span className="sr-only">Remove this filter</span>
-            </Link>
-          ))}
-
-          {activeFilters.length > 1 && (
-            <Button asChild variant="ghost">
-              <Link href="/">Clear all</Link>
-            </Button>
-          )}
-
-          <div className="ml-auto">
-            <SortSelect
-              value={sort}
-              filters={{
-                type: fType,
-                sport: fSport,
-                condition: fCondition,
-                min: fMin,
-                max: fMax,
-              }}
-            />
+            </div>
+            <div className="hidden sm:block">
+              <SortSelect filters={filters} />
+            </div>
           </div>
+
+          {activeFilters.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              {activeFilters.map((f) => (
+                <Link
+                  key={f.key}
+                  href={hrefWithout(filters, f.key)}
+                  className={`group inline-flex min-h-9 items-center gap-2 rounded-sm border bg-card px-3 text-sm font-medium transition-colors hover:border-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                    f.dashed ? "border-dashed text-muted-foreground" : ""
+                  }`}
+                >
+                  {f.label}
+                  <X
+                    className="size-3.5 text-muted-foreground group-hover:text-foreground"
+                    aria-hidden
+                  />
+                  <span className="sr-only">Remove this filter</span>
+                </Link>
+              ))}
+              {activeFilters.length > 1 && (
+                <Link
+                  href={resetHref(filters)}
+                  className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                >
+                  Reset all
+                </Link>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* THE LIVE BOARD — dark exchange panel, hairline rows */}
-        <section className="notched bg-board border border-board rounded-sm">
+        <div className="flex items-start gap-7">
+          {showRail && (
+            <BoardRail
+              filters={filters}
+              counts={counts}
+              matching={rows.length}
+            />
+          )}
+
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            {/* Under the threshold the rail doesn't render at all: a column of
+                zeros makes the board look emptier than it is, and at this size
+                the whole thing is readable top to bottom anyway. */}
+            {!showRail && totalOpen > 0 && (
+              <p className="text-sm text-muted-foreground">
+                Everything open right now — small enough to read top to bottom.
+              </p>
+            )}
+
+            {totalOpen > 0 && (
+              <FirstRunHint id="board">
+                <strong className="font-semibold">
+                  Every row here is a buyer.
+                </strong>{" "}
+                Narrow it down to what you already have in boxes, then make an
+                offer. Amber means it&apos;s closing within 24 hours.
+              </FirstRunHint>
+            )}
+
+            {/* THE LIVE BOARD — dark exchange panel, hairline rows */}
+            <section className="notched bg-board border border-board rounded-sm">
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-hairline">
             <h2 className="microlabel text-[11px] font-bold text-board-fg">
               Live board
@@ -339,7 +425,7 @@ export default async function Home({
           </div>
 
           {rows.length === 0 ? (
-            <BoardEmptyState filtered={hasFilters} />
+            <BoardEmptyState filtered={hasFilters} query={filters.q} />
           ) : (
             <ul>
               {rows.map((r, i) => {
@@ -374,7 +460,9 @@ export default async function Home({
               })}
             </ul>
           )}
-        </section>
+            </section>
+          </div>
+        </div>
       </div>
     </main>
   );
@@ -392,6 +480,7 @@ function NeedRowLink({
   poster: string | undefined;
   noOffers: boolean;
 }) {
+  const anchor = priceAnchor(r.price_mode, r.budget_cents);
   return (
     <Link
       href={`/request/${r.id}`}
@@ -399,24 +488,8 @@ function NeedRowLink({
     >
       {/* Top line: type badge + attribute chips · offer count */}
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 min-w-0">
-          {r.type === "bulk" ? (
-            <span className="num text-[9px] font-bold uppercase tracking-[0.08em] bg-[#1E2A24] text-live rounded-sm px-1.5 py-0.5 shrink-0">
-              Bulk
-            </span>
-          ) : (
-            <span className="num text-[9px] font-bold uppercase tracking-[0.08em] border border-[hsl(var(--primary-live))] text-live rounded-sm px-1.5 py-0.5 shrink-0">
-              Single
-            </span>
-          )}
-          {[r.sport, r.condition_pref].filter(Boolean).map((chip) => (
-            <span
-              key={chip as string}
-              className="num text-[9px] uppercase tracking-[0.08em] text-board-muted border border-board rounded-sm px-1.5 py-0.5 shrink-0"
-            >
-              {chip}
-            </span>
-          ))}
+        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+          <NeedChips need={r} />
         </div>
         <span
           className={`num text-[10.5px] shrink-0 ${
@@ -436,11 +509,11 @@ function NeedRowLink({
 
       {/* Bottom line: budget anchor · countdown */}
       <div className="mt-2 flex items-end justify-between gap-2">
-        <span className="num text-lg font-semibold text-live leading-none">
-          {formatBudget(r.budget_cents)}
-          {r.budget_cents != null && (
-            <span className="text-[9px] font-normal text-board-muted ml-1">
-              max
+        <span className="num text-lg font-semibold text-live leading-none uppercase">
+          {anchor.text}
+          {anchor.suffix && (
+            <span className="text-[9px] font-normal text-board-muted ml-1 normal-case">
+              {anchor.suffix}
             </span>
           )}
         </span>
