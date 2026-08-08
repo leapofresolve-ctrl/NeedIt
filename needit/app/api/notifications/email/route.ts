@@ -91,15 +91,33 @@ export async function POST(req: Request) {
     // per-type one for demand alerts (this route used to ignore the granular
     // flags, so a seller who turned demand alerts off in Settings still got
     // them).
-    const { data: profile } = await admin
+    //
+    // ⚠️ The `error` is destructured and treated as a HARD STOP, not as an
+    // empty result. On Aug 1 the app deployed ~15 minutes ahead of migration
+    // 0017, so this select named a column that didn't exist yet. PostgREST
+    // fails the whole query in that case, `profile` came back null, and every
+    // `profile && …` guard below silently stopped protecting anyone: demand
+    // emails were suppressed AND opted-out members would have been emailed.
+    // A preference we cannot read is not a preference we may ignore — when the
+    // lookup breaks we send nothing and say so loudly.
+    const { data: profile, error: profileError } = await admin
       .from("profiles")
       .select("email_notifications, notify_demand_match, last_demand_digest_at")
       .eq("id", userId)
       .maybeSingle();
-    if (profile && profile.email_notifications === false) {
+
+    if (profileError) {
+      console.error(
+        "notification email: preference lookup failed — sending nothing",
+        profileError,
+      );
+      return Response.json({ error: "preference lookup failed" }, { status: 200 });
+    }
+
+    if (profile?.email_notifications === false) {
       return Response.json({ skipped: "user opted out" });
     }
-    if (isDemandMatch && profile && profile.notify_demand_match === false) {
+    if (isDemandMatch && profile?.notify_demand_match === false) {
       return Response.json({ skipped: "demand alerts off" });
     }
 
@@ -116,12 +134,24 @@ export async function POST(req: Request) {
       const cutoff = new Date(
         Date.now() - DIGEST_INTERVAL_DAYS * 86_400_000,
       ).toISOString();
-      const { data: claimed } = await admin
+      const { data: claimed, error: claimError } = await admin
         .from("profiles")
         .update({ last_demand_digest_at: new Date().toISOString() })
         .eq("id", userId)
         .or(`last_demand_digest_at.is.null,last_demand_digest_at.lt.${cutoff}`)
         .select("id");
+
+      // Same reasoning as the preference lookup: a broken UPDATE and a
+      // legitimately-claimed window both produce zero rows, and reporting the
+      // former as "within digest window" is how a dead throttle would look
+      // perfectly healthy in the logs.
+      if (claimError) {
+        console.error(
+          "notification email: digest-window claim failed — sending nothing",
+          claimError,
+        );
+        return Response.json({ error: "digest claim failed" }, { status: 200 });
+      }
       if (!claimed || claimed.length === 0) {
         return Response.json({ skipped: "within digest window" });
       }
