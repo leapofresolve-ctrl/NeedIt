@@ -137,7 +137,10 @@ export function BoardEmptyState({
 
       <div className="flex flex-col items-center gap-3">
         <Button asChild size="lg">
-          <Link href="/post">Post the first need</Link>
+          {/* scroll={false} — see the note in site-header.tsx. */}
+          <Link href="/post" scroll={false}>
+            Post the first need
+          </Link>
         </Button>
         <Link
           href="/how-it-works"

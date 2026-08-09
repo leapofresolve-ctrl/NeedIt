@@ -57,7 +57,8 @@ export function UserMenu({
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/post" className="cursor-pointer">
+          {/* scroll={false} — see the note in site-header.tsx. */}
+          <Link href="/post" scroll={false} className="cursor-pointer">
             <Plus />
             Post a Need
           </Link>

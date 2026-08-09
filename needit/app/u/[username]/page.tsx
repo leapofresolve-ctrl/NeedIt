@@ -488,7 +488,10 @@ export default async function ProfilePage({
           </div>
           {isOwner && (
             <Button asChild>
-              <Link href="/post">Post a need</Link>
+              {/* scroll={false} — see the note in site-header.tsx. */}
+              <Link href="/post" scroll={false}>
+                Post a need
+              </Link>
             </Button>
           )}
         </div>
@@ -513,7 +516,9 @@ export default async function ProfilePage({
               </p>
               {isOwner && (
                 <Button asChild>
-                  <Link href="/post">Post your first need</Link>
+                  <Link href="/post" scroll={false}>
+                    Post your first need
+                  </Link>
                 </Button>
               )}
             </div>

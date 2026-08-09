@@ -41,7 +41,13 @@ export function SiteHeader() {
               <span className="wordmark-tick" aria-hidden />
             </Link>
             <Button asChild size="sm" variant="default">
-              <Link href="/post">Post a need</Link>
+              {/* scroll={false}: /post is intercepted into a panel over the
+                  board (app/@panel/(.)post). Without this, Next scrolls the
+                  newly-rendered slot into view and drags the board out from
+                  under the seller — the exact thing the panel exists to avoid. */}
+              <Link href="/post" scroll={false}>
+                Post a need
+              </Link>
             </Button>
           </div>
 

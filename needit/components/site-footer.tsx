@@ -52,7 +52,9 @@ export function SiteFooter() {
           <FooterLink href="/">The board</FooterLink>
           <FooterLink href="/how-it-works">How it works</FooterLink>
           <FooterLink href="/help">Help</FooterLink>
-          <FooterLink href="/post">Post a need</FooterLink>
+          <FooterLink href="/post" scroll={false}>
+            Post a need
+          </FooterLink>
           <FooterLink href="/alerts">Demand alerts</FooterLink>
         </nav>
 
@@ -132,9 +134,12 @@ export function SiteFooter() {
 function FooterLink({
   href,
   children,
+  scroll,
 }: {
   href: string;
   children: React.ReactNode;
+  /** Forwarded to next/link. Only /post needs it — see site-header.tsx. */
+  scroll?: boolean;
 }) {
   const className =
     "text-sm text-board-secondary transition-colors hover:text-board-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--board))]";
@@ -148,7 +153,7 @@ function FooterLink({
     );
   }
   return (
-    <Link href={href} className={className}>
+    <Link href={href} scroll={scroll} className={className}>
       {children}
     </Link>
   );

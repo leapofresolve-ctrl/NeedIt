@@ -178,7 +178,10 @@ export default function HowItWorksPage() {
           </p>
           <div className="flex flex-wrap gap-3">
             <Button asChild size="lg">
-              <Link href="/post">Post a need</Link>
+              {/* scroll={false} — see the note in site-header.tsx. */}
+              <Link href="/post" scroll={false}>
+                Post a need
+              </Link>
             </Button>
             <Button asChild size="lg" variant="outline">
               <Link href="/">Browse the board</Link>
