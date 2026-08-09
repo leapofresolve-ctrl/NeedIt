@@ -172,9 +172,15 @@ export default async function Home({
   // it — and seeding fake needs to see a filter panel would break the one rule
   // the board can't break. With the override you get real zero counts, dimmed,
   // which is exactly the honest low-volume state we specced.
-  const showRail =
-    totalOpen >= RAIL_MIN_NEEDS ||
+  //
+  // The override has to be CARRIED, not just read. It isn't a form field, so
+  // the first version of the rail dropped it the moment you ticked anything —
+  // one click and the rail you were testing disappeared, at 0 needs, with no
+  // way back except editing the URL again. Threaded into the rail and the
+  // search box below so it survives a round trip.
+  const railOverride =
     (Array.isArray(params.rail) ? params.rail[0] : params.rail) === "1";
+  const showRail = totalOpen >= RAIL_MIN_NEEDS || railOverride;
 
   // ----- Active-filter chips -----
   // Each active filter renders as a removable chip. `sort` is deliberately
@@ -346,7 +352,7 @@ export default async function Home({
             `sticky top-0 z-20`; see board-locked-header.tsx. */}
         <BoardLockedHeader>
           <div className="flex items-center gap-2.5">
-            <BoardSearch filters={filters} />
+            <BoardSearch filters={filters} railOverride={railOverride} />
 
             {/* The condensed header's stand-in for the chip row (§2.3a). CSS
                 swaps the two on `data-condensed`, so both are always in the
@@ -432,6 +438,7 @@ export default async function Home({
               filters={filters}
               counts={counts}
               matching={rows.length}
+              railOverride={railOverride}
             />
           )}
 

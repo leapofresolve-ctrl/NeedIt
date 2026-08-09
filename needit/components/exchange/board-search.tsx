@@ -24,7 +24,16 @@ import { boardHref, type BoardFilters } from "@/lib/board-filters";
 const DEBOUNCE_MS = 350;
 const MIN_CHARS = 2;
 
-export function BoardSearch({ filters }: { filters: BoardFilters }) {
+export function BoardSearch({
+  filters,
+  railOverride = false,
+}: {
+  filters: BoardFilters;
+  /** `?rail=1`. boardHref() only serializes real filters, so without this a
+   *  single keystroke in search would drop the override and take the rail down
+   *  with it — same defect the rail form had. */
+  railOverride?: boolean;
+}) {
   const router = useRouter();
   const [value, setValue] = useState(filters.q ?? "");
   const [isPending, startTransition] = useTransition();
@@ -40,9 +49,11 @@ export function BoardSearch({ filters }: { filters: BoardFilters }) {
     const trimmed = next.trim();
     const q = trimmed.length >= MIN_CHARS ? trimmed : undefined;
     if ((filters.q ?? "") === (q ?? "")) return;
-    startTransition(() =>
-      router.replace(boardHref({ ...filters, q }), { scroll: false }),
-    );
+    const href = boardHref({ ...filters, q });
+    const withRail = railOverride
+      ? `${href}${href.includes("?") ? "&" : "?"}rail=1`
+      : href;
+    startTransition(() => router.replace(withRail, { scroll: false }));
   };
 
   const onChange = (next: string) => {

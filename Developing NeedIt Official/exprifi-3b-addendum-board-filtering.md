@@ -83,7 +83,7 @@ One component, two presentations. No new logic, no new data model.
 
 - **It fills real dead space.** §1.4 already flags the 780px board panel floating in a 1518px viewport as reading unfinished. The rail is the missing left column.
 - **It changes the grammar of the page.** Persistent rail + live recompute is *screener* grammar — Kayak, stock screeners, job boards. That is what Exprifi is. A facet bar above a grid is retail-catalog grammar, which is what it isn't.
-- **Zero native `<select>` on the page.** §Part 0 named this as the single loudest amateur signal. The rail removes the last of them.
+- **Zero native `<select>` on the page.** §Part 0 named this as the single loudest amateur signal. The rail removes the last of them. — **Correction, Aug 8:** it didn't. The rail removed the ones in the *rail*; four survived in the mobile sheet (`refine-panel.tsx`: type, sport, condition) and in `sort-select.tsx`, because the sheet predates the rail and was never brought forward. All four were replaced with `components/ui/chip-group` on Aug 8 and the goal now holds **on the board**. Five remain elsewhere in the app — `settings-panels.tsx` (2), `create-alert-form.tsx` (2), `app/u/[username]/page.tsx` (1) — and are out of scope for this addendum. *Lesson: "the rail removes the last of them" was written about a component that didn't exist yet. A goal stated as already-achieved doesn't get checked.*
 - **Counts per option are demand data.** "Basketball · 11" tells a seller where the money is before they click. A retail filter shows supply; this shows demand. Same widget, opposite meaning — and it's visible at a glance.
 - **No Apply = no form feel.** The board reads as a live instrument rather than a search results page.
 
@@ -114,6 +114,8 @@ Two filter surfaces are only safe with a hard rule:
 They compose with **AND**. Both serialize into `searchParams`. The header renders the text query as a **dashed** chip so it reads as a different kind of filter from the solid structured ones.
 
 This rule is what makes Option D's search box safe to adopt: typing "under 500" performs a literal text search and finds nothing, which is honest and self-correcting, rather than a silent mis-parse that reads as the site being broken. **Sort stays inline in the header, right-aligned** — unchanged from §1.3, because sort is not a filter.
+
+> **Amended Aug 8.** "Sort stays inline in the header" was implemented as `hidden sm:block`, which meant **no sort control existed at all below 640px**. Sort now lives inside the Refine sheet under 1024px — behind a divider, under its own legend, marked "not a filter" — and inline in the header at and above 1024px, where the rail docks and the sheet doesn't exist. The two surfaces are exact complements: one sort control at every width, never two, never none. The *rule* is unchanged and still binding: sort is excluded from the active-filter badge, never renders as a removable chip, and survives "Reset all".
 
 ### 2.4 Phase 2 — "Saved views" (passive bookmarks only)
 

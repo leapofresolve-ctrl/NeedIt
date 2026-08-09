@@ -123,10 +123,14 @@ export function BoardRail({
   filters,
   counts,
   matching,
+  railOverride = false,
 }: {
   filters: BoardFilters;
   counts: FacetCounts;
   matching: number;
+  /** `?rail=1` is on. Carried through so testing the rail below the volume
+   *  threshold doesn't destroy the rail on the first click. */
+  railOverride?: boolean;
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -245,6 +249,10 @@ export function BoardRail({
         {filters.sort && filters.sort !== "newest" && (
           <input type="hidden" name="sort" value={filters.sort} />
         )}
+        {/* The `?rail=1` debug override. Not a filter, but it has to survive a
+            submit or the rail deletes itself the first time you use it while
+            the board is under RAIL_MIN_NEEDS. */}
+        {railOverride && <input type="hidden" name="rail" value="1" />}
 
         <Group legend="What kind">
           {TYPES.map((t) => (

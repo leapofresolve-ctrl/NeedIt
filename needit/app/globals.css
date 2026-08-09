@@ -79,12 +79,20 @@
     --site-header-h: calc(
       var(--site-utility-h) + var(--site-masthead-h) + 2px /* two 1px borders */
     );
-    /* The board's locked header AFTER it condenses (§2.3a, ~52px): 6px padding
-       top and bottom + a 40px search field + its 1px bottom border. The rail
-       parks under this. It's the condensed figure on purpose — by the time the
-       rail is tall enough to stick, the page is past the 120px condense point,
-       so the expanded height never applies. Rounded up for breathing room. */
-    --board-header-condensed-h: 56px;
+    /* FALLBACK ONLY. The rail parks below the board's locked header, and the
+       live figure is --board-header-h, which board-locked-header.tsx measures
+       and publishes on mount (see the note there — the header is 83px today,
+       not the 52px §2.3a describes, because the sort chips wrap to two lines,
+       and hardcoding either number puts the top of the rail under the blur).
+
+       This value is what applies before hydration and for a no-JS visitor —
+       and note that a no-JS visitor's header NEVER condenses, so the honest
+       fallback is the EXPANDED height, not the 52px §2.3a quotes: 12px padding
+       top and bottom, a 52px search field, and a 1px border, against a sort
+       control that currently wraps to 70px. 96px today. Too small leaves the
+       top of the rail under the blur; too large only leaves a gap, so when in
+       doubt round up. */
+    --board-header-condensed-h: 96px;
   }
   .dark {
     --background: 225 11% 7%;
@@ -228,12 +236,14 @@
 @media (min-width: 1024px) {
   .board-rail {
     position: sticky;
-    top: calc(var(--site-header-h) + var(--board-header-condensed-h));
+    top: calc(var(--site-header-h) + var(--board-header-h, var(--board-header-condensed-h)));
     max-height: calc(
-      100vh - var(--site-header-h) - var(--board-header-condensed-h) - 1rem
+      100vh - var(--site-header-h) -
+        var(--board-header-h, var(--board-header-condensed-h)) - 1rem
     );
     max-height: calc(
-      100dvh - var(--site-header-h) - var(--board-header-condensed-h) - 1rem
+      100dvh - var(--site-header-h) -
+        var(--board-header-h, var(--board-header-condensed-h)) - 1rem
     );
     overflow-y: auto;
     overscroll-behavior: contain;

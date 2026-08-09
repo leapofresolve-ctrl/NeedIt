@@ -1,5 +1,15 @@
 # MASTER PROMPT D — Post a need as a right-gutter panel
 
+> ## ⚠️ SUPERSEDED — DO NOT EXECUTE
+>
+> **Written and obsoleted within the same hour on Aug 8, 2026.** A parallel session built this while this prompt was being drafted: `app/@panel/(.)post` and the `panel` slot in `app/layout.tsx` both exist, and the build log's Status line already claims the panel ships at ≥1024px with a full page on direct load.
+>
+> Running this prompt would rebuild a shipped feature. Read the shipped code first.
+>
+> **The only part still worth reading** is the "Verified starting state" section — a checked survey of `/post` as it stood *before* the change, useful for diffing against what actually landed. The dirty-guard requirement in §3 and the two `redirect()` exits in §4 are worth confirming against the implementation; open item 10 in the build log says the panel has **never been submitted through**.
+>
+> Safe to delete once that's confirmed.
+
 **Classification:** presentation change, not a liquidity change. It makes posting *feel* lighter once someone has decided to post; it does not make more people decide to post. The board is at 0 needs. If anything on the list gets the first needs onto the board, that goes first and this waits.
 
 ---

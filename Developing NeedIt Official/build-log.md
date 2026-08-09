@@ -16,9 +16,9 @@ _MVP = **Lane 2**, the open request board. Buyers post what they want; sellers b
 | **Launch target** | **Sep 26, 2026** |
 | **Live at** | https://exprifi.com (apex + www, Vercel project `need-it`) |
 | **Board** | **0 live needs** — seeding sprint (Aug 25 – Sep 14) is the gate that decides the date |
-| **Last updated** | Aug 1, 2026 (evening) |
+| **Last updated** | Aug 8, 2026 (late) |
 
-**What works today, verified:** public browsing logged-out · post a need · structured offers + counters (cap 10) · accept/decline with atomic match · in-app notifications + live bell · **notification email** · demand alerts · username-or-email sign-in · **password reset** · **fresh signup → onboarding → username** · admin `/metrics` · `/api/health`.
+**What works today, verified:** public browsing logged-out · post a need (**right-gutter panel over the board at ≥1024px**, full page on direct load) · structured offers + counters (cap 10) · accept/decline with atomic match · in-app notifications + live bell · **notification email** · demand alerts · username-or-email sign-in · **password reset** · **fresh signup → onboarding → username** · admin `/metrics` · `/api/health`.
 
 **What exists but is dormant:** card catalog schema (0014/0016) — no ingest, no picker, blocked on licensing · Stripe Connect test-mode wiring — never proven end-to-end, live flip not scheduled · `/legal/*` pages — built, unlinked.
 
@@ -44,7 +44,8 @@ Everything genuinely outstanding, in one place. Nothing else in this document is
 7. **Auth-form pass, bundled with (6)** so there's one test run rather than three: confirm-password field on `/auth/update-password` (it has none — a typo silently becomes the new password and locks the member out on the screen they came to *stop* being locked out); show/hide reveal toggle; HIBP leaked-password check + min length 10.
 8. **Wire `LIMITS.signupPerIp`** — defined in `lib/rate-limit.ts`, referenced by nothing. Signup runs in the browser client, so it needs moving to a server action; do it inside (7).
 9. **CSP tightening** — nonce-based `script-src`, drop `'unsafe-inline'`. Deferred from Phase 1 because it needs per-request nonces threaded through the proxy.
-10. **Feature freeze Sep 21.** Bug-fix only after.
+10. **Post one public and one private need with a photo through the /post panel.** Shipped Aug 8, never submitted through. Both `redirect()` paths in `createNeed` must dismiss the panel rather than leave a stuck overlay. Cheap, and the only untested part of that change — do it the first time you post something real.
+11. **Feature freeze Sep 21.** Bug-fix only after.
 
 ### Nice to have, degrade gracefully
 
@@ -141,6 +142,57 @@ Numbering is clean and sequential 0002–0017. *(The payments session's note cla
 ## Session history
 
 Reverse chronological. Most recent first.
+
+### Aug 8 (late) — Post a need renders as a right-gutter panel
+
+Presentation only, and classified as such up front: it makes posting feel lighter *once someone has decided to post*; it does not make more people decide. Built because nothing ahead of it on the list would put needs on the board either.
+
+**Shipped.** `/post` is now intercepted into a panel over the board. New: `app/@panel/default.tsx` (returns null), `app/@panel/(.)post/page.tsx`, `components/post/post-need-panel.tsx`, `components/post/post-need-body.tsx`, `lib/post-access.ts`. Edited: `app/layout.tsx` (adds the `panel` slot), `app/post/page.tsx`. Commits `1b08568`, `7024383`, `6e88802`.
+
+- **A route, not a state flag.** Parallel + intercepting routes, so the URL stays honest: soft navigation → panel over whatever you were reading; hard load or refresh of `/post` → the full page. A `?post=1` searchParam or a client boolean would have broken both refresh and Back. **`default.tsx` is load-bearing** — without it the slot keeps rendering the last thing it had, and the panel survives the very redirect meant to dismiss it.
+- **The form is not forked.** `PostNeedBody` (hint + form) is rendered identically by both surfaces; only the chrome differs. Same for the auth gate, extracted to `lib/post-access.ts` so the two can't drift on who may post.
+- **Dependency-free, following `refine-panel.tsx`.** No dialog primitive was added — Radix's `react-dialog` is deliberately not installed. `useState` + fixed positioning covers Escape, focus move, focus return, scroll lock, `role="dialog"`.
+- **Two presentations, one component.** ≥1024px right gutter at `max-w-[480px]` over a dimmed board; below `lg` full-bleed carrying the real `SiteHeader`, so the phone flow reads as it did before. Breakpoint matches the rail, not `sm`.
+- **The dirty guard listens to the DOM, not the form.** Native `input`/`change` bubbling out of the panel root marks it dirty — covers every control including PhotoPicker's file inputs, needs no cooperation from `PostNeedForm`, and can't drift when the form changes. React's synthetic `onChange` would have missed the file inputs. Clean panel closes with no prompt.
+- **Back discards silently, by decision.** Guarding it means a sentinel history entry re-pushed on popstate; fragile, and it can strand the URL. Escape and the backdrop are the accidental dismissals and those are the two that warn. Written into the component header so it doesn't get "fixed" later.
+
+**Fixed on sight.** Opening the panel dragged the board down to the footer behind it — Next scrolls a newly-rendered slot into view, which is precisely what this change exists to prevent. `scroll={false}` on all seven `/post` triggers; `FooterLink` now forwards the prop. `site-header.tsx` was contested and confirmed with Kyle before touching (it needed nothing until this).
+
+**Verified on production:** panel opens in the right gutter with the board behind it · Escape closes · no discard prompt on an untouched form · focus returns to the trigger · hard load of `/post` renders the full page.
+
+**Open:** post one public and one private need **with a photo** through the panel. Both `redirect()` paths in `createNeed` must dismiss the panel rather than leave a stuck overlay. Untested and the likeliest place for a real bug.
+
+**Two false alarms worth the record.** Neither was a code defect and both cost real time:
+
+1. **`ChunkLoadError` after a deploy.** Clicking *Post a need* changed the URL to `/post` and rendered nothing — read as a broken build. The tab had been open across the Vercel deploy and was asking for JS chunks that no longer existed. A hard reload fixed it. See standing lesson 17.
+2. **"Refresh shows the old screen."** That is the designed fallback, not a regression — a panel is an overlay and a fresh load of `/post` has nothing to overlay onto. Kyle reviewed the alternatives (make `/post` render board + panel, or redirect it to the board) and chose to leave it.
+
+**Deliberately not done.** Kyle raised wanting a **sharper distinction between bulk lots and single-card needs**. Real, and more likely to move posting behaviour than this was — but it changes the form and the board row, which this pass froze. Separate scope.
+
+### Aug 8 — mobile reached parity with the rail, and the `<select>` goal finally came true
+
+Three gaps closed on the board's second filter surface. All three only existed **below 1024px**, which is where the beachhead is.
+
+**1. The mobile sheet was destroying multi-select filters.** `app/page.tsx` passed `type: filters.types[0]` and `sport: filters.sports[0]` into `<RefinePanel>`, and the sheet rendered each as a single `<select>`. Open a shared `?sport=Basketball&sport=Football&type=bulk` URL on a phone, tap Refine, hit "Show results" — **Football was gone, silently.** The rail had been multi-select since Aug 1; the sheet was written before the rail and never caught up. Both are now `ChipCheckboxGroup` reading the full array. Verified in the browser: the form now serialises `type|bulk · sport|Basketball · sport|Football`.
+
+**2. There was no sort control at all below 640px.** `<SortSelect>` was wrapped in `hidden sm:block`, and the sheet carried `sort` only as a hidden input to preserve it. Net effect: on a phone you could not reorder the board. Sort now lives in the sheet under its own legend behind a divider — §2.3a is explicit that **sort is not a filter**, so it stays out of the badge count, never becomes a removable chip, and survives "Reset all".
+
+**3. Zero native `<select>` on the board — for real this time.** §2.2 claimed the rail removed the last of them. It didn't; four survived in `refine-panel.tsx` (type, sport, condition) and `sort-select.tsx`. All four are now `components/ui/chip-group` — the same primitive `/post` uses, so keyboard behaviour, focus rings, 44px targets and screen-reader announcement are implemented once and shared across both halves of the app. Condition labels come from `conditionChip()` rather than being typed out a third time.
+
+**Fixed on sight:** the sheet's "Clear all" was `<Link href="/">`, which wiped sort along with the filters — a §2.3a violation hiding in one line.
+
+**Two decisions worth revisiting if they annoy anyone.**
+
+- `SortSelect` moved from `hidden sm:block` to `hidden lg:block`. Sheet and inline sort are now **exact complements** — sheet under 1024, inline at and above — rather than both being visible together between 640 and 1023. Costs a tap to reach sort on a tablet; buys one sort control at every width. One line to flip back.
+- The sort chips sit **outside** the sheet's `<form>` (`display: contents` on the form, submit re-attached with `form="board-refine"`). Without that, every shared URL would carry a junk `sort_choice=newest`. Side effect worth noting: it makes "sort is not a filter" structural rather than merely visual.
+
+**Verification.** `tsc --noEmit` and `eslint app lib components` clean; `next build` compiled 34/34 routes; `document.querySelectorAll('select').length === 0` on the live board; multi-facet round trip confirmed by reading the actual `FormData`. Kyle confirmed the sheet on a real phone. **Not** verified: 375×667 specifically — watch for "Highest budget" wrapping in the sort segment on an SE-class screen.
+
+**Caught before it shipped:** a helper exported from a `"use client"` module and called from the server page. Next turns those exports into client references and the call throws at runtime — `tsc` and `eslint` both pass it. Inlined instead.
+
+**Still open:** five native `<select>` remain **off** the board — `settings-panels.tsx` (2), `create-alert-form.tsx` (2), `app/u/[username]/page.tsx` (1). §2.2's goal is met; a repo-wide grep is not yet empty.
+
+**⚠️ Unlogged.** Commit `181a8c6` (locked search header, post-a-need chip form, free-tier alert limits, migration `0019_requests_search_index.sql`) landed the same day from a parallel session and **has no entry in this log**. `0019` was committed alongside a UI change and its state was never confirmed here. Worth a look before anyone assumes it's applied.
 
 ### Aug 1 (late) — board rail + locked header, and a near-miss on free-vs-paid
 
@@ -348,12 +400,20 @@ Merged from every session. These are the ones that have already cost real time t
 - **`stripe_payouts_enabled` goes stale** if the webhook path is down, and the buyer's Fund button silently hides.
 
 **16. Tooling notes.**
-- The sandbox cannot delete `.git/index.lock`; Kyle runs git in Terminal. If seen: `rm -f ~/Desktop/NeedIt/.git/index.lock`.
+- The sandbox cannot delete `.git/index.lock`; Kyle runs git in Terminal. If seen: `rm -f ~/Desktop/NeedIt/.git/index.lock`. A sandbox git read can leave one behind — it warns that it can't clean up after itself.
+- **`npx --prefix needit next build` does not work.** `--prefix` changes npm's package lookup, not the working directory, so Next looks for `app/` at the repo root and fails with "Couldn't find any `pages` or `app` directory" — after dropping a stray `.next/` there, which the root `.gitignore` now catches. Use `cd ~/Desktop/NeedIt/needit && npx next build`.
+- **Never run `next build` or `next dev` from the agent sandbox.** Both write into the shared `.next/`, and the dev-server lock records a *sandbox* PID and port. Kyle's Mac then reads it, refuses to start `next dev` with "Another next dev server is already running", and prints `Run kill <pid> to stop it` — where that PID is a **macOS system daemon**, not his server. Symptom: `localhost:3000` refuses to connect while the terminal insists a server is up. Cure: `rm -rf ~/Desktop/NeedIt/needit/.next`, then restart. Agents stick to `tsc --noEmit` and `eslint`, which touch nothing.
+- **`tsc` and `eslint` do not catch a `"use client"` export called from a server component.** Next turns every export of a client module into a client reference; calling one on the server throws at runtime while both static checks pass. Keep helpers used by server pages out of `"use client"` files.
+- **Two agents in one repo will race.** This log and `app/page.tsx` were both edited underneath an in-flight session on Aug 8. Re-read before every edit, and don't `git add -A` from the repo root unless you know what the other session has in flight.
 - The sandbox times out running `tsc` over the mounted volume — type-check locally before pushing.
 - The Supabase template editor auto-closes tags: type `</p` and let it supply the `>`, or you get `</p>>`.
 - The Supabase dashboard intermittently renders blank; reload rather than assuming a permissions problem.
 - Next 16 dropped the top-level `eslint` config key (adding it is a type error) and ships `cacheComponents: true`, which breaks builds for auth/cookie pages. Keep it off.
 - Two accounts are needed to test any two-sided flow. Recover locked test accounts with `scripts/reset-user-password.mjs` rather than fighting the reset email.
+
+**17. After any deploy, a tab that was already open is lying to you.** Vercel replaces the hashed JS chunks; a tab loaded from the previous build asks for files that no longer exist and dies with `ChunkLoadError`. The symptom is not an error page — it's a navigation where **the URL changes and nothing renders**, which reads exactly like a broken feature. This cost an hour on Aug 8. **Hard-refresh (Cmd+Shift+R) before concluding anything is broken, and read the console before reading the code.**
+
+**18. "It doesn't work" needs a location before it needs a fix.** Twice on Aug 8 the report was about production while the change was still sitting in a local commit — once unpushed, once pasted into a terminal that was running the dev server in the foreground, which has no shell to receive it. **Check what is actually deployed (`git status -sb`, `git log origin/main`) before debugging behaviour.** A pasted command that produced no output and no prompt did not run.
 
 ---
 
@@ -385,6 +445,8 @@ Merged from every session. These are the ones that have already cost real time t
 | `exprifi-brand-system.md` | 3a design system (locked) |
 | `exprifi-3b-facelift-and-access-spec.md` | Facelift + access model |
 | `exprifi-3b-addendum-board-filtering.md` | Rail/sheet filtering amendment (keep — dated independent-derivation record) |
+| `plan-post-a-need-rework.md` | Direction A, one-screen chip-first post form |
+| `prompt-post-a-need-panel.md` | **Superseded — built the same day by a parallel session.** Was a master prompt for the right-gutter post panel; kept only for its verified pre-change survey of `/post`. Safe to delete |
 | `card-catalog-and-automatch-spec.md` | Catalog + Lane 1 matching plan |
 | `card-data-vendor-comparison.md`, `cardhedge-reply-draft.md`, `card-catalog-vendor-outreach.md` | Vendor evaluation + outreach |
 | `secret-rotation-runbook.md` | Three secrets, in order, verify-before-revoke |

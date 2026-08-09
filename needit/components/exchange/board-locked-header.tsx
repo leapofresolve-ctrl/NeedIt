@@ -40,6 +40,7 @@ const EXPAND_AT = 90;
 export function BoardLockedHeader({ children }: { children: React.ReactNode }) {
   const [condensed, setCondensed] = useState(false);
   const frame = useRef<number | null>(null);
+  const el = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const read = () => {
@@ -67,8 +68,51 @@ export function BoardLockedHeader({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // PUBLISH THE MEASURED HEIGHT. The rail parks beneath this thing, and the
+  // first cut of that used a hardcoded 56px — search field plus padding, which
+  // was right for the header as it stood that morning. It was wrong by lunch:
+  // the sort control became a segmented chip group whose "Ending soon" label
+  // wraps to two lines, and the condensed header went to 83px. The rail's top
+  // 27px slid under the blur. Guessing a sibling component's height is the same
+  // magic-number bug as the masthead defect, one level down — so measure it
+  // instead. --board-header-condensed-h stays as the pre-hydration fallback so
+  // the server render and a no-JS visitor still get a sane offset.
+  // No dependency array on purpose: this runs after EVERY render, which is
+  // exactly the set of moments the height can change from inside React —
+  // condensing, a chip row appearing or emptying, the filter count changing
+  // width. A ResizeObserver was the obvious first choice and it silently
+  // stopped delivering after its initial callback (the property it writes
+  // feeds a calc() that lays out the rail, which trips the resize-loop guard),
+  // so the header measured 95px, condensed to 83px, and the rail kept parking
+  // 12px too low. Measuring on render has no such feedback path.
+  useEffect(() => {
+    const node = el.current;
+    if (!node) return;
+    document.documentElement.style.setProperty(
+      "--board-header-h",
+      `${Math.round(node.getBoundingClientRect().height)}px`,
+    );
+  });
+
+  // Resizing the viewport doesn't re-render, so it needs its own listener.
+  useEffect(() => {
+    const node = el.current;
+    if (!node) return;
+    const publish = () =>
+      document.documentElement.style.setProperty(
+        "--board-header-h",
+        `${Math.round(node.getBoundingClientRect().height)}px`,
+      );
+    window.addEventListener("resize", publish);
+    return () => {
+      window.removeEventListener("resize", publish);
+      document.documentElement.style.removeProperty("--board-header-h");
+    };
+  }, []);
+
   return (
     <div
+      ref={el}
       data-condensed={condensed}
       className="board-locked-header sticky z-10 -mx-2.5 flex flex-col gap-2.5 border-b bg-background/95 px-2.5 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-5 sm:px-5"
     >
