@@ -72,6 +72,60 @@ export const isSport = (value: string): boolean =>
 export const isType = (value: string): boolean =>
   value === "single" || value === "bulk";
 
+/**
+ * ── THE TWO SHARED PARSERS ─────────────────────────────────────────────────
+ *
+ * The board's rows come from a Supabase query in app/page.tsx; the rail's
+ * counts come from `matches()` in lib/board-facets.ts. Those two have to agree
+ * or a seller clicks "Football · 6" and gets four rows.
+ *
+ * That agreement used to be a comment asking both sides to be careful, and
+ * both sides drifted anyway — the page sanitised `q` before the ilike and the
+ * facet counter didn't, and the page parsed money with parseFloat while the
+ * counter used Number. Same input, two answers, in the one place the product
+ * cannot afford to be approximately right.
+ *
+ * So the rules live here, once, and both sides import them. Adding a third
+ * caller is now safe by construction rather than by vigilance.
+ */
+
+/**
+ * Make a user's search text safe to interpolate into a PostgREST `or()` filter.
+ *
+ * `or()` is comma-separated and parenthesis-delimited, so an unescaped comma
+ * doesn't fail to match — it corrupts the filter into something else entirely.
+ * `%` and `_` are ilike wildcards and `*` is the PostgREST spelling of `%`, so
+ * they go too: a seller typing "50%" should search for the literal characters,
+ * not match every row.
+ *
+ * Returns "" when nothing usable survives, which callers must read as "apply no
+ * text filter at all" — not as "match the empty string", which matches
+ * everything.
+ */
+export function sanitiseQuery(q: string): string {
+  return q.replace(/[,()%_*]/g, " ").trim();
+}
+
+/**
+ * Dollars from the URL → integer cents, or null if it isn't a number.
+ *
+ * Strict on purpose. `parseFloat("50abc")` is 50; `Number("50abc")` is NaN.
+ * The rail's inputs are `type="number"` so the browser mostly prevents this,
+ * but searchParams are hand-editable and shareable, and reading "50abc" as $50
+ * is the same class of silent mis-parse the dumb-search rule above exists to
+ * avoid. Better to ignore a filter we can't understand than to invent one.
+ *
+ * Negatives are dropped rather than clamped — `?min=-5` is not a request for
+ * "$0 and up", it's a broken URL, and a filter that quietly does nothing is
+ * easier to notice than one that quietly does something else.
+ */
+export function budgetCents(raw: string | undefined): number | null {
+  if (!raw) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round(n * 100);
+}
+
 export type BoardFilters = {
   /** Dumb free text. Title + description, nothing else. */
   q?: string;
@@ -196,6 +250,14 @@ export function hrefWithout(f: BoardFilters, key: string): string {
   return boardHref(next);
 }
 
+/** Drop both ends of the budget range at once. Powers the rail's "show the N
+ *  unpriced needs this range is hiding" escape hatch — clearing one end still
+ *  leaves the other excluding them, so removing them one at a time wouldn't
+ *  do what the link says it does. */
+export function hrefWithoutBudget(f: BoardFilters): string {
+  return boardHref({ ...f, min: undefined, max: undefined });
+}
+
 /** Everything cleared except sort — "Reset all" shouldn't silently reorder the
  *  board underneath someone. */
 export function resetHref(f: BoardFilters): string {
@@ -216,4 +278,18 @@ export type FacetCounts = {
   sports: Record<string, number>;
   closing: number;
   noOffers: number;
+  /**
+   * How many needs the active budget range is hiding *because they carry no
+   * number at all* — "At comp" needs (0018: `price_mode = 'comp'` forces
+   * `budget_cents` null) and open-ended ones.
+   *
+   * Postgres compares NULL to a range as false, so the moment a seller types
+   * anything into Buyer's max, every one of these silently vanishes. They
+   * aren't too expensive or too cheap; they're unpriced, and a filter on price
+   * has no honest opinion about them. §2.6's rule is that the board never hides
+   * what it's leaving out, so the rail discloses this number instead.
+   *
+   * 0 whenever no budget range is set.
+   */
+  unpriced: number;
 };

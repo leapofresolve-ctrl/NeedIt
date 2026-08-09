@@ -4,7 +4,7 @@
 1. **% of needs receiving ≥1 offer** — provisional target: **60%+**
 2. **Time-to-first-offer** — provisional target: **< 24 hours**
 
-These two ARE the business right now. Nothing else matters until they pass. Provisional supporting targets for the Aug 8 launch: **50–100 seeded users** (weighted toward breakers/resellers), **majority of matched deals actually completed** (spot-check via concierge follow-up).
+These two ARE the business right now. Nothing else matters until they pass. Provisional supporting targets for launch (Sat Sep 26, 2026): **50–100 seeded users** (weighted toward breakers/resellers), **majority of matched deals actually completed** (spot-check via concierge follow-up).
 
 *Note: targets are Claude-proposed, not Kyle-committed — Kyle hasn't set hard numbers and is skeptical of the liquidity-test framing itself (see gtm.md stealth-vs-liquidity tension). Board should ratify or revise these numbers explicitly.*
 

@@ -8,10 +8,14 @@ import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import {
   SPORTS,
   TYPES,
+  hrefWithoutBudget,
   resetHref,
   type BoardFilters,
   type FacetCounts,
 } from "@/lib/board-filters";
+// Same list the Refine sheet and /post render from, so the three surfaces can't
+// disagree about what a condition is or what it's called.
+import { CONDITIONS } from "@/lib/need-tags";
 
 /**
  * The docked filter rail (≥lg). Below that breakpoint the board uses the
@@ -34,11 +38,23 @@ import {
  * submit button is present, just visually hidden), and keeps searchParams the
  * single source of truth — a filtered board stays a shareable URL.
  *
- * Checkboxes apply immediately; the price inputs debounce, because applying on
- * every keystroke of "500" would fire three navigations and land you on "5".
+ * EVERYTHING DEBOUNCES, AT TWO SPEEDS (§3)
+ * ----------------------------------------
+ * The price inputs wait 400ms, because applying on every keystroke of "500"
+ * would fire three navigations and land you on "5". Choices wait 250ms — they
+ * used to apply immediately, which meant ticking Basketball, Football, Baseball
+ * and Hockey fired four `router.replace` calls and four board recomputes to
+ * reach one state nobody wanted the first three of. One shared timer does the
+ * coalescing: each change cancels the pending apply, so a burst of toggles
+ * collapses into a single navigation carrying all of them.
+ *
+ * The rail dims from the moment you touch it, not from the moment the request
+ * starts — the 250ms window is dead time otherwise, and a control that looks
+ * inert for a quarter second reads as a dropped click.
  */
 
 const PRICE_DEBOUNCE_MS = 400;
+const CHOICE_DEBOUNCE_MS = 250;
 const COLLAPSE_KEY = "exprifi:board-rail-collapsed";
 
 function Group({
@@ -64,16 +80,21 @@ function Option({
   label,
   count,
   defaultChecked,
+  type = "checkbox",
 }: {
   name: string;
   value: string;
   label: string;
-  count: number;
+  /** Omit only where no honest count exists — see the Condition group below.
+   *  Never pass a placeholder; §2.6 forbids inventing one. */
+  count?: number;
   defaultChecked: boolean;
+  type?: "checkbox" | "radio";
 }) {
   // Zero-count options stay visible and dimmed, showing their real count.
   // Hiding them makes the board look smaller than it is; faking the number is
-  // a trust violation you can't take back.
+  // a trust violation you can't take back. An absent count is not a zero, so
+  // it doesn't dim either.
   const empty = count === 0 && !defaultChecked;
   return (
     <label
@@ -82,14 +103,18 @@ function Option({
       }`}
     >
       <input
-        type="checkbox"
+        type={type}
         name={name}
         value={value}
         defaultChecked={defaultChecked}
-        className="size-[18px] shrink-0 rounded-sm border-input accent-foreground"
+        className={`size-[18px] shrink-0 border-input accent-foreground ${
+          type === "radio" ? "rounded-full" : "rounded-sm"
+        }`}
       />
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      <span className="num shrink-0 text-xs text-faint">{count}</span>
+      {count != null && (
+        <span className="num shrink-0 text-xs text-faint">{count}</span>
+      )}
     </label>
   );
 }
@@ -109,6 +134,10 @@ export function BoardRail({
   const [isPending, startTransition] = useTransition();
   const [collapsed, setCollapsed] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  // True from the change event until the debounced apply actually fires. See
+  // the header note: without it the rail looks dead for the debounce window.
+  const [queued, setQueued] = useState(false);
+  const busy = queued || isPending;
 
   // Collapse preference is remembered. Read after mount so the server render
   // and the first client render agree — reading localStorage during render is
@@ -134,6 +163,9 @@ export function BoardRail({
       }
     }
     const qs = params.toString();
+    // Cleared in the same tick that opens the transition, so `busy` never
+    // flickers false in the handoff between the debounce and the navigation.
+    setQueued(false);
     // replace, not push: 20 filter toggles shouldn't mean 20 presses of Back
     // to get off the board. scroll:false keeps your place in a long list.
     startTransition(() => router.replace(qs ? `/?${qs}` : "/", { scroll: false }));
@@ -141,14 +173,20 @@ export function BoardRail({
 
   const onChange = (e: React.ChangeEvent<HTMLFormElement>) => {
     const form = e.currentTarget;
-    const isText =
-      e.target instanceof HTMLInputElement && e.target.type !== "checkbox";
+    const target = e.target;
+    // Checkboxes and radios are choices — one click, whole value, 250ms.
+    // Anything else here is a typed number, which needs the longer window.
+    const isChoice =
+      target instanceof HTMLInputElement &&
+      (target.type === "checkbox" || target.type === "radio");
+    setQueued(true);
+    // The single shared timer IS the coalescing: a second toggle inside the
+    // window cancels the first apply rather than queueing another one.
     if (timer.current) clearTimeout(timer.current);
-    if (isText) {
-      timer.current = setTimeout(() => apply(form), PRICE_DEBOUNCE_MS);
-    } else {
-      apply(form);
-    }
+    timer.current = setTimeout(
+      () => apply(form),
+      isChoice ? CHOICE_DEBOUNCE_MS : PRICE_DEBOUNCE_MS,
+    );
   };
 
   useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
@@ -157,12 +195,13 @@ export function BoardRail({
     const active =
       filters.types.length +
       filters.sports.length +
+      (filters.condition ? 1 : 0) +
       (filters.min ? 1 : 0) +
       (filters.max ? 1 : 0) +
       (filters.closing ? 1 : 0) +
       (filters.noOffers ? 1 : 0);
     return (
-      <div className="hidden lg:block">
+      <div className="board-rail hidden lg:block">
         <button
           type="button"
           onClick={toggleCollapsed}
@@ -179,25 +218,32 @@ export function BoardRail({
     );
   }
 
+  // `condition` is hand-editable in the URL and parseBoardFilters doesn't
+  // validate it, so anything that isn't one of the two real values falls back
+  // to "Any" — which also means submitting the rail quietly drops the garbage.
+  const condition =
+    filters.condition === "raw" || filters.condition === "graded"
+      ? filters.condition
+      : "";
+
   return (
-    <aside className="hidden w-[264px] shrink-0 lg:block">
+    <aside className="board-rail hidden w-[264px] shrink-0 lg:block">
       <form
         ref={formRef}
         method="get"
         action="/"
         onChange={onChange}
-        className="flex flex-col"
-        aria-busy={isPending}
+        className="board-rail-form flex flex-col"
+        aria-busy={busy}
       >
-        {/* Carried, not shown: these belong to the header and the mobile
-            sheet. Without them, touching any rail filter would silently reset
-            the seller's search, sort or condition. */}
+        {/* Carried, not shown: these belong to the header. Without them,
+            touching any rail filter would silently reset the seller's search
+            or sort. `condition` used to be carried here too — it's a real
+            group now (see below), so carrying it as well would submit the
+            value twice. */}
         {filters.q && <input type="hidden" name="q" value={filters.q} />}
         {filters.sort && filters.sort !== "newest" && (
           <input type="hidden" name="sort" value={filters.sort} />
-        )}
-        {filters.condition && (
-          <input type="hidden" name="condition" value={filters.condition} />
         )}
 
         <Group legend="What kind">
@@ -222,6 +268,44 @@ export function BoardRail({
               label={s}
               count={counts.sports[s] ?? 0}
               defaultChecked={filters.sports.includes(s)}
+            />
+          ))}
+        </Group>
+
+        {/* CONDITION — the mobile sheet has had this picker since 0018 and the
+            rail didn't, so a seller on a 1440px monitor could see a condition
+            filter in the header chips but had no way to set one, and no way to
+            clear it except the chip's ×.
+
+            RADIOS, NOT CHECKBOXES. `condition` is a single value in the URL —
+            parseBoardFilters takes the first — and since 0018 the column is
+            'raw' | 'graded' | null, which are mutually exclusive. Two
+            checkboxes would let a seller tick both and then silently apply only
+            one, which is the class of quiet mis-apply the dumb-search rule
+            exists to avoid. "Any condition" is a real row rather than an
+            un-tick, so the group is clearable with the keyboard and without JS
+            (a radio can't be un-checked). Submitting value="" is a no-op both
+            ways: apply() drops empty strings, and `one()` reads a bare
+            `?condition=` as undefined.
+
+            TODO(condition-facet): no counts on these rows. computeFacets() in
+            lib/board-facets.ts doesn't emit a condition facet, and that file —
+            along with the FacetCounts type in lib/board-filters.ts — is owned
+            by another workstream, so this change doesn't touch it. The addition
+            is strictly additive when someone gets to it: count rows by
+            condition_pref with skip="condition" in matches(), expose
+            `counts.condition: Record<string, number>`, and pass it as `count`
+            here. Rendering countless rows is the honest interim state; a
+            hardcoded 0 would dim options that may well have matches. */}
+        <Group legend="Condition">
+          {CONDITIONS.map((c) => (
+            <Option
+              key={c.value || "any"}
+              type="radio"
+              name="condition"
+              value={c.value}
+              label={c.label}
+              defaultChecked={condition === c.value}
             />
           ))}
         </Group>
@@ -256,6 +340,31 @@ export function BoardRail({
               />
             </label>
           </div>
+
+          {/* A budget range can't have an honest opinion about a need that
+              names no number — "At comp" (0018 forces budget_cents null on
+              those) or open-ended. Postgres drops them from any range
+              comparison, so they vanish the instant a seller types a figure.
+              Faithful to the query, invisible to the seller.
+
+              §2.6's rule is that the board never hides what it's leaving out,
+              so we say the number and offer the way back. Not a link that
+              clears one end — clearing min alone still leaves max excluding
+              them, so it has to drop both to do what it says. */}
+          {counts.unpriced > 0 && (
+            <p className="mt-3 text-xs leading-snug text-muted-foreground">
+              Hiding{" "}
+              <span className="num font-semibold">{counts.unpriced}</span> need
+              {counts.unpriced === 1 ? "" : "s"} with no set budget.{" "}
+              <Link
+                href={hrefWithoutBudget(filters)}
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                Clear the range
+              </Link>{" "}
+              to see {counts.unpriced === 1 ? "it" : "them"}.
+            </p>
+          )}
         </Group>
 
         <Group legend="Closing">
@@ -281,9 +390,16 @@ export function BoardRail({
           Show results
         </button>
 
-        <div className="flex items-center justify-between border-t pt-4 text-sm">
-          <span className="num font-semibold" aria-live="polite">
-            {isPending ? "…" : `${matching} ${matching === 1 ? "need" : "needs"}`}
+        <div className="board-rail-footer flex items-center justify-between border-t pt-4 text-sm">
+          {/* The count used to swap to "…" while pending, which changed the
+              width of the one element in the rail whose whole job is to hold
+              still, and pushed a stale-then-ellipsis-then-fresh sequence
+              through the live region. The pending state is now the dim (§3),
+              which costs no layout at all; the live region stays quiet until
+              there's a real number to announce, so a screen reader hears each
+              recompute once instead of three times. */}
+          <span className="num font-semibold" aria-live="polite" aria-busy={busy}>
+            {matching} {matching === 1 ? "need" : "needs"}
           </span>
           <Link
             href={resetHref(filters)}

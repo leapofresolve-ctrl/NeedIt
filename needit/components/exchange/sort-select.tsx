@@ -3,45 +3,53 @@
 import { useRouter } from "next/navigation";
 
 import { SORTS, boardHref, type BoardFilters } from "@/lib/board-filters";
+import { ChipSegmentedGroup } from "@/components/ui/chip-group";
 
 /**
  * 3b: sort stays visible at rest while the filters collapse behind "Refine".
  *
  * Sort is not a filter — it's how you read the same set, people change it
- * constantly, and burying it costs more than it saves. Kept as one quiet
- * inline control, right-aligned, so the resting board is exactly two controls.
- *
- * Navigates on change (no "Apply" step) and preserves the active filters.
+ * constantly, and burying it costs more than it saves. Navigates on change (no
+ * "Apply" step) and preserves the active filters.
  *
  * The current filters are passed down from the server rather than read with
  * useSearchParams() — that hook forces the component into a Suspense boundary
  * at build time, and the page already knows these values.
+ *
+ * ── Aug 8 ──────────────────────────────────────────────────────────────────
+ * Was a native `<select>` — the last one on the board, and §2.2 lists "zero
+ * native `<select>` on the page" as a hard goal because it is the single
+ * loudest amateur signal. Now the same ChipSegmentedGroup /post uses, so the
+ * two halves of the app share one keyboard and screen-reader implementation.
+ *
+ * The wrapper in app/page.tsx moved from `hidden sm:block` to `hidden lg:block`
+ * at the same time. This control and the Refine sheet are now exact
+ * complements: below 1024px sort lives inside the sheet (where it was
+ * previously unreachable at all under 640px), at and above it sort lives here
+ * and the sheet is gone. Exactly one sort control at every width — no
+ * duplicate, and no hidden-input carry needed in either direction, because
+ * boardHref() below preserves every filter and the sheet preserves sort.
  */
 
 export function SortSelect({ filters }: { filters: BoardFilters }) {
   const router = useRouter();
 
   return (
-    <label className="flex items-center gap-2 text-sm text-muted-foreground">
-      Sort
-      <select
-        value={filters.sort}
-        onChange={(e) => {
-          // boardHref owns the serialisation, including dropping the default
-          // sort — this used to rebuild the query string by hand and lost
-          // multi-value facets in the process.
-          router.push(boardHref({ ...filters, sort: e.target.value }), {
-            scroll: false,
-          });
-        }}
-        className="min-h-11 rounded-sm border border-input bg-card px-3 py-2 text-sm font-medium text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      >
-        {SORTS.map((s) => (
-          <option key={s.value} value={s.value}>
-            {s.label}
-          </option>
-        ))}
-      </select>
-    </label>
+    <ChipSegmentedGroup
+      legend="Sort"
+      // Distinct from the sheet's `sort_choice`: both can be in the DOM at
+      // once (the sheet's wrapper is hidden with CSS, not unmounted), and two
+      // radio groups sharing a name would fight over the checked state.
+      name="sort_nav"
+      options={SORTS}
+      value={filters.sort}
+      onValueChange={(sort) => {
+        // boardHref owns the serialisation, including dropping the default
+        // sort — this used to rebuild the query string by hand and lost
+        // multi-value facets in the process.
+        router.push(boardHref({ ...filters, sort }), { scroll: false });
+      }}
+      className="min-w-[280px]"
+    />
   );
 }

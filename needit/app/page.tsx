@@ -8,10 +8,12 @@ import {
   CLOSING_SOON_HOURS,
   RAIL_MIN_NEEDS,
   activeFilterCount,
+  budgetCents,
   hasAnyFilter,
   hrefWithout,
   parseBoardFilters,
   resetHref,
+  sanitiseQuery,
 } from "@/lib/board-filters";
 import { FACET_COLUMNS, computeFacets, type FacetRow } from "@/lib/board-facets";
 import { SiteHeader } from "@/components/site-header";
@@ -20,6 +22,7 @@ import { Countdown } from "@/components/exchange/countdown";
 import { RefinePanel } from "@/components/exchange/refine-panel";
 import { SortSelect } from "@/components/exchange/sort-select";
 import { BoardRail } from "@/components/exchange/board-rail";
+import { BoardLockedHeader } from "@/components/exchange/board-locked-header";
 import { BoardSearch } from "@/components/exchange/board-search";
 import { BoardEmptyState } from "@/components/exchange/board-empty-state";
 import { TeachStrip } from "@/components/onboarding/teach-strip";
@@ -179,6 +182,9 @@ export default async function Home({
   // it's never "removable". The text query gets a dashed chip so it reads as a
   // different kind of filter from the structured ones.
   const money = (v: string) => `$${Number(v).toLocaleString("en-US")}`;
+  // One count, two consumers: the badge on the mobile Refine button and the
+  // "N filters" chip the condensed header shows in place of the chip row.
+  const activeCount = activeFilterCount(filters);
   const activeFilters: { key: string; label: string; dashed?: boolean }[] = [
     filters.q && { key: "q", label: `“${filters.q}”`, dashed: true },
     ...filters.types.map((t) => ({
@@ -213,19 +219,25 @@ export default async function Home({
   // the old substring ilike would only ever have matched those two words anyway.
   if (filters.condition) query = query.eq("condition_pref", filters.condition);
   if (filters.q) {
-    // Dumb on purpose: title + description, nothing else. Sanitised because
-    // PostgREST's or() is comma-separated and parenthesis-delimited — an
-    // unescaped comma in the query would corrupt the filter rather than just
-    // failing to match. `%` and `_` are ilike wildcards, so they go too.
-    const safe = filters.q.replace(/[,()%_*]/g, " ").trim();
+    // Dumb on purpose: title + description, nothing else. sanitiseQuery() is
+    // shared with the facet counter so both sides strip the same characters —
+    // they didn't, and the counts disagreed with the rows for any query
+    // containing a comma, a percent or a parenthesis.
+    const safe = sanitiseQuery(filters.q);
     if (safe) {
       query = query.or(`title.ilike.%${safe}%,description.ilike.%${safe}%`);
     }
   }
-  const minCents = filters.min ? Math.round(parseFloat(filters.min) * 100) : NaN;
-  const maxCents = filters.max ? Math.round(parseFloat(filters.max) * 100) : NaN;
-  if (Number.isFinite(minCents)) query = query.gte("budget_cents", minCents);
-  if (Number.isFinite(maxCents)) query = query.lte("budget_cents", maxCents);
+  // Also shared, for the same reason: this used to be parseFloat here and
+  // Number in the counter, which disagree on "50abc".
+  //
+  // Note both are `null`-blind by nature — an unpriced need ("At comp", or
+  // open-ended) fails any range comparison in Postgres and drops off the board.
+  // That's correct, but silent, so the rail discloses `counts.unpriced`.
+  const minCents = budgetCents(filters.min);
+  const maxCents = budgetCents(filters.max);
+  if (minCents != null) query = query.gte("budget_cents", minCents);
+  if (maxCents != null) query = query.lte("budget_cents", maxCents);
   if (filters.closing) {
     query = query
       .gt("expires_at", new Date().toISOString())
@@ -328,33 +340,64 @@ export default async function Home({
             dumb (text only), the rail is smart (everything structured), and
             they compose with AND. Below lg the rail can't dock, so "Refine"
             reappears here — it is the mobile presentation of the rail, not a
-            desktop control. */}
-        <div className="sticky top-0 z-20 -mx-2.5 flex flex-col gap-2.5 border-b bg-background/95 px-2.5 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-5 sm:px-5">
+            desktop control.
+
+            It pins beneath the masthead now, not on top of it. Both were
+            `sticky top-0 z-20`; see board-locked-header.tsx. */}
+        <BoardLockedHeader>
           <div className="flex items-center gap-2.5">
             <BoardSearch filters={filters} />
+
+            {/* The condensed header's stand-in for the chip row (§2.3a). CSS
+                swaps the two on `data-condensed`, so both are always in the
+                DOM and neither depends on JS to render its content — only on
+                which one is shown. Deliberately not a link: at ≥lg the rail is
+                stuck open two inches to the left with per-option state and its
+                own "Reset all", so this is a readout, not a control, and
+                nothing is reachable only from here. */}
+            {activeCount > 0 && (
+              <span className="board-filter-summary num min-h-10 shrink-0 items-center gap-1.5 rounded-sm border bg-card px-3 text-sm font-semibold">
+                {activeCount}
+                <span className="font-medium text-muted-foreground">
+                  {activeCount === 1 ? "filter" : "filters"}
+                </span>
+              </span>
+            )}
+
+            {/* Aug 8: this used to hand the sheet `filters.types[0]` and
+                `filters.sports[0]` — one value each out of a multi-select —
+                so a shared multi-facet URL lost everything after the first
+                the moment a phone user tapped "Show results". The arrays go
+                through whole now, and `sort` goes through as its real value
+                rather than being nulled at the default, because the sheet
+                owns the sort control below 1024px.
+
+                The two surfaces are exact complements: sheet under 1024px
+                (where sort had no control at all below 640px), inline sort at
+                and above it. Never both, never neither. */}
             <div className="lg:hidden">
               <RefinePanel
                 values={{
                   q: filters.q,
-                  type: filters.types[0],
-                  sport: filters.sports[0],
+                  types: filters.types,
+                  sports: filters.sports,
                   condition: filters.condition,
                   min: filters.min,
                   max: filters.max,
                   closing: filters.closing,
                   noOffers: filters.noOffers,
-                  sort: sort === "newest" ? undefined : sort,
+                  sort,
                 }}
-                activeCount={activeFilterCount(filters)}
+                activeCount={activeCount}
               />
             </div>
-            <div className="hidden sm:block">
+            <div className="hidden lg:block">
               <SortSelect filters={filters} />
             </div>
           </div>
 
           {activeFilters.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="board-chip-row flex flex-wrap items-center gap-2">
               {activeFilters.map((f) => (
                 <Link
                   key={f.key}
@@ -381,7 +424,7 @@ export default async function Home({
               )}
             </div>
           )}
-        </div>
+        </BoardLockedHeader>
 
         <div className="flex items-start gap-7">
           {showRail && (

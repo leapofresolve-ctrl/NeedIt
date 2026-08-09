@@ -20,7 +20,7 @@
 | 2 | Arbitration + class-action waiver, or plain courts? | Include arbitration — standard for marketplaces, but it's a real user-rights tradeoff and worth a conscious choice |
 | 3 | Minimum age | 18 |
 | 4 | Data retention after account closure | 14-day grace, then anonymise; keep deal records indefinitely as the ledger |
-| 5 | "High-end single" threshold for the 5% fee | $250+ |
+| 5 | ~~"High-end single" threshold for the 5% fee~~ | **CLOSED Aug 2, 2026 — no threshold.** The 5% applies to every single-card deal at any value; bulk lots and filter requests are never charged. The line is *format*, not *value*. |
 
 ---
 
@@ -86,7 +86,7 @@ See the **Prohibited Items Policy** below; it forms part of these Terms. You als
 Exprifi is currently **free to use**. When fees begin:
 
 - **Sellers keep 100%** of the agreed sale price.
-- **Buyers pay a 5% finder's fee** on high-end single cards **only** — never on bulk lots or filter requests. "High-end" means a sale price at or above **$[250]**.
+- **Buyers pay a 5% finder's fee** on **single-card** deals — never on bulk lots or filter requests, at any value.
 - **Exprifi Pro** is an optional monthly subscription for sellers that unlocks additional tools. It is never required to buy or sell.
 
 We will give at least **30 days' notice** before any fee takes effect, and founding members will be told first.

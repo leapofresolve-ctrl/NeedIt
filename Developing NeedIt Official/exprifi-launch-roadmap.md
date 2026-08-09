@@ -36,6 +36,12 @@ The two blocks that must exist before anyone sees this. Full detail in `exprifi-
 - **Block C — Visual pass:** accent discipline (green → data only, buttons → ink) · one primary per screen · Refine sheet replaces the facet bar · 16px type, focus rings, 44px targets, contrast fix · larger first screen with door-sized hit targets · empty-state rebuild · pluralization fix.
 - **Block D — Accounts:** username-or-email sign-in · signup path selection (`is_seller` boolean) · Settings expansion: Account + Notifications + Selling toggle · password reset / change email / change password verified end-to-end.
 - **Block E — Plans:** `/plans` public page with the worked fee examples. **No billing code.**
+- **Kyle: run `voice-builder` — do this in the next few days.** ⏳ *Added Aug 2, 2026.* The Social Media skill department (17 skills) is installed, and **every one of them reads `voice.md` and `about-me.md` first** — post-writer, hook-generator, reels-scripting, post-scorer, all of it. Until those two files exist, the entire social department is blocked and any content it produces will be generic.
+  - **What's needed from Kyle:** 3–5 real writing samples. VoloksVault IG/TikTok captions, Whatnot stream blurbs, or Facebook-group posts. Real ones, not written-for-this-purpose ones — the skill analyses actual patterns (sentence rhythm, hook habits, what the voice never does) and explicitly will not invent what isn't in the samples.
+  - **Time cost:** ~15 minutes to gather samples, then an interactive interview.
+  - **Decided Aug 2, 2026:** produce **two** profiles, not one — `voice.md` (Kyle / VoloksVault register, for social and creator content) and `exprifi-voice.md` (the platform's institutional register, for in-product, landing, and legal copy). Keeps board and legal pages from sounding like a Whatnot stream.
+  - **Style overrides:** American English (the skill defaults to British — override it). Keep the skill's em-dash ban for voice/social outputs only; it does not apply to Board-Reference or spec docs.
+  - **Blocks:** the entire content ramp below, and the Phase 3 seeding sprint's outbound messaging.
 - **Kyle:** content ramp begins — build-in-public clips of the facelift itself. The redesign *is* content.
 
 ### Phase 3 — Aug 25 → Sep 14 · "The seeding sprint" (Kyle-heavy — this is the whole ballgame)

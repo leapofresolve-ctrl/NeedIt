@@ -16,13 +16,22 @@ import { Button } from "@/components/ui/button";
  *
  * Sticky positioning moved to the wrapper so the strip doesn't detach from the
  * masthead on scroll.
+ *
+ * HEIGHT IS A PUBLISHED NUMBER (--site-header-h, app/globals.css).
+ * The board's locked header and the docked rail both pin themselves beneath
+ * this thing, and until Aug 8 they didn't — the board header was `top-0 z-20`
+ * exactly like this one, so on scroll it rode up into the masthead instead of
+ * stopping below it. The nav row now takes its height FROM the variable rather
+ * than declaring 64px next to it, so resizing the masthead moves everything
+ * that depends on it. Note the real total is 98px, not 64: the utility strip
+ * and both 1px bottom borders count.
  */
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-20 w-full">
       <SiteUtilityStrip />
       <nav className="w-full border-b bg-card">
-        <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-3 px-5 py-3">
+        <div className="mx-auto flex h-[var(--site-masthead-h)] w-full max-w-5xl items-center justify-between gap-3 px-5 py-3">
           <div className="flex items-center gap-4">
             <Link
               href="/"
