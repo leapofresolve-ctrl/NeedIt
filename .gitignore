@@ -12,6 +12,11 @@
 !.env.example
 *.bak
 
+# Next build output. needit/.gitignore covers needit/.next, but a build run
+# from the WRONG directory drops a stray .next/ here at the root, and nothing
+# was catching it — .next/trace and .next/trace-build got committed once.
+.next/
+
 # Editor / OS noise
 .vscode/
 .idea/
