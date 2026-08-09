@@ -51,8 +51,13 @@ const splineMono = Spline_Sans_Mono({
 
 export default function RootLayout({
   children,
+  panel,
 }: Readonly<{
   children: React.ReactNode;
+  /** Parallel route slot for overlays that need to be real URLs. Resolves to
+   *  null on every route (app/@panel/default.tsx) except a soft navigation to
+   *  /post, which app/@panel/(.)post intercepts into a right-gutter panel. */
+  panel: React.ReactNode;
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -65,6 +70,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
+          {panel}
           <SiteFooter />
         </ThemeProvider>
       </body>
