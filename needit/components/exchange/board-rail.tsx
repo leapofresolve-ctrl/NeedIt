@@ -17,6 +17,8 @@ import {
 // Same list the Refine sheet and /post render from, so the three surfaces can't
 // disagree about what a condition is or what it's called.
 import { CONDITIONS } from "@/lib/need-tags";
+import { chipBase } from "@/components/ui/chip-group";
+import { cn } from "@/lib/utils";
 
 /**
  * The floating "Advanced search" panel (≥lg). Below that breakpoint the board
@@ -92,7 +94,7 @@ function Group({
   children: React.ReactNode;
 }) {
   return (
-    <fieldset className="border-t py-4 first:border-t-0 first:pt-0">
+    <fieldset className="border-t py-[22px] first:border-t-0 first:pt-1">
       <legend className="microlabel mb-3 text-[11px] text-muted-foreground">
         {legend}
       </legend>
@@ -101,7 +103,25 @@ function Group({
   );
 }
 
-function Option({
+/** Wrapping chip row. Chips wrap, checkbox rows don't — seven sports was seven
+ *  rows tall and is now three, which is where most of the panel's old 711px
+ *  height went. */
+function Chips({ children }: { children: React.ReactNode }) {
+  return <div className="flex flex-wrap gap-2">{children}</div>;
+}
+
+/**
+ * One chip. Uncontrolled on purpose.
+ *
+ * It can't use ChipCheckboxGroup/ChipRadioGroup from components/ui/chip-group:
+ * those are controlled (`values` + `onValuesChange`) and this panel is an
+ * uncontrolled <form> that auto-submits on change, which is what keeps
+ * searchParams the source of truth and keeps the filters working without JS.
+ * It imports `chipBase` from that module instead, so the two surfaces share the
+ * actual styling rather than a copy of it that can drift — which is exactly how
+ * this panel ended up as the last place in the app still using checkbox rows.
+ */
+function Chip({
   name,
   value,
   label,
@@ -112,8 +132,8 @@ function Option({
   name: string;
   value: string;
   label: string;
-  /** Omit only where no honest count exists — see the Condition group below.
-   *  Never pass a placeholder; §2.6 forbids inventing one. */
+  /** Omit only where no honest count exists. Never pass a placeholder; §2.6
+   *  forbids inventing one. */
   count?: number;
   defaultChecked: boolean;
   type?: "checkbox" | "radio";
@@ -123,26 +143,71 @@ function Option({
   // a trust violation you can't take back. An absent count is not a zero, so
   // it doesn't dim either.
   const empty = count === 0 && !defaultChecked;
+  const id = `board-${name}-${value || "any"}`;
   return (
-    <label
-      className={`flex min-h-11 cursor-pointer items-center gap-3 text-[15px] ${
-        empty ? "text-faint" : ""
-      }`}
-    >
+    <div className="relative">
+      {/* `peer sr-only`, never `hidden` — the chip's selected and focus states
+          are painted off this input's :checked and :focus-visible, and
+          display:none would drop it out of the accessibility tree and the tab
+          order along with it. */}
       <input
         type={type}
+        id={id}
         name={name}
         value={value}
         defaultChecked={defaultChecked}
-        className={`size-[18px] shrink-0 border-input accent-foreground ${
-          type === "radio" ? "rounded-full" : "rounded-sm"
-        }`}
+        className="peer sr-only"
       />
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      {count != null && (
-        <span className="num shrink-0 text-xs text-faint">{count}</span>
-      )}
-    </label>
+      {/* cn(), not template interpolation: `chipBase` already sets
+          `text-foreground`, and Tailwind resolves conflicts by stylesheet order,
+          not by string order — so a plain append would lose the dim. twMerge
+          drops the loser. */}
+      <label htmlFor={id} className={cn(chipBase, empty && "text-faint")}>
+        {label}
+        {count != null && <span className="num text-xs text-faint">{count}</span>}
+      </label>
+    </div>
+  );
+}
+
+/** Single-choice groups render joined rather than as separate chips — same
+ *  control /post uses for Condition, so the two read as one system. */
+function Segmented({
+  name,
+  options,
+  value,
+}: {
+  name: string;
+  options: readonly { value: string; label: string }[];
+  value: string;
+}) {
+  return (
+    <div className="flex overflow-hidden rounded-sm border border-input">
+      {options.map((opt, i) => {
+        const id = `board-${name}-${opt.value || "any"}`;
+        return (
+          <div key={opt.value || "any"} className="relative flex-1">
+            <input
+              type="radio"
+              id={id}
+              name={name}
+              value={opt.value}
+              defaultChecked={value === opt.value}
+              className="peer sr-only"
+            />
+            <label
+              htmlFor={id}
+              className={cn(
+                "flex min-h-11 w-full cursor-pointer select-none items-center justify-center px-2 text-center text-sm text-foreground transition-[background-color,color] duration-150 peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-ring peer-checked:bg-primary peer-checked:font-medium peer-checked:text-primary-foreground",
+                i > 0 && "border-l border-input",
+              )}
+            >
+              {opt.label}
+            </label>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -361,7 +426,7 @@ export function BoardRail({
                 are the two things that tell you the filters did anything, and
                 they were previously off the bottom of a 711px panel on a 1000px
                 screen. */}
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-2 pt-1">
           <form
             ref={formRef}
             method="get"
@@ -380,29 +445,33 @@ export function BoardRail({
           <input type="hidden" name="sort" value={filters.sort} />
         )}
         <Group legend="What kind">
-          {TYPES.map((t) => (
-            <Option
-              key={t.value}
-              name="type"
-              value={t.value}
-              label={t.label}
-              count={counts.types[t.value] ?? 0}
-              defaultChecked={filters.types.includes(t.value)}
-            />
-          ))}
+          <Chips>
+            {TYPES.map((t) => (
+              <Chip
+                key={t.value}
+                name="type"
+                value={t.value}
+                label={t.label}
+                count={counts.types[t.value] ?? 0}
+                defaultChecked={filters.types.includes(t.value)}
+              />
+            ))}
+          </Chips>
         </Group>
 
         <Group legend="Sport">
-          {SPORTS.map((s) => (
-            <Option
-              key={s}
-              name="sport"
-              value={s}
-              label={s}
-              count={counts.sports[s] ?? 0}
-              defaultChecked={filters.sports.includes(s)}
-            />
-          ))}
+          <Chips>
+            {SPORTS.map((s) => (
+              <Chip
+                key={s}
+                name="sport"
+                value={s}
+                label={s}
+                count={counts.sports[s] ?? 0}
+                defaultChecked={filters.sports.includes(s)}
+              />
+            ))}
+          </Chips>
         </Group>
 
         {/* CONDITION — the mobile sheet has had this picker since 0018 and the
@@ -431,16 +500,7 @@ export function BoardRail({
             here. Rendering countless rows is the honest interim state; a
             hardcoded 0 would dim options that may well have matches. */}
         <Group legend="Condition">
-          {CONDITIONS.map((c) => (
-            <Option
-              key={c.value || "any"}
-              type="radio"
-              name="condition"
-              value={c.value}
-              label={c.label}
-              defaultChecked={condition === c.value}
-            />
-          ))}
+          <Segmented name="condition" options={CONDITIONS} value={condition} />
         </Group>
 
         <Group legend="Buyer's max">
@@ -501,20 +561,22 @@ export function BoardRail({
         </Group>
 
         <Group legend="Closing">
-          <Option
-            name="closing"
-            value="1"
-            label="Under 24 hours"
-            count={counts.closing}
-            defaultChecked={filters.closing}
-          />
-          <Option
-            name="nooffers"
-            value="1"
-            label="No offers yet"
-            count={counts.noOffers}
-            defaultChecked={filters.noOffers}
-          />
+          <Chips>
+            <Chip
+              name="closing"
+              value="1"
+              label="Under 24 hours"
+              count={counts.closing}
+              defaultChecked={filters.closing}
+            />
+            <Chip
+              name="nooffers"
+              value="1"
+              label="No offers yet"
+              count={counts.noOffers}
+              defaultChecked={filters.noOffers}
+            />
+          </Chips>
         </Group>
 
         {/* Present for keyboard and no-JS users; the onChange handler makes it

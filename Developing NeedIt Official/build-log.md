@@ -143,6 +143,30 @@ Numbering is clean and sequential 0002–0017. *(The payments session's note cla
 
 Reverse chronological. Most recent first.
 
+### Aug 10 (late) — the panel finally speaks the app's language
+
+Kyle, on the restyled panel: *"Not a fan of it… like the post a need space."* The problem wasn't polish, it was **vocabulary**, and it was measurable:
+
+| | `/post` + the phone sheet | The desktop filter panel |
+|---|---|---|
+| Choices | chips (`components/ui/chip-group`) | 44px checkbox rows |
+| Selected | primary border + tint | a checked box |
+| Counts | — | a number dangling off the right edge |
+
+Every choice control in the app is a chip. The mobile sheet was converted on **Aug 8**; the desktop panel was never brought forward — so it was the last surface still speaking the old language. Same drift that bit the sheet, pointing the other way. Worth noting that the Aug 8 entry congratulated itself on ending exactly this class of divergence.
+
+**Chips also fixed the space complaint structurally.** Seven sports as checkbox rows is seven rows tall; as wrapping chips it's three. That's where most of the panel's 711px went — it stopped being a thin ribbon and became a card.
+
+**Shipped:** chips for What kind / Sport / Closing with the count set *inside* the chip in mono; `Segmented` for Condition, mirroring `/post`; budget as two bordered inputs. `chipBase` is now **exported from `chip-group.tsx`** and imported here, so the two surfaces share the actual string rather than a copy — the panel can't drift again without the shared style moving too. It can't use `ChipCheckboxGroup` itself: those are controlled, and this is an uncontrolled auto-submitting `<form>`, which is what keeps `searchParams` authoritative and the filters working without JS.
+
+**`cn()` not template interpolation** for the zero-count dim. `chipBase` sets `text-foreground`; Tailwind resolves conflicts by stylesheet order, not string order, so appending `text-faint` would silently lose. `twMerge` drops the loser.
+
+**Geometry, settled against a mockup rather than by guessing.** 352px wide at `left: max(0.75rem, calc(25vw - 454px))` — centred in the gutter, 26px either side at 1920. 352 is the widest that still clears the board entirely at 1920; past it the panel covers the board even on a wide monitor, which defeats using the free space.
+
+**Process note — the thing that actually broke the cycle.** Three styling attempts shipped blind and all three missed. The fourth was built as a standalone mockup (`design-mockups/exprifi-filter-panel-chips.html`) at the real 3a tokens, and Kyle converged in three passes — wider, nudge right, bit taller — with **zero app code touched** until he said yes. This is the same pattern the Jul 2 plan prescribed for the brand directions and it worked for the same reason: a picture is cheap to reject.
+
+**Verification.** `tsc` clean, `eslint` clean, Tailwind output recompiled — `left`/`width` emit as intended, chip `peer-checked` states present, `py-[22px]` generated. `next build` still can't run here. Live check at 1920/1440 pending deploy.
+
 ### Aug 10 — the filters stopped being part of the board's layout
 
 Third attempt at the same problem, and the first one that fixes the *category* of bug rather than an instance of it.

@@ -270,9 +270,23 @@
 .board-filter-panel {
   position: fixed;
   z-index: 30;
-  /* 576 (half the max-w-6xl container) + 300 (panel) + 12 (gap) = 888. */
-  left: max(0.75rem, calc(50vw - 888px));
-  width: 300px;
+  /* CENTRED IN THE GUTTER — not pushed against the board, not against the
+     screen edge. The gutter runs from the viewport edge to the board's left
+     edge:
+
+       board's left edge  = 50vw − 576 (half max-w-6xl) + 20 (its px-5)
+                          = 50vw − 556
+       centred panel left = (gutter − 352) / 2
+                          = (50vw − 556 − 352) / 2
+                          = 25vw − 454
+
+     At 1920 that is x=26 with 26px either side. 352 is the widest the panel can
+     be while still clearing the board entirely on a 1920 screen — past that it
+     covers the board even on a wide monitor, which defeats using the free space
+     at all. The max() takes over where the gutter is narrower than the panel,
+     parking it at 12px so it floats over the board's left edge instead. */
+  left: max(0.75rem, calc(25vw - 454px));
+  width: 352px;
   top: calc(var(--site-header-h) + var(--board-header-h, var(--board-header-condensed-h)) + 0.5rem);
   max-height: calc(
     100vh - var(--site-header-h) -

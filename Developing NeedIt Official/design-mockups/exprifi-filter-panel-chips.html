@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Exprifi — Advanced search panel, chip language (mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  /* 3a LOCKED TOKENS — copied from app/globals.css, not invented. */
+  :root{
+    --background:0 0% 98%; --foreground:210 21% 5%;
+    --card:0 0% 100%; --primary:157 100% 33%; --primary-foreground:0 0% 100%;
+    --muted:200 7% 94%; --muted-foreground:210 4% 45%;
+    --border:220 6% 91%; --input:220 6% 91%; --ring:157 100% 33%;
+    --faint-foreground:216 5% 63%;
+    --board:225 11% 7%; --board-card:223 14% 10%; --board-hairline:223 11% 12%;
+    --board-border:223 9% 15%; --board-foreground:220 13% 95%;
+    --board-muted:215 5% 56%; --board-faint:214 6% 52%;
+    --radius:2px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:hsl(var(--background)); color:hsl(var(--foreground));
+    font-family:"Instrument Sans",system-ui,sans-serif; -webkit-font-smoothing:antialiased;
+  }
+  .num{font-family:"Spline Sans Mono",ui-monospace,monospace}
+  .microlabel{
+    font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em;
+  }
+
+  /* ---- page scaffold: enough of the board to judge the panel against ---- */
+  .masthead{
+    height:58px; border-bottom:1px solid hsl(var(--border)); background:hsl(var(--card));
+    display:flex; align-items:center; justify-content:center; gap:28px; font-size:14px;
+  }
+  .wrap{max-width:1152px; margin:0 auto; padding:16px 20px;}
+  .boardheader{
+    display:flex; align-items:center; gap:10px; padding:12px 0 14px;
+    border-bottom:1px solid hsl(var(--border)); margin-bottom:14px;
+  }
+  .search{
+    flex:1; height:40px; border:1px solid hsl(var(--input)); border-radius:var(--radius);
+    background:hsl(var(--card)); padding:0 14px; display:flex; align-items:center;
+    color:hsl(var(--muted-foreground)); font-size:14px;
+  }
+  .btn{
+    height:40px; display:inline-flex; align-items:center; gap:8px; padding:0 12px;
+    border:1px solid hsl(var(--border)); border-radius:var(--radius);
+    background:hsl(var(--card)); font-size:14px; font-weight:600; cursor:pointer;
+  }
+  .btn[aria-expanded="true"]{border-color:hsl(var(--foreground));}
+  .board{
+    background:hsl(var(--board)); border:1px solid hsl(var(--board-border));
+    border-radius:var(--radius); min-height:520px;
+    clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+  }
+  .board-bar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 16px; border-bottom:1px solid hsl(var(--board-hairline));
+    color:hsl(var(--board-foreground));
+  }
+  .board-empty{color:hsl(var(--board-muted)); padding:80px 16px; text-align:center; font-size:14px;}
+
+  /* ================= THE PANEL ================= */
+  .panel{
+    position:fixed; z-index:30; width:352px;
+    /* CENTRED IN THE GUTTER, not pushed against the board.
+       The gutter runs from the screen edge to the board's left edge:
+         board's left edge = 50vw − 576 (half the container) + 20 (its px-5)
+                           = 50vw − 556
+         centred panel left = (gutter − 352) / 2
+                            = (50vw − 556 − 352) / 2
+                            = 25vw − 454
+       At 1920 that is x=26 with 26px either side. The max() keeps it on screen
+       at widths where the gutter is narrower than the panel, where it floats
+       over the board's left edge instead. */
+    left:max(.75rem, calc(25vw - 454px));
+    top:150px;
+    max-height:calc(100vh - 170px);
+    filter:drop-shadow(0 14px 24px rgb(0 0 0 / .2));
+  }
+  .panel-card{
+    display:flex; flex-direction:column; max-height:100%; overflow:hidden;
+    background:hsl(var(--background));
+    border:1px solid hsl(var(--border)); border-radius:var(--radius);
+    clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+  }
+  .panel-head{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:12px 16px; border-bottom:1px solid hsl(var(--border)); flex:none;
+  }
+  .panel-body{flex:1; min-height:0; overflow-y:auto; padding:4px 16px 8px;}
+  .panel-foot{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:12px 16px; border-top:1px solid hsl(var(--border)); font-size:14px; flex:none;
+  }
+  /* The extra vertical room lives in the groups rather than in one big pad at
+     the bottom, so the panel gets longer by breathing rather than by growing a
+     dead margin under the last control. */
+  fieldset{border:0; margin:0; padding:22px 0; border-top:1px solid hsl(var(--border));}
+  fieldset:first-of-type{border-top:0;}
+  legend{
+    padding:0; margin-bottom:12px; font-size:12px; font-weight:500;
+    text-transform:uppercase; letter-spacing:.06em; color:hsl(var(--muted-foreground));
+  }
+  .chips{display:flex; flex-wrap:wrap; gap:8px;}
+
+  /* chipBase, lifted from components/ui/chip-group.tsx */
+  .chip{
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    min-height:44px; padding:0 14px; cursor:pointer; user-select:none;
+    border:1px solid hsl(var(--input)); border-radius:var(--radius);
+    background:hsl(var(--card)); font-size:14px; color:hsl(var(--foreground));
+    transition:background-color 150ms ease, border-color 150ms ease;
+  }
+  .chip:hover{border-color:hsl(var(--foreground));}
+  .chip .c{font-size:12px; color:hsl(var(--faint-foreground));}
+  .chip.on{
+    border-color:hsl(var(--primary)); background:hsl(var(--primary)/.10);
+    color:hsl(var(--primary)); font-weight:500;
+  }
+  .chip.zero{color:hsl(var(--faint-foreground)); }
+  .chip.zero .c{color:hsl(var(--faint-foreground));}
+
+  /* segmented, for the single-choice group — mirrors /post's CONDITION */
+  .seg{display:flex; border:1px solid hsl(var(--input)); border-radius:var(--radius); overflow:hidden;}
+  .seg > div{
+    flex:1; min-height:44px; display:flex; align-items:center; justify-content:center;
+    font-size:14px; cursor:pointer; transition:background-color 150ms ease;
+  }
+  .seg > div + div{border-left:1px solid hsl(var(--input));}
+  .seg > div.on{background:hsl(var(--primary)); color:hsl(var(--primary-foreground)); font-weight:500;}
+
+  .money{display:flex; align-items:center; gap:8px;}
+  .money input{
+    flex:1; width:100%; min-height:44px; padding:0 12px; font-size:15px;
+    border:1px solid hsl(var(--input)); border-radius:var(--radius);
+    background:hsl(var(--card)); font-family:"Spline Sans Mono",monospace;
+  }
+  .link{color:hsl(var(--muted-foreground)); text-decoration:underline; text-underline-offset:2px; cursor:pointer;}
+  .x{
+    border:0; background:none; cursor:pointer; color:hsl(var(--muted-foreground));
+    width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center;
+  }
+  .note{font-size:12px; color:hsl(var(--muted-foreground)); margin:10px 0 0;}
+</style>
+</head>
+<body>
+
+<div class="masthead"><strong>exprifi</strong> <span>Board</span> <span>How it works</span> <span>Help</span></div>
+
+<div class="wrap">
+  <div class="boardheader">
+    <div class="search">Search by player, set or team</div>
+    <button class="btn" aria-expanded="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h6"/></svg>
+      Advanced search
+    </button>
+  </div>
+
+  <div class="board">
+    <div class="board-bar"><span class="microlabel">Live board</span><span class="num" style="font-size:12px">0 open</span></div>
+    <div class="board-empty">The board is open. Nothing on it yet.</div>
+  </div>
+</div>
+
+<!-- ================= PANEL ================= -->
+<div class="panel">
+  <div class="panel-card">
+    <div class="panel-head">
+      <span class="microlabel">Advanced search</span>
+      <button class="x" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="panel-body">
+      <fieldset>
+        <legend>What kind</legend>
+        <div class="chips">
+          <span class="chip zero">Bulk lots <span class="c num">0</span></span>
+          <span class="chip zero">Single cards <span class="c num">0</span></span>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Sport</legend>
+        <div class="chips">
+          <span class="chip on">Basketball <span class="c num">0</span></span>
+          <span class="chip zero">Football <span class="c num">0</span></span>
+          <span class="chip zero">Baseball <span class="c num">0</span></span>
+          <span class="chip zero">Hockey <span class="c num">0</span></span>
+          <span class="chip zero">Soccer <span class="c num">0</span></span>
+          <span class="chip zero">Pokémon <span class="c num">0</span></span>
+          <span class="chip zero">Other <span class="c num">0</span></span>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Condition</legend>
+        <div class="seg">
+          <div class="on">Any</div><div>Raw only</div><div>Graded</div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Buyer's max</legend>
+        <div class="money">
+          <input placeholder="$0" /><span style="color:hsl(var(--faint-foreground))">–</span><input placeholder="Any" />
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Closing</legend>
+        <div class="chips">
+          <span class="chip zero">Under 24 hours <span class="c num">0</span></span>
+          <span class="chip zero">No offers yet <span class="c num">0</span></span>
+        </div>
+      </fieldset>
+    </div>
+
+    <div class="panel-foot">
+      <span class="num" style="font-weight:600">0 needs</span>
+      <span class="link">Reset all</span>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

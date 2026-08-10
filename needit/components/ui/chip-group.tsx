@@ -45,7 +45,11 @@ type CommonProps = {
   className?: string;
 };
 
-const chipBase =
+/** Exported so the board's Advanced-search panel renders the SAME chip as
+ *  /post rather than a lookalike. That panel can't use the components below —
+ *  they're controlled, and it is an uncontrolled auto-submitting <form> — but
+ *  it must not fork the styling. One string, both surfaces. */
+export const chipBase =
   "inline-flex min-h-11 cursor-pointer select-none items-center justify-center gap-1.5 rounded-sm border border-input bg-card px-3.5 text-sm text-foreground transition-[background-color,border-color] duration-150 hover:border-foreground peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:font-medium peer-checked:text-primary peer-disabled:cursor-not-allowed peer-disabled:opacity-45";
 
 /** Visually hidden but still focusable and still in the tab order. Never
