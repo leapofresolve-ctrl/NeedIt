@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, SlidersHorizontal } from "lucide-react";
 
 import {
   SPORTS,
@@ -205,7 +205,7 @@ export function BoardRail({
       (filters.closing ? 1 : 0) +
       (filters.noOffers ? 1 : 0);
     return (
-      <div className="board-rail hidden lg:block">
+      <div className="board-rail hidden rail:block">
         <button
           type="button"
           onClick={toggleCollapsed}
@@ -231,7 +231,7 @@ export function BoardRail({
       : "";
 
   return (
-    <aside className="board-rail hidden w-[264px] shrink-0 lg:block">
+    <aside className="board-rail hidden w-[264px] shrink-0 rail:block">
       <form
         ref={formRef}
         method="get"
@@ -253,6 +253,27 @@ export function BoardRail({
             submit or the rail deletes itself the first time you use it while
             the board is under RAIL_MIN_NEEDS. */}
         {railOverride && <input type="hidden" name="rail" value="1" />}
+
+        {/* WHAT THIS COLUMN IS. Without a title the rail is an unlabelled
+            stack of checkboxes in the margin — Kyle looked straight at it and
+            asked where the advanced search had gone (Aug 9).
+
+            It is a heading, NOT a button. §2.5a rejects reveal-on-click on
+            desktop: hidden filters are unused filters, and the two options
+            that decide whether a seller finds a winnable deal — closing under
+            24 hours, no offers yet — are exactly the ones nobody goes looking
+            for behind a control. The affordance this adds is a name, not a
+            gate. `SlidersHorizontal` is the same icon the Refine button uses,
+            so the two presentations of this one component read as the same
+            feature at different widths rather than two unrelated things. */}
+        {/* No border-b here on purpose. `Group` is `border-t … first:border-t-0`,
+            and inserting this div means the first fieldset is no longer
+            :first-child — so it takes its top border back and draws the divider
+            under this title for us. A border-b as well would double it. */}
+        <div className="flex items-center gap-2 pb-4">
+          <SlidersHorizontal className="size-4 text-muted-foreground" aria-hidden />
+          <h2 className="microlabel text-[11px] font-bold">Advanced search</h2>
+        </div>
 
         <Group legend="What kind">
           {TYPES.map((t) => (

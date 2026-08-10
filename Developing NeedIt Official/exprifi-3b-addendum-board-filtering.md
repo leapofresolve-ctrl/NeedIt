@@ -195,7 +195,19 @@ All four are mocked in `design-mockups/exprifi-3b-rail-mockups.html`. Recorded h
 
 ### 2.5a Rail visibility — permanent, with two exceptions
 
-**The rail is always visible at ≥1024px.** "Refine" is the mobile presentation of the component, never a desktop control. Reveal-on-click was considered and rejected:
+> **Amended Aug 9, 2026 — the dock breakpoint moved from 1024px to 1736px.**
+>
+> As shipped, the rail docked at `lg` as a column *inside* the board's flex row, which meant its 264px came out of the board. Measured on the live site at 1920: the board column was **826px** while **384px of page gutter sat empty on each side**. The rail was shrinking the main object on the page rather than using space that was already free — and Kyle read the result as the board having been made small, which it had.
+>
+> The rail now sits in the gutter: the flex row extends left by 292px (rail + gap) above the new breakpoint, so the board column keeps its full **1112px** and its left edge does not move. The rail costs the board nothing.
+>
+> The breakpoint follows from arithmetic, not taste. The container is centered, so taking 292px on the left without pushing the board off-centre requires 292px spare on the right too: `1152 + (292 × 2) = 1736`.
+>
+> **What this costs, stated plainly.** Common laptop widths — 1440, 1512 — fall below 1736 and now get the Refine sheet instead of a docked rail. That band previously had the rail. This is the direct price of the rule Kyle set on Aug 9: *the board never shrinks*. Lowering the number does not create room; it narrows the board again. The §2.5a argument below (hidden filters are unused filters) still governs **wherever the rail docks**, and the sheet was brought to full parity with the rail on Aug 8, so nothing is unreachable at any width.
+>
+> **Also added:** the docked rail now carries a visible "Advanced search" heading with the same `SlidersHorizontal` icon the Refine button uses. It is a **label, not a control** — §2.5a's rejection of reveal-on-click is unchanged. It exists because an unlabelled stack of checkboxes in the margin is not self-describing: Kyle looked directly at it and asked where the advanced search had gone.
+
+**The rail is always visible at ≥1736px** (as amended above; originally 1024px). "Refine" is the mobile presentation of the component, never a desktop control. Reveal-on-click was considered and rejected:
 
 - **Hidden filters are unused filters.** The two most valuable options — *closing under 24 hours* and *no offers yet* — are how a seller finds a winnable deal rather than one with six offers on it. Nobody discovers those behind a button they have no reason to press.
 - **The counts are content.** "Basketball · 11" is demand data and, once seeded, the best at-a-glance proof the board is alive. Behind a click it does nothing.

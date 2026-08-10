@@ -58,6 +58,48 @@ export const DEFAULT_SORT = "newest";
  */
 export const RAIL_MIN_NEEDS = 15;
 
+/**
+ * Viewport width (CSS px) at which the rail docks in the page's left gutter.
+ *
+ * WHY 1736 AND NOT 1024
+ *
+ * The rail used to dock at `lg` (1024px) as a column INSIDE the board's flex
+ * row, which meant it took its 264px out of the board. Measured on the live
+ * site at 1920: the board column was 826px wide while 384px of page gutter sat
+ * empty on each side. The rail was shrinking the main object on the page to
+ * avoid using space that was already free.
+ *
+ * The fix is that the flex row now extends LEFT into the gutter (`rail:-ml-…`
+ * in app/page.tsx) so the rail lives outside the board's width entirely. The
+ * board column's left edge does not move and its width does not change.
+ *
+ * That only works where the gutter is actually wide enough:
+ *
+ *   container (max-w-6xl)          1152
+ *   − horizontal padding (px-5 ×2)  −40
+ *   = board column                 1112   ← inviolable, must not shrink
+ *
+ *   rail width                      264
+ *   + flex gap (gap-7)               28
+ *   = gutter needed on the left     292
+ *
+ *   viewport needed = 1152 + (292 × 2) = 1736
+ *
+ * The ×2 is because the container is centered: to take 292px on the left
+ * without pushing the board off-center, there must be 292px spare on the
+ * right too.
+ *
+ * TRADE-OFF, EYES OPEN. 3b addendum §2.5a locked the rail as always-visible at
+ * ≥1024px. This raises that to 1736px, so common laptop widths (1440, 1512)
+ * now get the Refine sheet rather than a docked rail. That is the direct cost
+ * of "the board never shrinks", which was Kyle's call on Aug 9. Lowering this
+ * number does not make more room appear — it makes the board narrower again.
+ *
+ * Must stay in sync with the `rail` screen in tailwind.config.ts and the
+ * `.board-rail` media query in app/globals.css. Nothing enforces that.
+ */
+export const RAIL_DOCK_MIN_PX = 1736;
+
 /** A need closing within this many hours counts as "closing soon". Matches the
  *  amber urgency treatment on the row itself. */
 export const CLOSING_SOON_HOURS = 24;

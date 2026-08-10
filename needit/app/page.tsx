@@ -344,8 +344,9 @@ export default async function Home({
 
             Two filter surfaces, one rule (lib/board-filters.ts): search is
             dumb (text only), the rail is smart (everything structured), and
-            they compose with AND. Below lg the rail can't dock, so "Refine"
-            reappears here — it is the mobile presentation of the rail, not a
+            they compose with AND. Below the `rail` screen (1736px) the rail
+            can't dock without eating the board's width, so "Refine" reappears
+            here — it is the narrow-viewport presentation of the rail, not a
             desktop control.
 
             It pins beneath the masthead now, not on top of it. Both were
@@ -357,7 +358,7 @@ export default async function Home({
             {/* The condensed header's stand-in for the chip row (§2.3a). CSS
                 swaps the two on `data-condensed`, so both are always in the
                 DOM and neither depends on JS to render its content — only on
-                which one is shown. Deliberately not a link: at ≥lg the rail is
+                which one is shown. Deliberately not a link: at ≥1736px the rail is
                 stuck open two inches to the left with per-option state and its
                 own "Reset all", so this is a readout, not a control, and
                 nothing is reachable only from here. */}
@@ -376,12 +377,19 @@ export default async function Home({
                 the moment a phone user tapped "Show results". The arrays go
                 through whole now, and `sort` goes through as its real value
                 rather than being nulled at the default, because the sheet
-                owns the sort control below 1024px.
+                owns the sort control below the rail's dock width.
 
-                The two surfaces are exact complements: sheet under 1024px
-                (where sort had no control at all below 640px), inline sort at
-                and above it. Never both, never neither. */}
-            <div className="lg:hidden">
+                The two surfaces are exact complements: sheet below the `rail`
+                screen (1736px), inline sort at and above it. Never both, never
+                neither — that invariant is why these two wrappers must always
+                be edited as a pair.
+
+                Aug 9: both moved from `lg` (1024) to `rail` (1736) when the
+                rail moved into the page gutter. The band from 1024–1735 now
+                gets the sheet, because at those widths the rail can only exist
+                by taking width from the board, and the board doesn't give any
+                back. See RAIL_DOCK_MIN_PX in lib/board-filters.ts. */}
+            <div className="rail:hidden">
               <RefinePanel
                 values={{
                   q: filters.q,
@@ -397,7 +405,7 @@ export default async function Home({
                 activeCount={activeCount}
               />
             </div>
-            <div className="hidden lg:block">
+            <div className="hidden rail:block">
               <SortSelect filters={filters} />
             </div>
           </div>
@@ -432,7 +440,19 @@ export default async function Home({
           )}
         </BoardLockedHeader>
 
-        <div className="flex items-start gap-7">
+        {/* THE ROW EXTENDS LEFT INTO THE GUTTER, THE BOARD DOES NOT MOVE.
+            `rail:-ml-[292px]` (264px rail + 28px gap) pulls this row's left
+            edge out past the container into margin that was already empty. The
+            board column below is `flex-1`, so it ends up occupying exactly the
+            container width it had when no rail was present — 1112px — with its
+            left edge unmoved. The rail costs the board nothing.
+
+            The negative margin is on THIS ROW ONLY. Putting it on the
+            container would drag the locked header (which bleeds to the
+            container edges via `-mx-5`) left along with it, sliding the search
+            field into the gutter. See RAIL_DOCK_MIN_PX in lib/board-filters.ts
+            for why the breakpoint is 1736 and what it costs. */}
+        <div className="flex items-start gap-7 rail:-ml-[292px]">
           {showRail && (
             <BoardRail
               filters={filters}

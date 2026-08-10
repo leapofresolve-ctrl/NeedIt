@@ -227,13 +227,18 @@
 /* THE DOCKED RAIL (§2.5a, §3).
    Sticks below the condensed header and scrolls independently when it outgrows
    the viewport — the rail scrolling away with the board is the exact complaint
-   §2.5a exists to prevent. Only at ≥lg, because below that the rail isn't
-   rendered at all.
+   §2.5a exists to prevent. Only at ≥1736px (the `rail` screen), because below
+   that the rail isn't rendered at all and the Refine sheet carries the filters.
+
+   1736 MUST MATCH the `rail` screen in tailwind.config.ts and RAIL_DOCK_MIN_PX
+   in lib/board-filters.ts, which holds the arithmetic. A mismatch here doesn't
+   error — it just means the rail renders without sticking, which reads as the
+   rail scrolling away for no reason.
 
    The inline padding/negative-margin pair is not decoration: `overflow-y` also
    makes the x axis a scroll container, which would clip the 2px focus-ring
    offset on the full-width budget inputs. */
-@media (min-width: 1024px) {
+@media (min-width: 1736px) {
   .board-rail {
     position: sticky;
     top: calc(var(--site-header-h) + var(--board-header-h, var(--board-header-condensed-h)));

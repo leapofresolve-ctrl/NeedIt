@@ -16,7 +16,7 @@ _MVP = **Lane 2**, the open request board. Buyers post what they want; sellers b
 | **Launch target** | **Sep 26, 2026** |
 | **Live at** | https://exprifi.com (apex + www, Vercel project `need-it`) |
 | **Board** | **0 live needs** — seeding sprint (Aug 25 – Sep 14) is the gate that decides the date |
-| **Last updated** | Aug 8, 2026 (late) |
+| **Last updated** | Aug 9, 2026 |
 
 **What works today, verified:** public browsing logged-out · post a need (**right-gutter panel over the board at ≥1024px**, full page on direct load) · structured offers + counters (cap 10) · accept/decline with atomic match · in-app notifications + live bell · **notification email** · demand alerts · username-or-email sign-in · **password reset** · **fresh signup → onboarding → username** · admin `/metrics` · `/api/health`.
 
@@ -143,6 +143,44 @@ Numbering is clean and sequential 0002–0017. *(The payments session's note cla
 
 Reverse chronological. Most recent first.
 
+### Aug 9 (late) — the rail moved into the gutter; the board stopped paying for it
+
+Kyle, on seeing the rail for the first time: *"i dont like how small the board is now… keep the board the size it is and use the free space we have next to it."* He was right, and the numbers were worse than they looked.
+
+**The defect.** The rail docked at `lg` as a column **inside** the board's flex row, so its 264px came straight out of the board. Measured at 1920 on the live site: board column **826px**, with **384px of page gutter empty on each side**. The rail was shrinking the most important object on the page to avoid using space that was already free.
+
+**The fix.** The flex row now extends left into the gutter (`rail:-ml-[292px]` = 264px rail + 28px gap) above a new breakpoint. The board column is `flex-1`, so it lands on exactly the width it had with no rail present — **1112px**, left edge unmoved. Verified by generating the CSS and reading it: `.rail\:-ml-\[292px\]{margin-left:-292px}` inside `@media (min-width: 1736px)`.
+
+**Why 1736 and not 1024.** The container is centered, so taking 292px on the left without pushing the board off-centre needs 292px spare on the right too: `1152 + (292 × 2) = 1736`. This is arithmetic, not preference.
+
+**What it costs — the honest part.** 1440 and 1512 (the common MacBook widths) now fall below the dock threshold and get the Refine sheet instead of a rail. §2.5a had locked the rail as always-visible at ≥1024px, so this is a real amendment to a written spec, recorded there with the same reasoning. It's the direct price of "the board never shrinks." Nothing is unreachable — the sheet reached full rail parity on Aug 8, which is the only reason this trade was available at all.
+
+**"Advanced search" label added.** The rail now has a heading with the same `SlidersHorizontal` icon the Refine button uses, so its two presentations read as one feature. Deliberately a **label, not a button** — §2.5a's rejection of reveal-on-click stands. It exists because Kyle looked straight at the rail and asked where the advanced search was: an unlabelled column of checkboxes in the margin doesn't announce what it is.
+
+**One number, three files, nothing enforcing agreement.** 1736 lives in `tailwind.config.ts` (the `rail` screen), `lib/board-filters.ts` (`RAIL_DOCK_MIN_PX`, holding the arithmetic), and the `.board-rail` media query in `globals.css`. A mismatch doesn't error — the rail would render without sticking, which reads as it scrolling away for no reason. Cross-referenced in all three comments.
+
+**Verification.** `tsc --noEmit` clean, `eslint app lib components` clean. `next build` **could not be run in this environment** — the sandbox can't write into the mounted `.next` (EPERM on unlink), and a symlinked `node_modules` panics Turbopack. Compensating check: compiled the Tailwind output directly and confirmed all three new utilities (`rail:-ml-[292px]`, `rail:block`, `rail:hidden`) generate under `@media (min-width: 1736px)` — an unrecognised variant would have silently produced nothing, which was the one real build risk. Also confirmed Tailwind's `container` utility is unused in the app, so adding a screen can't move any other layout.
+
+**Not verified:** live rendering at 1440 and 1920 after deploy. Do that first.
+
+### Aug 9 — the rail wasn't missing, the fix for it was unpushed; 0019 verified live
+
+Kyle: *"what happened to the search we built that could pop up on the left side of the board?"* Nothing. Three things had quietly stacked up, none of them a code defect.
+
+**1. The `?rail=1` override existed only on Kyle's machine.** The rail doesn't render below `RAIL_MIN_NEEDS = 15` and the board is at 0, which is correct and specced (§2.5a). The escape hatch for exactly that situation — `?rail=1`, which forces the rail on and shows real zero counts, dimmed — shipped in commit `9c58c01`, which was **never pushed**. `origin/main` sat at `6e88802` with zero references to `railOverride`. So production had a rail nobody could see and no documented way to see it. Pushed; Vercel redeployed.
+
+**2. `0019_requests_search_index.sql` is applied.** The Aug 8 entry flagged it as committed-but-unconfirmed. Verified in the SQL editor: `pg_trgm` present, `requests_title_trgm_idx` and `requests_description_trgm_idx` both present. The ⚠️ Unlogged note below is now resolved.
+
+**3. The 0002/0015 collision check passes.** `pg_policies` on `requests` returns exactly three rows — `insert own request` (INSERT), `requests readable` (SELECT), `update own request` (UPDATE). One SELECT policy, so public browsing is intact.
+
+**Gotcha worth keeping:** the Supabase SQL editor returns only the **last** statement's result set. 0019's verify block has two selects, so running the file whole shows the policy check and silently swallows the extension/index check. Run verification selects one at a time, or the half you actually needed is the half you don't see.
+
+**The standing lesson held again.** "The search is gone" was unpushed work, for the second time in as many weeks. Before touching code on any "it doesn't work" report: `git log --oneline @{u}..` first. See [[exprifi-verify-before-debugging]] and standing lesson 17.
+
+**Also worth saying plainly:** search and the rail are two different surfaces and the question conflated them. Search is free text in the **sticky header** (title + description, no parsing). The rail is structured filters in the **left gutter** at ≥1024px, a bottom sheet below. §2.3a divides them; only the rail is threshold-gated.
+
+**Not done, deliberately.** Did not drop `RAIL_MIN_NEEDS` to 0. The override gets the same look without changing what a real visitor sees, and a rail of zeros over an empty board is the precise thing the threshold exists to prevent.
+
 ### Aug 8 (late) — Post a need renders as a right-gutter panel
 
 Presentation only, and classified as such up front: it makes posting feel lighter *once someone has decided to post*; it does not make more people decide. Built because nothing ahead of it on the list would put needs on the board either.
@@ -192,7 +230,7 @@ Three gaps closed on the board's second filter surface. All three only existed *
 
 **Still open:** five native `<select>` remain **off** the board — `settings-panels.tsx` (2), `create-alert-form.tsx` (2), `app/u/[username]/page.tsx` (1). §2.2's goal is met; a repo-wide grep is not yet empty.
 
-**⚠️ Unlogged.** Commit `181a8c6` (locked search header, post-a-need chip form, free-tier alert limits, migration `0019_requests_search_index.sql`) landed the same day from a parallel session and **has no entry in this log**. `0019` was committed alongside a UI change and its state was never confirmed here. Worth a look before anyone assumes it's applied.
+**⚠️ Unlogged — resolved Aug 9.** Commit `181a8c6` (locked search header, post-a-need chip form, free-tier alert limits, migration `0019_requests_search_index.sql`) landed the same day from a parallel session and **has no entry in this log**. `0019` was committed alongside a UI change and its state was never confirmed here. **Confirmed applied Aug 9** — see the Aug 9 entry.
 
 ### Aug 1 (late) — board rail + locked header, and a near-miss on free-vs-paid
 

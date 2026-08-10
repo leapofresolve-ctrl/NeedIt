@@ -10,6 +10,19 @@ export default {
   ],
   theme: {
     extend: {
+      screens: {
+        /* THE RAIL DOCK BREAKPOINT — see RAIL_DOCK_MIN_PX in lib/board-filters.ts
+           for the arithmetic. Short version: the board column is 1112px and is
+           not allowed to shrink, the rail plus its gap is 292px, so both fit
+           side by side only from 1736px up. Below this the rail does not dock
+           and the Refine sheet carries the filters instead.
+
+           A named screen rather than `min-[1736px]:` repeated in five places —
+           one number, one place to change it. If you change it here, change
+           RAIL_DOCK_MIN_PX and the .board-rail media query in globals.css to
+           match; nothing enforces that they agree. */
+        rail: "1736px",
+      },
       colors: {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
