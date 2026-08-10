@@ -452,7 +452,18 @@ export default async function Home({
             container edges via `-mx-5`) left along with it, sliding the search
             field into the gutter. See RAIL_DOCK_MIN_PX in lib/board-filters.ts
             for why the breakpoint is 1736 and what it costs. */}
-        <div className="flex items-start gap-7 rail:-ml-[292px]">
+        {/* ⚠️ THE MARGIN IS CONDITIONAL ON THE RAIL ACTUALLY RENDERING.
+            Shipped Aug 9 unconditional, which was wrong: `showRail` is false
+            whenever the board is under RAIL_MIN_NEEDS, so on the real
+            production URL (0 needs, no ?rail=1) there was no rail to occupy
+            the 292px — the board simply slid 292px left and grew to 1444px.
+            Verified at 1920 on ?rail=1 only, never on plain `/`, which is the
+            URL every visitor loads. Don't re-couple these. */}
+        <div
+          className={`flex items-start gap-7 ${
+            showRail ? "rail:-ml-[292px]" : ""
+          }`}
+        >
           {showRail && (
             <BoardRail
               filters={filters}
