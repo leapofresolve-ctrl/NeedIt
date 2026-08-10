@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PanelLeftClose, SlidersHorizontal } from "lucide-react";
@@ -165,6 +166,9 @@ export function BoardRail({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
+  // Portal target only exists on the client. Rendering the panel before mount
+  // would mean calling createPortal with no document.
+  const [mounted, setMounted] = useState(false);
   // True from the change event until the debounced apply actually fires. See
   // the header note: without it the panel looks dead for the debounce window.
   const [queued, setQueued] = useState(false);
@@ -181,6 +185,7 @@ export function BoardRail({
   // error rather than a wrong panel.
   useEffect(() => {
     setOpen(window.localStorage.getItem(OPEN_KEY) === "1");
+    setMounted(true);
   }, []);
 
   const setOpenPersisted = (next: boolean) => {
@@ -296,8 +301,19 @@ export function BoardRail({
           so it is out of flow and cannot move the board. No backdrop and no
           focus trap on purpose: this is a non-modal panel. The board behind it
           stays readable and stays live — that is the whole reason it floats
-          over the board's left edge instead of taking the screen. */}
-      {open && (
+          over the board's left edge instead of taking the screen.
+
+          ⚠️ PORTALLED TO <body> ON PURPOSE — DO NOT INLINE IT.
+          The trigger lives inside BoardLockedHeader, which uses `backdrop-blur`.
+          A `backdrop-filter` (like `transform`, `filter` and `will-change`)
+          makes an element a CONTAINING BLOCK for fixed-position descendants, so
+          rendering the panel in place silently anchored it to the header's box
+          instead of the viewport: measured live at 1920, `left` resolved to
+          484px — inside the board — rather than the intended 100px. `vw` units
+          stayed viewport-relative while the origin didn't, which is why the
+          number looked plausible and was wrong. The portal removes the
+          dependency on which ancestors happen to have filters on them. */}
+      {open && mounted && createPortal(
         <div
           ref={panelRef}
           id="board-filter-panel"
@@ -509,8 +525,9 @@ export function BoardRail({
           </Link>
         </div>
 
-      </form>
-        </div>
+          </form>
+        </div>,
+        document.body,
       )}
     </>
   );
