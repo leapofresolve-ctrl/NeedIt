@@ -195,7 +195,33 @@ All four are mocked in `design-mockups/exprifi-3b-rail-mockups.html`. Recorded h
 
 ### 2.5a Rail visibility — permanent, with two exceptions
 
-> **Amended Aug 9, 2026 — the dock breakpoint moved from 1024px to 1736px.**
+> **Superseded Aug 10, 2026 — the rail is gone. Filters are now a floating click-to-open panel.**
+>
+> The Aug 9 amendment below is kept as the record of why, but it no longer describes the build. It was the second of three attempts to give the filters a permanent column without shrinking the board, and all three failed the same way:
+>
+> | | What broke |
+> |---|---|
+> | **Aug 8** | Rail docked at `lg` inside the board's flex row → board fell from 1112px to **826px** at 1920 while 384px of gutter sat empty. |
+> | **Aug 9** | Row pulled left 292px to use the gutter → correct when the rail rendered, but on the production URL (0 needs, no `?rail=1`) there was no rail to fill it and the board slid **292px left and grew to 1444px**. |
+> | **Aug 9** | Fix for that was a conditional margin — i.e. more coupling between the two things that shouldn't be coupled. |
+>
+> **The cause was structural, not arithmetic.** Every version had the panel as a flex sibling of the board, so the board's width was always a function of the panel's. Each fix corrected one case of that function and got the next case wrong.
+>
+> **The resolution:** the panel is now `position: fixed` and out of the document flow. It has no width to subtract, no margin to coordinate, and no breakpoint to agree on. The board's geometry is now *incapable* of depending on the panel rather than being kept equal to it by care.
+>
+> **What §2.5a's argument got right, and where it stopped applying.** "Hidden filters are unused filters" assumed a rail people could see. The one that shipped was invisible below 15 open needs — so, always, on a board at 0 — and unlabelled when visible. Kyle looked directly at it and asked where the advanced search had gone. A named button beats an unfindable column. Reveal-on-click is therefore adopted, reversing §2.5a, on Kyle's call.
+>
+> **Current behavior:**
+>
+> - **Board never moves.** Same position and width at every viewport, panel open or closed, filters active or not.
+> - **≥1024px:** an "Advanced search" button in the locked header opens a floating panel. It prefers the empty left gutter and floats over the board's left edge when the gutter is too narrow (deliberate — watching the board update behind it beats never overlapping it).
+> - **<1024px:** the board is the whole screen; the button opens the existing full-screen Refine sheet.
+> - **Dismissal is explicit only:** outside click, Escape, or the X. Never on apply — the panel stays open while you keep filtering and the board updates live behind it.
+> - **`RAIL_MIN_NEEDS` no longer gates the panel** and `?rail=1` is retired. One button is not a column of zeros; gating it would recreate the exact "where did it go" failure.
+>
+> ---
+>
+> **Amended Aug 9, 2026 — the dock breakpoint moved from 1024px to 1736px.** *(superseded — see above)*
 >
 > As shipped, the rail docked at `lg` as a column *inside* the board's flex row, which meant its 264px came out of the board. Measured on the live site at 1920: the board column was **826px** while **384px of page gutter sat empty on each side**. The rail was shrinking the main object on the page rather than using space that was already free — and Kyle read the result as the board having been made small, which it had.
 >

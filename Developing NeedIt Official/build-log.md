@@ -16,7 +16,7 @@ _MVP = **Lane 2**, the open request board. Buyers post what they want; sellers b
 | **Launch target** | **Sep 26, 2026** |
 | **Live at** | https://exprifi.com (apex + www, Vercel project `need-it`) |
 | **Board** | **0 live needs** — seeding sprint (Aug 25 – Sep 14) is the gate that decides the date |
-| **Last updated** | Aug 9, 2026 |
+| **Last updated** | Aug 10, 2026 |
 
 **What works today, verified:** public browsing logged-out · post a need (**right-gutter panel over the board at ≥1024px**, full page on direct load) · structured offers + counters (cap 10) · accept/decline with atomic match · in-app notifications + live bell · **notification email** · demand alerts · username-or-email sign-in · **password reset** · **fresh signup → onboarding → username** · admin `/metrics` · `/api/health`.
 
@@ -142,6 +142,31 @@ Numbering is clean and sequential 0002–0017. *(The payments session's note cla
 ## Session history
 
 Reverse chronological. Most recent first.
+
+### Aug 10 — the filters stopped being part of the board's layout
+
+Third attempt at the same problem, and the first one that fixes the *category* of bug rather than an instance of it.
+
+**What Kyle saw.** The board sitting far left. Measured on the live site at 1920: board at `left: 112px`, width **1404px**, instead of 384/1112.
+
+**Cause — mine.** The Aug 9 change put `rail:-ml-[292px]` on the board's row unconditionally, but the rail only renders at ≥15 open needs or with `?rail=1`. The board is at 0. So on the production URL there was no rail to occupy that 292px and the board simply slid left and swallowed it. **I verified at 1920 on `?rail=1` and never on plain `/`** — the URL every visitor actually loads. Verifying the code path you just wrote instead of the one users take is how all three of these shipped.
+
+**The pattern, stated once.** Aug 8 the panel took width from the board. Aug 9 the compensation for that broke the uncompensated case. Aug 9 (late) the fix for *that* was a conditional class — more coupling. Every version had the panel as a flex sibling of the board, which makes the board's width a function of the panel's; each fix corrected one branch of that function and got the next one wrong. **Arithmetic cannot fix a structural problem.**
+
+**The fix.** The panel is `position: fixed`. It is out of the document flow, has no width in the layout, and shares no container with the board. The board's geometry is no longer *kept* independent of the panel — it is incapable of depending on it. `RAIL_DOCK_MIN_PX`, the `rail` screen, the negative margin and the conditional class are all gone, because none of them have anything left to do.
+
+**Behaviour, per Kyle (Aug 10).**
+
+- **≥1024px** — "Advanced search" button in the locked header opens a floating panel. It prefers the empty gutter (`left: max(0.75rem, calc(50vw - 860px))`) and floats over the board's left edge when the gutter is too narrow. At 1920 it lands at x=100, fully in margin; at 1440 it parks at 12px and overlaps by ~130px. Overlap is deliberate — watching the board react behind the panel beats never touching it.
+- **<1024px** — board is the whole screen; the button opens the existing full-screen Refine sheet.
+- **Dismissal is explicit only** — outside click, Escape, or the X. **Never on apply.** The panel staying up while you keep filtering is the whole reason it floats.
+- **`mousedown`, not `click`, for outside-dismiss** — a drag that starts on a price input and releases outside would fire `click` on the document and close the panel mid-interaction.
+- **Open state persisted to `localStorage`** — auto-apply calls `router.replace` on every change; "the panel survives its own filtering" is too load-bearing to rest on that not remounting.
+- **`RAIL_MIN_NEEDS` no longer gates the panel; `?rail=1` retired.** The threshold existed so a column of zeros wouldn't make the board look empty. One button is not a column of zeros, and gating it recreates exactly the "where did the search go" failure that started this.
+
+**Reverses §2.5a**, recorded there. "Hidden filters are unused filters" assumed a rail people could see; the shipped one was invisible at 0 needs and unlabelled when visible.
+
+**Verification.** `tsc --noEmit` clean, `eslint app lib components` clean, Tailwind output recompiled and confirmed free of `rail:` variants with `.board-filter-panel` emitting correctly. `next build` still can't run in this environment (EPERM writing `.next`; symlinked `node_modules` panics Turbopack). **Live geometry at 1920/1440/390 is NOT yet verified** — that check is the first thing to do after deploy, and it is the check that would have caught all three bugs.
 
 ### Aug 9 (late) — the rail moved into the gutter; the board stopped paying for it
 

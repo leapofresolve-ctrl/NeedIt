@@ -164,23 +164,19 @@ export default async function Home({
   const facetRows = (facetData ?? []) as unknown as FacetRow[];
   const totalOpen = facetRows.length;
   const counts = computeFacets(facetRows, filters);
-  // Threshold is measured against the UNFILTERED total so the rail doesn't
-  // vanish underneath someone the moment they narrow things down.
+  // Aug 10: RAIL_MIN_NEEDS no longer gates the panel, and `?rail=1` is gone.
   //
-  // `?rail=1` forces it on regardless. The board is at 0 needs, so without an
-  // override the rail is invisible on the live site and there's no way to eyeball
-  // it — and seeding fake needs to see a filter panel would break the one rule
-  // the board can't break. With the override you get real zero counts, dimmed,
-  // which is exactly the honest low-volume state we specced.
+  // Both existed to solve one problem: a permanently-open column of zeros makes
+  // the board look emptier than it is. That problem disappears when the panel
+  // is click-to-open — one button is not a column of zeros, and nobody sees the
+  // zeros unless they ask to. Gating the button instead would recreate exactly
+  // the failure that started this: Kyle looking at the board and asking where
+  // the search went, because at 0 needs there was nothing to find.
   //
-  // The override has to be CARRIED, not just read. It isn't a form field, so
-  // the first version of the rail dropped it the moment you ticked anything —
-  // one click and the rail you were testing disappeared, at 0 needs, with no
-  // way back except editing the URL again. Threaded into the rail and the
-  // search box below so it survives a round trip.
-  const railOverride =
-    (Array.isArray(params.rail) ? params.rail[0] : params.rail) === "1";
-  const showRail = totalOpen >= RAIL_MIN_NEEDS || railOverride;
+  // The threshold still governs the low-volume LINE below ("Everything open
+  // right now"), which is the honest thing to say when the whole board fits on
+  // one screen. That is a message about the board, not about the panel.
+  const boardIsSmall = totalOpen > 0 && totalOpen < RAIL_MIN_NEEDS;
 
   // ----- Active-filter chips -----
   // Each active filter renders as a removable chip. `sort` is deliberately
@@ -353,7 +349,7 @@ export default async function Home({
             `sticky top-0 z-20`; see board-locked-header.tsx. */}
         <BoardLockedHeader>
           <div className="flex items-center gap-2.5">
-            <BoardSearch filters={filters} railOverride={railOverride} />
+            <BoardSearch filters={filters} />
 
             {/* The condensed header's stand-in for the chip row (§2.3a). CSS
                 swaps the two on `data-condensed`, so both are always in the
@@ -377,19 +373,26 @@ export default async function Home({
                 the moment a phone user tapped "Show results". The arrays go
                 through whole now, and `sort` goes through as its real value
                 rather than being nulled at the default, because the sheet
-                owns the sort control below the rail's dock width.
+                owns the sort control below lg.
 
-                The two surfaces are exact complements: sheet below the `rail`
-                screen (1736px), inline sort at and above it. Never both, never
-                neither — that invariant is why these two wrappers must always
-                be edited as a pair.
+                TWO PRESENTATIONS OF ONE FEATURE, EXACT COMPLEMENTS AT lg:
 
-                Aug 9: both moved from `lg` (1024) to `rail` (1736) when the
-                rail moved into the page gutter. The band from 1024–1735 now
-                gets the sheet, because at those widths the rail can only exist
-                by taking width from the board, and the board doesn't give any
-                back. See RAIL_DOCK_MIN_PX in lib/board-filters.ts. */}
-            <div className="rail:hidden">
+                  < 1024px  RefinePanel — full-screen takeover. On a phone the
+                            board is the whole screen until you tap the button,
+                            then filters are the whole screen. Carries sort,
+                            because there is no inline sort control down here.
+                  ≥ 1024px  BoardRail — floating panel over the left gutter,
+                            board stays visible and updates behind it. Sort
+                            stays inline in this header.
+
+                One filter surface at every width, never two, never none. These
+                three wrappers must always be edited as a set.
+
+                Aug 10: reverted from `rail` (1736) back to `lg` (1024). The
+                1736 breakpoint only existed because the panel used to occupy
+                layout space and needed a gutter wide enough to hold it. It
+                floats now, so there is nothing to make room for. */}
+            <div className="lg:hidden">
               <RefinePanel
                 values={{
                   q: filters.q,
@@ -405,7 +408,17 @@ export default async function Home({
                 activeCount={activeCount}
               />
             </div>
-            <div className="hidden rail:block">
+            <div className="hidden items-center gap-2.5 lg:flex">
+              {/* Trigger + floating panel are one component so the open state,
+                  the button's aria-expanded and the panel can never disagree.
+                  The panel it renders is `position: fixed`, so mounting it
+                  here — inside the header — costs this row no width. */}
+              <BoardRail
+                filters={filters}
+                counts={counts}
+                matching={rows.length}
+                activeCount={activeCount}
+              />
               <SortSelect filters={filters} />
             </div>
           </div>
@@ -440,44 +453,21 @@ export default async function Home({
           )}
         </BoardLockedHeader>
 
-        {/* THE ROW EXTENDS LEFT INTO THE GUTTER, THE BOARD DOES NOT MOVE.
-            `rail:-ml-[292px]` (264px rail + 28px gap) pulls this row's left
-            edge out past the container into margin that was already empty. The
-            board column below is `flex-1`, so it ends up occupying exactly the
-            container width it had when no rail was present — 1112px — with its
-            left edge unmoved. The rail costs the board nothing.
+        {/* ⚠️ NOTHING LAYOUT-BEARING GOES IN THIS ROW BESIDES THE BOARD.
+            The filter panel used to be a sibling column here, and every time it
+            was, the board paid for it — 826px instead of 1112 (Aug 8), then a
+            292px leftward slide on the production URL (Aug 9). The panel is now
+            `position: fixed` and lives outside the document flow entirely, so
+            the board's width and position cannot be affected by it at all.
 
-            The negative margin is on THIS ROW ONLY. Putting it on the
-            container would drag the locked header (which bleeds to the
-            container edges via `-mx-5`) left along with it, sliding the search
-            field into the gutter. See RAIL_DOCK_MIN_PX in lib/board-filters.ts
-            for why the breakpoint is 1736 and what it costs. */}
-        {/* ⚠️ THE MARGIN IS CONDITIONAL ON THE RAIL ACTUALLY RENDERING.
-            Shipped Aug 9 unconditional, which was wrong: `showRail` is false
-            whenever the board is under RAIL_MIN_NEEDS, so on the real
-            production URL (0 needs, no ?rail=1) there was no rail to occupy
-            the 292px — the board simply slid 292px left and grew to 1444px.
-            Verified at 1920 on ?rail=1 only, never on plain `/`, which is the
-            URL every visitor loads. Don't re-couple these. */}
-        <div
-          className={`flex items-start gap-7 ${
-            showRail ? "rail:-ml-[292px]" : ""
-          }`}
-        >
-          {showRail && (
-            <BoardRail
-              filters={filters}
-              counts={counts}
-              matching={rows.length}
-              railOverride={railOverride}
-            />
-          )}
-
+            If a future change wants to put the panel back in this row: don't.
+            See FILTER_PANEL_WIDTH_PX in lib/board-filters.ts for the history. */}
+        <div className="flex items-start">
           <div className="flex min-w-0 flex-1 flex-col gap-3">
             {/* Under the threshold the rail doesn't render at all: a column of
                 zeros makes the board look emptier than it is, and at this size
                 the whole thing is readable top to bottom anyway. */}
-            {!showRail && totalOpen > 0 && (
+            {boardIsSmall && (
               <p className="text-sm text-muted-foreground">
                 Everything open right now — small enough to read top to bottom.
               </p>

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PanelLeftClose, PanelLeftOpen, SlidersHorizontal } from "lucide-react";
+import { PanelLeftClose, SlidersHorizontal } from "lucide-react";
 
 import {
   SPORTS,
@@ -18,17 +18,43 @@ import {
 import { CONDITIONS } from "@/lib/need-tags";
 
 /**
- * The docked filter rail (≥lg). Below that breakpoint the board uses the
- * Refine sheet instead — see refine-panel.tsx.
+ * The floating "Advanced search" panel (≥lg). Below that breakpoint the board
+ * uses the full-screen Refine sheet instead — see refine-panel.tsx.
  *
- * WHY IT'S ALWAYS VISIBLE
- * -----------------------
- * Reveal-on-click was considered and rejected. The two most valuable options
- * here — "closing under 24h" and "no offers yet" — are how a seller finds a
- * winnable deal rather than one with six offers on it, and nobody discovers
- * those behind a button they have no reason to press. The counts are demand
- * data too, not just chrome: "Basketball · 11" is the best at-a-glance proof
- * the board is alive. Hidden filters are unused filters.
+ * WHY IT FLOATS INSTEAD OF DOCKING — READ THIS BEFORE CHANGING THE LAYOUT
+ * ----------------------------------------------------------------------
+ * This was a docked column in the board's flex row for two days and broke the
+ * board's geometry three separate times, each time in a new way:
+ *
+ *   1. It took its width out of the board (1112px → 826px at 1920) while
+ *      384px of page gutter sat empty either side.
+ *   2. Pulling the row left to use that gutter fixed the docked case and broke
+ *      the undocked one — on the production URL, where the rail doesn't render
+ *      at all, the board slid 292px left and grew to 1444px.
+ *   3. The fix for that was more coupling: a conditional margin.
+ *
+ * It is now `position: fixed`. It has no width in the flow, so there is
+ * nothing to subtract, nothing to compensate for, and no breakpoint for two
+ * layouts to agree on. The board's position is not *kept* independent of this
+ * panel — it is structurally incapable of depending on it. Any change that
+ * puts this back into the board's layout row reintroduces all three bugs.
+ *
+ * WHY REVEAL-ON-CLICK, REVERSING §2.5a
+ * ------------------------------------
+ * §2.5a rejected click-to-open on the grounds that hidden filters are unused
+ * filters — the two options that matter most, "closing under 24h" and "no
+ * offers yet", are how a seller finds a winnable deal, and nobody finds those
+ * behind a button. That argument assumed a rail people could see. The one we
+ * shipped was invisible below 15 needs (so, always, on a board at 0) and
+ * unlabelled when visible; Kyle looked straight at it and asked where the
+ * search had gone. A named button beats an unfindable column. Kyle's call,
+ * Aug 10.
+ *
+ * The panel stays open while you filter — the board updates behind it, live —
+ * and closes only on an explicit dismissal: click outside, Escape, or the X.
+ * It deliberately does NOT close on apply; watching the board react while you
+ * keep adjusting is the entire point of floating it over the board rather than
+ * taking the screen.
  *
  * WHY A REAL <form> WITH REAL CHECKBOXES
  * --------------------------------------
@@ -55,7 +81,7 @@ import { CONDITIONS } from "@/lib/need-tags";
 
 const PRICE_DEBOUNCE_MS = 400;
 const CHOICE_DEBOUNCE_MS = 250;
-const COLLAPSE_KEY = "exprifi:board-rail-collapsed";
+const OPEN_KEY = "exprifi:board-filter-panel-open";
 
 function Group({
   legend,
@@ -123,41 +149,81 @@ export function BoardRail({
   filters,
   counts,
   matching,
-  railOverride = false,
+  activeCount,
 }: {
   filters: BoardFilters;
   counts: FacetCounts;
   matching: number;
-  /** `?rail=1` is on. Carried through so testing the rail below the volume
-   *  threshold doesn't destroy the rail on the first click. */
-  railOverride?: boolean;
+  /** Number of active filters, for the badge on the trigger. Computed once on
+   *  the server and shared with the header chips so the two can't disagree. */
+  activeCount: number;
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [collapsed, setCollapsed] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
+  const [open, setOpen] = useState(false);
   // True from the change event until the debounced apply actually fires. See
-  // the header note: without it the rail looks dead for the debounce window.
+  // the header note: without it the panel looks dead for the debounce window.
   const [queued, setQueued] = useState(false);
   const busy = queued || isPending;
 
-  // Collapse preference is remembered. Read after mount so the server render
-  // and the first client render agree — reading localStorage during render is
-  // a hydration mismatch waiting to happen.
+  // Open state is remembered across navigations. Auto-apply calls
+  // router.replace on every filter change, and while that doesn't remount this
+  // component today, "the panel survives its own filtering" is the single most
+  // load-bearing behaviour here — Kyle asked for it explicitly — so it does not
+  // rest on that assumption holding.
+  //
+  // Read after mount, never during render: touching localStorage during render
+  // makes the server and first client render disagree, which is a hydration
+  // error rather than a wrong panel.
   useEffect(() => {
-    setCollapsed(window.localStorage.getItem(COLLAPSE_KEY) === "1");
-    setHydrated(true);
+    setOpen(window.localStorage.getItem(OPEN_KEY) === "1");
   }, []);
 
-  const toggleCollapsed = () => {
-    setCollapsed((prev) => {
-      const next = !prev;
-      window.localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
-      return next;
-    });
+  const setOpenPersisted = (next: boolean) => {
+    setOpen(next);
+    window.localStorage.setItem(OPEN_KEY, next ? "1" : "0");
   };
+
+  // DISMISSAL — outside click and Escape only. Never on apply.
+  //
+  // `mousedown`, not `click`: a click that starts inside the panel and ends
+  // outside it (dragging across a price input, or releasing off a checkbox)
+  // fires `click` on the document and would close the panel mid-interaction.
+  // mousedown fires where the gesture actually began.
+  useEffect(() => {
+    if (!open) return;
+
+    const onPointerDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node | null;
+      if (!target) return;
+      // The trigger toggles itself; letting this handler also fire would close
+      // and immediately reopen, so the button would never appear to close.
+      if (triggerRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setOpenPersisted(false);
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpenPersisted(false);
+      // Focus goes back where it came from, or a keyboard user is stranded at
+      // the top of the document with no idea what just happened.
+      triggerRef.current?.focus();
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("touchstart", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("touchstart", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
 
   const apply = (form: HTMLFormElement) => {
     const params = new URLSearchParams();
@@ -195,32 +261,6 @@ export function BoardRail({
 
   useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
 
-  if (hydrated && collapsed) {
-    const active =
-      filters.types.length +
-      filters.sports.length +
-      (filters.condition ? 1 : 0) +
-      (filters.min ? 1 : 0) +
-      (filters.max ? 1 : 0) +
-      (filters.closing ? 1 : 0) +
-      (filters.noOffers ? 1 : 0);
-    return (
-      <div className="board-rail hidden rail:block">
-        <button
-          type="button"
-          onClick={toggleCollapsed}
-          aria-expanded={false}
-          className="flex min-h-[150px] w-11 flex-col items-center gap-3 rounded-r-sm border border-l-0 bg-card py-4 text-xs font-semibold transition-colors hover:border-foreground"
-        >
-          <PanelLeftOpen className="size-4" aria-hidden />
-          <span className="microlabel [writing-mode:vertical-rl] text-[11px]">
-            Filters
-          </span>
-          {active > 0 && <span className="num text-primary">{active}</span>}
-        </button>
-      </div>
-    );
-  }
 
   // `condition` is hand-editable in the URL and parseBoardFilters doesn't
   // validate it, so anything that isn't one of the two real values falls back
@@ -231,15 +271,72 @@ export function BoardRail({
       : "";
 
   return (
-    <aside className="board-rail hidden w-[264px] shrink-0 rail:block">
-      <form
-        ref={formRef}
-        method="get"
-        action="/"
-        onChange={onChange}
-        className="board-rail-form flex flex-col"
-        aria-busy={busy}
+    <>
+      {/* THE TRIGGER. Lives in the board's locked header beside search and
+          sort, so the thing that opens the filters sits with the other
+          controls rather than floating somewhere on its own. */}
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpenPersisted(!open)}
+        aria-expanded={open}
+        aria-controls="board-filter-panel"
+        className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-sm border bg-card px-3 text-sm font-semibold transition-colors hover:border-foreground"
       >
+        <SlidersHorizontal className="size-4" aria-hidden />
+        Advanced search
+        {activeCount > 0 && (
+          <span className="num inline-flex h-5 min-w-5 items-center justify-center rounded-sm bg-foreground px-1.5 text-xs font-semibold text-background">
+            {activeCount}
+          </span>
+        )}
+      </button>
+
+      {/* THE PANEL. `position: fixed` (see .board-filter-panel in globals.css),
+          so it is out of flow and cannot move the board. No backdrop and no
+          focus trap on purpose: this is a non-modal panel. The board behind it
+          stays readable and stays live — that is the whole reason it floats
+          over the board's left edge instead of taking the screen. */}
+      {open && (
+        <div
+          ref={panelRef}
+          id="board-filter-panel"
+          role="dialog"
+          aria-modal="false"
+          aria-label="Advanced search"
+          className="board-filter-panel"
+        >
+          <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal
+                className="size-4 text-muted-foreground"
+                aria-hidden
+              />
+              <h2 className="microlabel text-[11px] font-bold">
+                Advanced search
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setOpenPersisted(false);
+                triggerRef.current?.focus();
+              }}
+              aria-label="Close advanced search"
+              className="-mr-1.5 inline-flex size-8 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <PanelLeftClose className="size-4" aria-hidden />
+            </button>
+          </div>
+
+          <form
+            ref={formRef}
+            method="get"
+            action="/"
+            onChange={onChange}
+            className="board-rail-form flex flex-col px-4 pb-4"
+            aria-busy={busy}
+          >
         {/* Carried, not shown: these belong to the header. Without them,
             touching any rail filter would silently reset the seller's search
             or sort. `condition` used to be carried here too — it's a real
@@ -249,32 +346,6 @@ export function BoardRail({
         {filters.sort && filters.sort !== "newest" && (
           <input type="hidden" name="sort" value={filters.sort} />
         )}
-        {/* The `?rail=1` debug override. Not a filter, but it has to survive a
-            submit or the rail deletes itself the first time you use it while
-            the board is under RAIL_MIN_NEEDS. */}
-        {railOverride && <input type="hidden" name="rail" value="1" />}
-
-        {/* WHAT THIS COLUMN IS. Without a title the rail is an unlabelled
-            stack of checkboxes in the margin — Kyle looked straight at it and
-            asked where the advanced search had gone (Aug 9).
-
-            It is a heading, NOT a button. §2.5a rejects reveal-on-click on
-            desktop: hidden filters are unused filters, and the two options
-            that decide whether a seller finds a winnable deal — closing under
-            24 hours, no offers yet — are exactly the ones nobody goes looking
-            for behind a control. The affordance this adds is a name, not a
-            gate. `SlidersHorizontal` is the same icon the Refine button uses,
-            so the two presentations of this one component read as the same
-            feature at different widths rather than two unrelated things. */}
-        {/* No border-b here on purpose. `Group` is `border-t … first:border-t-0`,
-            and inserting this div means the first fieldset is no longer
-            :first-child — so it takes its top border back and draws the divider
-            under this title for us. A border-b as well would double it. */}
-        <div className="flex items-center gap-2 pb-4">
-          <SlidersHorizontal className="size-4 text-muted-foreground" aria-hidden />
-          <h2 className="microlabel text-[11px] font-bold">Advanced search</h2>
-        </div>
-
         <Group legend="What kind">
           {TYPES.map((t) => (
             <Option
@@ -438,16 +509,9 @@ export function BoardRail({
           </Link>
         </div>
 
-        <button
-          type="button"
-          onClick={toggleCollapsed}
-          aria-expanded
-          className="mt-3 flex items-center gap-2 self-start text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
-        >
-          <PanelLeftClose className="size-3.5" aria-hidden />
-          Hide filters
-        </button>
       </form>
-    </aside>
+        </div>
+      )}
+    </>
   );
 }

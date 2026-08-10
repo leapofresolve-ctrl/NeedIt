@@ -59,46 +59,34 @@ export const DEFAULT_SORT = "newest";
 export const RAIL_MIN_NEEDS = 15;
 
 /**
- * Viewport width (CSS px) at which the rail docks in the page's left gutter.
+ * Width of the floating filter panel, in CSS px.
  *
- * WHY 1736 AND NOT 1024
+ * WHY THERE IS NO LONGER A DOCK BREAKPOINT
  *
- * The rail used to dock at `lg` (1024px) as a column INSIDE the board's flex
- * row, which meant it took its 264px out of the board. Measured on the live
- * site at 1920: the board column was 826px wide while 384px of page gutter sat
- * empty on each side. The rail was shrinking the main object on the page to
- * avoid using space that was already free.
+ * Three separate layout bugs in three days all had one cause: the filter panel
+ * and the board shared a flex row, so the panel's width was always subtracted
+ * from the board's.
  *
- * The fix is that the flex row now extends LEFT into the gutter (`rail:-ml-…`
- * in app/page.tsx) so the rail lives outside the board's width entirely. The
- * board column's left edge does not move and its width does not change.
+ *   Aug 8  — panel docked at `lg` INSIDE the row: board fell from 1112 to 826px
+ *            at 1920, while 384px of page gutter sat empty on each side.
+ *   Aug 9  — row pulled left by 292px to use that gutter. Correct when the
+ *            panel rendered; when it didn't (0 needs, no ?rail=1 — i.e. the
+ *            production URL) the board slid 292px left and grew to 1444px.
+ *   Aug 9  — the fix for that was a conditional class, i.e. more coupling.
  *
- * That only works where the gutter is actually wide enough:
+ * The panel is now `position: fixed` and therefore OUT OF FLOW. It has no
+ * width to subtract, no margin to coordinate, and no breakpoint to agree on.
+ * The board's geometry is now literally independent of the panel's existence —
+ * not "kept equal by careful arithmetic", but incapable of differing. That is
+ * the point of the change, and it is why RAIL_DOCK_MIN_PX is gone rather than
+ * retuned.
  *
- *   container (max-w-6xl)          1152
- *   − horizontal padding (px-5 ×2)  −40
- *   = board column                 1112   ← inviolable, must not shrink
- *
- *   rail width                      264
- *   + flex gap (gap-7)               28
- *   = gutter needed on the left     292
- *
- *   viewport needed = 1152 + (292 × 2) = 1736
- *
- * The ×2 is because the container is centered: to take 292px on the left
- * without pushing the board off-center, there must be 292px spare on the
- * right too.
- *
- * TRADE-OFF, EYES OPEN. 3b addendum §2.5a locked the rail as always-visible at
- * ≥1024px. This raises that to 1736px, so common laptop widths (1440, 1512)
- * now get the Refine sheet rather than a docked rail. That is the direct cost
- * of "the board never shrinks", which was Kyle's call on Aug 9. Lowering this
- * number does not make more room appear — it makes the board narrower again.
- *
- * Must stay in sync with the `rail` screen in tailwind.config.ts and the
- * `.board-rail` media query in app/globals.css. Nothing enforces that.
+ * Where the panel appears is a pure CSS clamp (see `.board-filter-panel` in
+ * app/globals.css): it prefers the empty gutter, and floats over the board's
+ * left edge when the gutter is too narrow. Kyle's call, Aug 10 — being able to
+ * watch the board update behind the panel beats never overlapping it.
  */
-export const RAIL_DOCK_MIN_PX = 1736;
+export const FILTER_PANEL_WIDTH_PX = 272;
 
 /** A need closing within this many hours counts as "closing soon". Matches the
  *  amber urgency treatment on the row itself. */

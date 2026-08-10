@@ -224,37 +224,62 @@
   }
 }
 
-/* THE DOCKED RAIL (§2.5a, §3).
-   Sticks below the condensed header and scrolls independently when it outgrows
-   the viewport — the rail scrolling away with the board is the exact complaint
-   §2.5a exists to prevent. Only at ≥1736px (the `rail` screen), because below
-   that the rail isn't rendered at all and the Refine sheet carries the filters.
+/* THE FLOATING ADVANCED-SEARCH PANEL (§2.5a as amended Aug 10).
+   ============================================================================
+   THIS RULE IS WHY THE BOARD CAN NO LONGER BE MOVED BY THE FILTERS.
 
-   1736 MUST MATCH the `rail` screen in tailwind.config.ts and RAIL_DOCK_MIN_PX
-   in lib/board-filters.ts, which holds the arithmetic. A mismatch here doesn't
-   error — it just means the rail renders without sticking, which reads as the
-   rail scrolling away for no reason.
+   `position: fixed` takes the panel out of the document flow entirely. It has
+   no width in the layout, so there is nothing for the board to give up, no
+   margin to keep in sync, and no breakpoint for two layouts to agree on. The
+   board's geometry is not kept independent of this panel by arithmetic — it is
+   incapable of depending on it. Three layout bugs in three days all came from
+   the panel being a flex sibling of the board; see FILTER_PANEL_WIDTH_PX in
+   lib/board-filters.ts for the full history.
+
+   WHERE IT SITS — one clamp, no media query:
+
+     board's left edge   = 50vw − 576px      (container is max-w-6xl, centered)
+     panel wants to be   = that − 272px − 12px gap
+                         = 50vw − 860px
+
+     max(0.75rem, …) then keeps it on screen when the gutter is too narrow.
+
+   At 1920 the gutter is 384px, so the panel lands at x=100 and sits entirely
+   in empty margin. At 1440 the gutter is only 144px, the preferred position
+   goes negative, and the clamp parks it at 12px — floating over the board's
+   left edge. That overlap is deliberate (Kyle, Aug 10): being able to watch
+   the board update behind the panel beats never touching it. The board does
+   not move in either case, which is the point.
 
    The inline padding/negative-margin pair is not decoration: `overflow-y` also
    makes the x axis a scroll container, which would clip the 2px focus-ring
    offset on the full-width budget inputs. */
-@media (min-width: 1736px) {
-  .board-rail {
-    position: sticky;
-    top: calc(var(--site-header-h) + var(--board-header-h, var(--board-header-condensed-h)));
-    max-height: calc(
-      100vh - var(--site-header-h) -
-        var(--board-header-h, var(--board-header-condensed-h)) - 1rem
-    );
-    max-height: calc(
-      100dvh - var(--site-header-h) -
-        var(--board-header-h, var(--board-header-condensed-h)) - 1rem
-    );
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding-inline: 3px;
-    margin-inline: -3px;
-  }
+.board-filter-panel {
+  position: fixed;
+  z-index: 30;
+  left: max(0.75rem, calc(50vw - 860px));
+  width: 272px;
+  top: calc(var(--site-header-h) + var(--board-header-h, var(--board-header-condensed-h)) + 0.5rem);
+  max-height: calc(
+    100vh - var(--site-header-h) -
+      var(--board-header-h, var(--board-header-condensed-h)) - 2rem
+  );
+  max-height: calc(
+    100dvh - var(--site-header-h) -
+      var(--board-header-h, var(--board-header-condensed-h)) - 2rem
+  );
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) - 4px);
+  background: hsl(var(--background));
+  /* Reads as floating above the board rather than cut into it. This shadow is
+     the only thing distinguishing "panel over board" from "panel in a hole". */
+  box-shadow: 0 12px 32px -12px rgb(0 0 0 / 0.28);
+}
+.board-filter-panel .board-rail-form {
+  padding-inline: 3px;
+  margin-inline: -3px;
 }
 
 /* PENDING FETCH (§3): "keep the panel height, dim rows to ~0.6 opacity."
