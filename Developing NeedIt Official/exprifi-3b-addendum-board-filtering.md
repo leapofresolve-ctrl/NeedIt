@@ -211,6 +211,8 @@ All four are mocked in `design-mockups/exprifi-3b-rail-mockups.html`. Recorded h
 >
 > **What §2.5a's argument got right, and where it stopped applying.** "Hidden filters are unused filters" assumed a rail people could see. The one that shipped was invisible below 15 open needs — so, always, on a board at 0 — and unlabelled when visible. Kyle looked directly at it and asked where the advanced search had gone. A named button beats an unfindable column. Reveal-on-click is therefore adopted, reversing §2.5a, on Kyle's call.
 >
+> **The panel uses chips, not checkbox rows (Aug 10).** §2.3's "every row is a 44px checkbox — no selects, no dropdowns" was written before `components/ui/chip-group` existed and is superseded for this surface. Every other choice control in the app — `/post`, the mobile Refine sheet since Aug 8 — is a chip; the desktop panel was the last place still using checkbox rows, which is what made it read as foreign. Chips also wrap, turning seven sports from seven rows into three and removing most of the panel's height. Counts sit **inside** the chip; zero-count options stay visible and dimmed with their real number, so §2.6 is unchanged. Condition renders as a segmented control, mirroring `/post`. `chipBase` is exported from `chip-group.tsx` and shared, so the surfaces cannot drift apart again.
+>
 > **Current behavior:**
 >
 > - **Board never moves.** Same position and width at every viewport, panel open or closed, filters active or not.

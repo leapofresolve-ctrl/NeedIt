@@ -46,6 +46,7 @@ Everything genuinely outstanding, in one place. Nothing else in this document is
 9. **CSP tightening** — nonce-based `script-src`, drop `'unsafe-inline'`. Deferred from Phase 1 because it needs per-request nonces threaded through the proxy.
 10. **Post one public and one private need with a photo through the /post panel.** Shipped Aug 8, never submitted through. Both `redirect()` paths in `createNeed` must dismiss the panel rather than leave a stuck overlay. Cheap, and the only untested part of that change — do it the first time you post something real.
 11. **Feature freeze Sep 21.** Bug-fix only after.
+12. **Confirm the Advanced-search panel on a real phone.** Shipped Aug 10. Below 1024px the trigger should disappear, "Refine" should open the full-screen sheet, and **no floating panel should exist at any narrow width** — that exact bug shipped once already (portalled element didn't inherit its parent's `hidden lg:flex`). The browser wouldn't go below a 606px viewport, so 390 was never tested. One look while you're posting the buy-list.
 
 ### Nice to have, degrade gracefully
 
@@ -502,6 +503,14 @@ Merged from every session. These are the ones that have already cost real time t
 
 **18. "It doesn't work" needs a location before it needs a fix.** Twice on Aug 8 the report was about production while the change was still sitting in a local commit — once unpushed, once pasted into a terminal that was running the dev server in the foreground, which has no shell to receive it. **Check what is actually deployed (`git status -sb`, `git log origin/main`) before debugging behaviour.** A pasted command that produced no output and no prompt did not run.
 
+**19. Measure on the plain production URL, at more than one width.** Aug 8–10 shipped three board-layout bugs in a row, each verified on the path just written rather than the one users take. The worst: a negative margin measured only on `exprifi.com/?rail=1` — a debug override — while every real visitor loaded `exprifi.com/`, where the rail doesn't render and the board therefore slid 292px left and grew to 1444px. **A debug flag creates a second reality only the developer inhabits.** After any layout change: plain URL, no params, at 1920 / 1440 / 390, in both states of whatever was toggled — and say which URL and width each number came from.
+
+**20. When a fix needs arithmetic to keep two things equal, stop and remove the coupling.** The same three bugs all came from the filter panel being a flex sibling of the board, which makes the board's width a function of the panel's; each fix corrected one branch of that function and got the next wrong. Making the panel `position: fixed` ended it — the board's geometry became *incapable* of depending on the panel rather than kept equal to it by care. **A compensating calculation is a signal you're patching a structure problem.** Corollary, learned twice the same day: anything portalled out of the tree stops inheriting its parent's rules — visibility (`hidden lg:flex`) and positioning context (a `backdrop-filter` ancestor was silently anchoring a `fixed` panel) both have to be re-stated where the element actually lands.
+
+**21. For anything visual, build a mockup before touching app code.** Three styling passes shipped blind on Aug 10 and all three were rejected. The fourth was a standalone HTML file at the real 3a tokens (`design-mockups/exprifi-filter-panel-chips.html`), and Kyle converged in three quick notes — wider, nudge right, bit taller — with no app code touched, no deploys, no review cycles. **A picture is cheap to reject and prose about a picture is not.** Same pattern the Jul 2 plan prescribed for the brand directions; it works for the same reason.
+
+**22. Check whether the surface you're styling still speaks the app's language.** The panel felt foreign because it was the last place using 44px checkbox rows while `/post` and the mobile sheet had both moved to `components/ui/chip-group` — the sheet on Aug 8, in an entry that congratulated itself on ending exactly this kind of divergence. **Before restyling, grep for the primitive the rest of the app already uses.** Where a surface can't consume the shared component (this one is an uncontrolled auto-submitting form; the chip components are controlled), export and import the shared *class string* rather than copying it, so the two can't drift apart again.
+
 ---
 
 ## 💡 Deferred — post-MVP, not scheduled
@@ -539,6 +548,6 @@ Merged from every session. These are the ones that have already cost real time t
 | `secret-rotation-runbook.md` | Three secrets, in order, verify-before-revoke |
 | `legal-drafts-for-review.md` | Policy drafts pending Kyle's read |
 | `STRIPE_SETUP_STATUS.md` | Stripe test-mode local-setup reference |
-| `design-mockups/` | Rendered design directions + onboarding tutorial |
+| `design-mockups/` | Rendered design directions + onboarding tutorial + `exprifi-filter-panel-chips.html` (the Advanced-search panel Kyle signed off on, Aug 10 — keep as the reference for that surface) |
 
 **Historical, safe to delete after commit:** `handoff-0015-reconcile.md`, `HANDOFF-0015-collision-check.md`, `RUN-THIS-IN-SUPABASE.sql` (0012+0013+0014, already applied), `recap-2026-06-29.md`, `handoff-0015-*`, `exprifi-status-and-next-steps.md` (superseded by this log's Status + Open items).
