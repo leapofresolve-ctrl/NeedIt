@@ -270,8 +270,9 @@
 .board-filter-panel {
   position: fixed;
   z-index: 30;
-  left: max(0.75rem, calc(50vw - 860px));
-  width: 272px;
+  /* 576 (half the max-w-6xl container) + 300 (panel) + 12 (gap) = 888. */
+  left: max(0.75rem, calc(50vw - 888px));
+  width: 300px;
   top: calc(var(--site-header-h) + var(--board-header-h, var(--board-header-condensed-h)) + 0.5rem);
   max-height: calc(
     100vh - var(--site-header-h) -
@@ -281,36 +282,48 @@
     100dvh - var(--site-header-h) -
       var(--board-header-h, var(--board-header-condensed-h)) - 2rem
   );
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  border: 1px solid hsl(var(--border));
-  border-radius: calc(var(--radius) - 4px);
-  background: hsl(var(--background));
-  /* Reads as floating above the board rather than cut into it. This shadow is
-     the only thing distinguishing "panel over board" from "panel in a hole". */
-  box-shadow: 0 12px 32px -12px rgb(0 0 0 / 0.28);
-}
-.board-filter-panel .board-rail-form {
-  padding-inline: 3px;
-  margin-inline: -3px;
+
+  /* ⚠️ drop-shadow, NOT box-shadow, and it lives on this wrapper rather than on
+     the card inside it.
+     The card uses `.notched` (the 5c ticket-stub corner), which is a
+     `clip-path`. clip-path clips a box-shadow out of existence — the shadow is
+     painted outside the border box and the clip removes exactly that. A
+     `filter: drop-shadow` is computed from the post-clip silhouette instead, so
+     it traces the notch. This is also why the shadow can't move onto the card:
+     the card is the clipped element.
+
+     No `overflow` here either. Scrolling belongs to the card's body, so the
+     panel's own box stays unclipped and the shadow can paint. */
+  filter: drop-shadow(0 14px 24px rgb(0 0 0 / 0.2));
 }
 
 /* PENDING FETCH (§3): "keep the panel height, dim rows to ~0.6 opacity."
    Opacity only — nothing here reflows, so a recompute never moves a row out
    from under the cursor. Driven off the `aria-busy` the form already sets, so
    the visual state and the state announced to assistive tech cannot disagree. */
+/* The footer moved out of the form (it's pinned below the scroll area now), so
+   it can no longer inherit the form's aria-busy dim through a child selector.
+   It carries its own `data-busy` instead — same 0.6, same transition, driven by
+   the same state, so the count still visibly goes stale while a recompute is in
+   flight. */
 .board-rail-form > fieldset,
-.board-rail-form > .board-rail-footer {
+.board-rail-footer {
   opacity: 1;
 }
+.board-rail-footer[data-busy="true"] {
+  opacity: 0.6;
+}
 @media (prefers-reduced-motion: no-preference) {
-  .board-rail-form > fieldset,
-  .board-rail-form > .board-rail-footer {
+  .board-rail-footer {
     transition: opacity 150ms ease;
   }
 }
-.board-rail-form[aria-busy="true"] > fieldset,
-.board-rail-form[aria-busy="true"] > .board-rail-footer {
+@media (prefers-reduced-motion: no-preference) {
+  .board-rail-form > fieldset {
+    transition: opacity 150ms ease;
+  }
+}
+.board-rail-form[aria-busy="true"] > fieldset {
   opacity: 0.6;
 }
 

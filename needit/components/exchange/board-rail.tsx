@@ -320,37 +320,54 @@ export function BoardRail({
           role="dialog"
           aria-modal="false"
           aria-label="Advanced search"
-          className="board-filter-panel"
+          className="board-filter-panel motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-2 motion-safe:duration-200"
         >
-          <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
-            <div className="flex items-center gap-2">
-              <SlidersHorizontal
-                className="size-4 text-muted-foreground"
-                aria-hidden
-              />
-              <h2 className="microlabel text-[11px] font-bold">
-                Advanced search
-              </h2>
-            </div>
-            <button
+          {/* THE CARD — deliberately the board's own anatomy, not a generic
+              popover: `notched` 5c corner, same `rounded-sm border`, same
+              header bar (`px-4 py-3 border-b` + microlabel) that carries "Live
+              board" on the panel to the right of it. Light surface rather than
+              `bg-board`, because this is chrome you operate, not data you read,
+              and that is the same call the post-a-need panel makes.
+
+              `overflow-hidden` matters twice: it keeps the notch clean at the
+              corner, and it makes the rounded corners clip the scrolling body
+              instead of the body's square edge poking through the radius. */}
+          <div className="notched flex max-h-full flex-col overflow-hidden rounded-sm border bg-background">
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal
+                  className="size-4 text-muted-foreground"
+                  aria-hidden
+                />
+                <h2 className="microlabel text-[11px] font-bold">
+                  Advanced search
+                </h2>
+              </div>
+              <button
               type="button"
               onClick={() => {
                 setOpenPersisted(false);
                 triggerRef.current?.focus();
               }}
-              aria-label="Close advanced search"
-              className="-mr-1.5 inline-flex size-8 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <PanelLeftClose className="size-4" aria-hidden />
-            </button>
-          </div>
+                aria-label="Close advanced search"
+                className="-mr-1.5 inline-flex size-8 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <PanelLeftClose className="size-4" aria-hidden />
+              </button>
+            </div>
 
+            {/* THE SCROLLING BODY. Scrolling lives here and not on the panel so
+                the footer below stays pinned — the match count and "Reset all"
+                are the two things that tell you the filters did anything, and
+                they were previously off the bottom of a 711px panel on a 1000px
+                screen. */}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4">
           <form
             ref={formRef}
             method="get"
             action="/"
             onChange={onChange}
-            className="board-rail-form flex flex-col px-4 pb-4"
+            className="board-rail-form flex flex-col pb-4"
             aria-busy={busy}
           >
         {/* Carried, not shown: these belong to the header. Without them,
@@ -506,26 +523,39 @@ export function BoardRail({
           Show results
         </button>
 
-        <div className="board-rail-footer flex items-center justify-between border-t pt-4 text-sm">
-          {/* The count used to swap to "…" while pending, which changed the
-              width of the one element in the rail whose whole job is to hold
-              still, and pushed a stale-then-ellipsis-then-fresh sequence
-              through the live region. The pending state is now the dim (§3),
-              which costs no layout at all; the live region stays quiet until
-              there's a real number to announce, so a screen reader hears each
-              recompute once instead of three times. */}
-          <span className="num font-semibold" aria-live="polite" aria-busy={busy}>
-            {matching} {matching === 1 ? "need" : "needs"}
-          </span>
-          <Link
-            href={resetHref(filters)}
-            className="text-muted-foreground underline underline-offset-2 hover:text-foreground"
-          >
-            Reset all
-          </Link>
-        </div>
-
           </form>
+            </div>
+
+            {/* PINNED FOOTER — outside the scrolling body and outside the form.
+                Neither control is a form field (a live count and a link), so
+                lifting them out costs nothing and buys a footer that is always
+                on screen. */}
+            <div
+              className="board-rail-footer flex shrink-0 items-center justify-between gap-3 border-t px-4 py-3 text-sm"
+              data-busy={busy ? "true" : undefined}
+            >
+              {/* The count used to swap to "…" while pending, which changed the
+                  width of the one element here whose whole job is to hold
+                  still, and pushed a stale-then-ellipsis-then-fresh sequence
+                  through the live region. The pending state is now the dim
+                  (§3), which costs no layout at all; the live region stays
+                  quiet until there's a real number to announce, so a screen
+                  reader hears each recompute once instead of three times. */}
+              <span
+                className="num font-semibold"
+                aria-live="polite"
+                aria-busy={busy}
+              >
+                {matching} {matching === 1 ? "need" : "needs"}
+              </span>
+              <Link
+                href={resetHref(filters)}
+                className="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              >
+                Reset all
+              </Link>
+            </div>
+          </div>
         </div>,
         document.body,
       )}
