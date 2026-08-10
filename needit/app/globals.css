@@ -254,6 +254,19 @@
    The inline padding/negative-margin pair is not decoration: `overflow-y` also
    makes the x axis a scroll container, which would clip the 2px focus-ring
    offset on the full-width budget inputs. */
+/* ⚠️ THE PANEL HIDES ITSELF BELOW lg — IT CANNOT RELY ON ITS PARENT.
+   The trigger sits in a `hidden lg:flex` wrapper, but the panel is portalled to
+   <body>, so that wrapper hides the button and NOT the panel. Measured live at
+   a 606px viewport: the button was gone and the panel was still floating over
+   the board, overlapping it by 274px with no visible way to dismiss it. Below
+   lg the full-screen Refine sheet is the filter surface; this must not appear.
+   Anything portalled has to carry its own visibility rules. */
+@media (max-width: 1023px) {
+  .board-filter-panel {
+    display: none;
+  }
+}
+
 .board-filter-panel {
   position: fixed;
   z-index: 30;
