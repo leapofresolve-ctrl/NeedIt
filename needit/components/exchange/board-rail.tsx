@@ -264,6 +264,33 @@ export function BoardRail({
   // outside it (dragging across a price input, or releasing off a checkbox)
   // fires `click` on the document and would close the panel mid-interaction.
   // mousedown fires where the gesture actually began.
+  //
+  // WHAT "OUTSIDE" MEANS — narrower than "not in the panel" (Kyle, Aug 11).
+  // Clicking "Post a need" was closing this panel, because a link in the
+  // masthead is technically outside it. It isn't a dismissal: the post panel
+  // is an intercepting route that renders OVER the board, deliberately leaving
+  // the board readable behind a scrim, and the filters are part of what you
+  // were reading. Once the post panel is open the problem compounds — every
+  // click inside that form is also "outside" this one, so filling in a need
+  // would close the filters underneath it.
+  //
+  // So a click that lands in another layer isn't an outside click, it's the
+  // seller working somewhere else on top of a panel they deliberately left
+  // open. Dismissal means clicking the BOARD — which still works exactly as it
+  // did.
+  //
+  // Nothing here dims the panel; it doesn't need to. The post panel's backdrop
+  // is z-50 and this is z-30, so it falls behind the scrim on its own.
+  // ⚠️ "ANOTHER layer" — this panel is itself role="dialog", so both checks
+  // below have to exclude it by id or they match the thing they're protecting.
+  // The Escape guard in particular would have matched this panel and made it
+  // impossible to close with the keyboard.
+  const OTHER_LAYER = '[role="dialog"]:not(#board-filter-panel)';
+
+  const isInAnotherLayer = (target: Node) =>
+    target instanceof Element &&
+    !!target.closest(`${OTHER_LAYER}, a[href^="/post"]`);
+
   useEffect(() => {
     if (!open) return;
 
@@ -274,11 +301,16 @@ export function BoardRail({
       // and immediately reopen, so the button would never appear to close.
       if (triggerRef.current?.contains(target)) return;
       if (panelRef.current?.contains(target)) return;
+      if (isInAnotherLayer(target)) return;
       setOpenPersisted(false);
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      // Escape belongs to the topmost layer. With the post panel open it must
+      // close that and only that — otherwise one keypress silently dismisses
+      // two things and the filters are gone when the seller comes back.
+      if (document.querySelector(OTHER_LAYER)) return;
       setOpenPersisted(false);
       // Focus goes back where it came from, or a keyboard user is stranded at
       // the top of the document with no idea what just happened.
