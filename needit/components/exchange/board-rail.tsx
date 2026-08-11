@@ -301,6 +301,19 @@ export function BoardRail({
       // and immediately reopen, so the button would never appear to close.
       if (triggerRef.current?.contains(target)) return;
       if (panelRef.current?.contains(target)) return;
+      // THE LOCKED HEADER IS PART OF THIS SURFACE, NOT THE BACKGROUND.
+      //
+      // Sort, search and the filter chips all live up there, and all three are
+      // things a seller does WHILE narrowing the board. Changing sort from
+      // "Newest" to "Ending soon" was closing the panel they were working in,
+      // which is the same complaint as the post panel: the click never meant
+      // "I'm done here."
+      //
+      // Dismissal means clicking the BOARD — the rows, or the space around
+      // them. That is the only gesture that says the panel is in the way.
+      if (target instanceof Element && target.closest(".board-locked-header")) {
+        return;
+      }
       // WHILE ANOTHER LAYER IS OPEN, NOTHING OUT HERE IS AN OUTSIDE CLICK.
       //
       // Checking the click's target wasn't enough. The post panel's backdrop is
