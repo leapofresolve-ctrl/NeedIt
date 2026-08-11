@@ -178,21 +178,39 @@ export function PostNeedPanel({
               aria-labelledby="discard-need-title"
               className="w-full max-w-sm rounded-sm border bg-background p-5 shadow-xl"
             >
+              {/* THE COPY IS DOING A JOB, not filling a box.
+                  The old version asked "Discard this need?" and offered two
+                  equal-weight buttons side by side — which reads as a choice
+                  between two reasonable options, when one of them destroys
+                  work and the other costs nothing. Three things changed:
+
+                  1. The heading states the SITUATION, not the destructive
+                     action. Nobody arrives here wanting to discard; they
+                     clicked the dim by accident. "You haven't posted this yet"
+                     tells them where they are. A heading that names the
+                     destructive verb makes it feel like the expected answer.
+                  2. The body names WHAT IS LOST, concretely. "Throws it away"
+                     is abstract; a photo you spent two minutes framing is not.
+                  3. The buttons stop being twins. Keep editing is the primary
+                     (ink, full width, focused, first in the tab order) and
+                     Discard is a quiet text link underneath it. Recovery is
+                     one keystroke; destruction takes aim. Still only one
+                     primary on screen, per 3b §1.2. */}
               <h2
                 id="discard-need-title"
                 className="text-base font-bold tracking-[-0.02em]"
               >
-                Discard this need?
+                You haven&apos;t posted this yet
               </h2>
               <p className="mt-1.5 text-sm text-muted-foreground">
-                You&apos;ve started filling this in. Closing now throws it away.
+                Nothing here is saved. Close now and the title, budget and
+                photo go with it — there&apos;s no draft to come back to.
               </p>
-              <div className="mt-4 flex gap-2">
+              <div className="mt-4 flex flex-col gap-2">
                 <Button
                   type="button"
                   size="lg"
-                  variant="outline"
-                  className="min-h-11 flex-1"
+                  className="min-h-11 w-full"
                   onClick={() => setConfirming(false)}
                   autoFocus
                 >
@@ -200,12 +218,11 @@ export function PostNeedPanel({
                 </Button>
                 <Button
                   type="button"
-                  size="lg"
                   variant="ghost"
-                  className="min-h-11 flex-1 text-destructive"
+                  className="min-h-11 w-full text-sm font-normal text-muted-foreground hover:text-destructive"
                   onClick={close}
                 >
-                  Discard
+                  Discard it
                 </Button>
               </div>
             </div>

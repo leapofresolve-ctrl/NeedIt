@@ -301,6 +301,20 @@ export function BoardRail({
       // and immediately reopen, so the button would never appear to close.
       if (triggerRef.current?.contains(target)) return;
       if (panelRef.current?.contains(target)) return;
+      // WHILE ANOTHER LAYER IS OPEN, NOTHING OUT HERE IS AN OUTSIDE CLICK.
+      //
+      // Checking the click's target wasn't enough. The post panel's backdrop is
+      // a sibling of its dialog, not a child, so a click on the dim — the exact
+      // gesture that raises "Discard this need?" — tested as outside and closed
+      // the filters before the seller had even answered the prompt. Same for
+      // the Discard and Keep editing buttons themselves.
+      //
+      // The rule that actually holds: if something is layered above this panel,
+      // every click belongs to that layer. This panel is background furniture
+      // until the layer above it goes away.
+      if (document.querySelector(OTHER_LAYER)) return;
+      // And the click that OPENS that layer happens a frame before it exists,
+      // so the trigger needs naming directly.
       if (isInAnotherLayer(target)) return;
       setOpenPersisted(false);
     };
