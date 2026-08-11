@@ -7,6 +7,7 @@ import {
   type BoardFilters,
   type FacetCounts,
 } from "@/lib/board-filters";
+import { CONDITIONS } from "@/lib/need-tags";
 
 /**
  * Facet counts for the board rail.
@@ -44,7 +45,7 @@ import {
  */
 
 export type FacetRow = {
-  type: "single" | "bulk";
+  type: "single" | "bulk" | "sealed";
   sport: string | null;
   budget_cents: number | null;
   condition_pref: string | null;
@@ -66,7 +67,7 @@ export const FACET_COLUMNS =
 function matches(
   row: FacetRow,
   f: BoardFilters,
-  skip?: "types" | "sports" | "closing" | "noOffers" | "budget",
+  skip?: "types" | "sports" | "condition" | "closing" | "noOffers" | "budget",
   now = Date.now(),
 ): boolean {
   if (skip !== "types" && f.types.length && !f.types.includes(row.type)) {
@@ -98,7 +99,9 @@ function matches(
   // Exact match, mirroring the page query since 0018 narrowed condition_pref
   // to 'raw' | 'graded' | null. Before that it was free text and this couldn't
   // be counted honestly, so it was skipped.
-  if (f.condition && row.condition_pref !== f.condition) return false;
+  if (skip !== "condition" && f.condition && row.condition_pref !== f.condition) {
+    return false;
+  }
 
   // Same sanitiser the page runs before the ilike, so "50%" or "jordan, luka"
   // counts the same rows it renders. An empty result means no usable text
@@ -132,6 +135,7 @@ export function computeFacets(
   const counts: FacetCounts = {
     types: {},
     sports: {},
+    condition: {},
     closing: 0,
     noOffers: 0,
     unpriced: 0,
@@ -140,6 +144,9 @@ export function computeFacets(
 
   for (const t of TYPES) counts.types[t.value] = 0;
   for (const s of SPORTS) counts.sports[s] = 0;
+  // Seeded so a condition nobody wants renders a real dimmed 0 rather than
+  // disappearing — §2.6: never hidden, never faked.
+  for (const c of CONDITIONS) counts.condition[c.value] = 0;
 
   for (const row of rows) {
     if (matches(row, f, "types", now)) {
@@ -147,6 +154,21 @@ export function computeFacets(
     }
     if (row.sport && matches(row, f, "sports", now)) {
       counts.sports[row.sport] = (counts.sports[row.sport] ?? 0) + 1;
+    }
+    // Standard faceting, same shape as sports: count with condition's OWN
+    // selection excluded, so "Graded · 6" means "6 would show if you picked
+    // Graded", not "6 of the ones already showing".
+    //
+    // The "" bucket is "Any condition" — every row passing the other filters,
+    // including rows whose buyer named no preference. It is deliberately NOT
+    // raw + graded; those two exclude the null-preference needs, and quietly
+    // making the totals add up would mean inventing a preference nobody stated.
+    if (matches(row, f, "condition", now)) {
+      counts.condition[""] += 1;
+      const pref = row.condition_pref;
+      if (pref === "raw" || pref === "graded") {
+        counts.condition[pref] += 1;
+      }
     }
     if (matches(row, f, "closing", now) && row.expires_at) {
       const ms = new Date(row.expires_at).getTime() - now;

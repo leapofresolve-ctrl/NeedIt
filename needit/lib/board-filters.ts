@@ -31,9 +31,26 @@ export const SPORTS = [
   "Other",
 ] as const;
 
+/**
+ * The three kinds of need. Rendered by the filter panel, the mobile Refine
+ * sheet, and the board row badge.
+ *
+ * `sealed` was added Aug 9 (3b addendum §2.3, "Bulk & lots · Single cards ·
+ * Wax & sealed"). Unopened wax is a large, distinct slice of the hobby and had
+ * no home — a seller with boxes had to file them under "bulk", which is wrong
+ * in a way that shows on the board.
+ *
+ * ⚠️ `requests.type` is a Postgres ENUM (`request_type`), not text with a check
+ * constraint — the base table was created in the dashboard, so it isn't in
+ * supabase/migrations. Adding a fourth value here without also running
+ * `alter type request_type add value` will pass typecheck, render fine, and
+ * fail at insert. `demand_alerts.type` models the same vocabulary as text +
+ * check, so it needs widening too. See 0020.
+ */
 export const TYPES = [
   { value: "bulk", label: "Bulk lots" },
   { value: "single", label: "Single cards" },
+  { value: "sealed", label: "Wax & sealed" },
 ] as const;
 
 export const SORTS = [
@@ -99,8 +116,19 @@ export const CLOSING_SOON_HOURS = 24;
 export const isSport = (value: string): boolean =>
   (SPORTS as readonly string[]).includes(value);
 
+/** One source: derived from TYPES so a new kind can't be renderable but
+ *  unfilterable. This used to be a hand-written `=== "single" || === "bulk"`,
+ *  which is exactly the drift that hides a fourth value from the URL guard. */
 export const isType = (value: string): boolean =>
-  value === "single" || value === "bulk";
+  (TYPES as readonly { value: string }[]).some((t) => t.value === value);
+
+/** Board-row and chip label for a need type. Used anywhere a `type` value has
+ *  to become words, so the three copies of `type === "bulk" ? … : …` that
+ *  predated `sealed` can't silently render wax as a single card. */
+export const typeLabel = (value: string | null | undefined): string =>
+  (TYPES as readonly { value: string; label: string }[]).find(
+    (t) => t.value === value,
+  )?.label ?? "Any kind";
 
 /**
  * ── THE TWO SHARED PARSERS ─────────────────────────────────────────────────
@@ -306,6 +334,20 @@ export function resetHref(f: BoardFilters): string {
 export type FacetCounts = {
   types: Record<string, number>;
   sports: Record<string, number>;
+  /**
+   * Keyed by the CONDITIONS values in lib/need-tags.ts: "" (any), "raw",
+   * "graded". The "" key is the honest total for "Any condition" — every need
+   * passing the other active filters, whatever its condition — so it is not the
+   * sum of the other two. A need whose buyer expressed no condition preference
+   * (`condition_pref` null) counts toward "" and toward neither of the others,
+   * the same way a need with no sport counts toward no sport.
+   *
+   * Added Aug 11. The rail grew a Condition group before anything counted it,
+   * so those rows rendered blank while every other group showed demand data —
+   * which is the one thing §2.2 says these counts are FOR. A seller holding
+   * graded cards needs to see whether anyone wants graded before they click.
+   */
+  condition: Record<string, number>;
   closing: number;
   noOffers: number;
   /**

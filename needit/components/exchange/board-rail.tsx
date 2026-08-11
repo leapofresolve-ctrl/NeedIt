@@ -176,15 +176,24 @@ function Segmented({
   name,
   options,
   value,
+  counts,
 }: {
   name: string;
   options: readonly { value: string; label: string }[];
   value: string;
+  /** Demand behind each option, keyed by option value. Omit only where no
+   *  honest number exists — never pass a placeholder (§2.6). */
+  counts?: Record<string, number>;
 }) {
   return (
     <div className="flex overflow-hidden rounded-sm border border-input">
       {options.map((opt, i) => {
         const id = `board-${name}-${opt.value || "any"}`;
+        const count = counts?.[opt.value];
+        // Same rule the chips follow: an option nobody wants stays visible and
+        // dims, showing its real 0. The selected option never dims, or clearing
+        // a filter that found nothing would look disabled.
+        const empty = count === 0 && value !== opt.value;
         return (
           <div key={opt.value || "any"} className="relative flex-1">
             <input
@@ -198,11 +207,19 @@ function Segmented({
             <label
               htmlFor={id}
               className={cn(
-                "flex min-h-11 w-full cursor-pointer select-none items-center justify-center px-2 text-center text-sm text-foreground transition-[background-color,color] duration-150 peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-ring peer-checked:bg-primary peer-checked:font-medium peer-checked:text-primary-foreground",
+                "flex min-h-11 w-full cursor-pointer select-none items-center justify-center gap-1.5 px-2 text-center text-sm text-foreground transition-[background-color,color] duration-150 peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-inset peer-focus-visible:ring-ring peer-checked:bg-primary peer-checked:font-medium peer-checked:text-primary-foreground",
                 i > 0 && "border-l border-input",
+                empty && "text-faint",
               )}
             >
               {opt.label}
+              {/* opacity, not a colour token: this sits on the ink fill when
+                  selected and on card white when not, and inheriting the
+                  label's own colour is the only way it stays legible on both
+                  without a peer-checked rule reaching inside the label. */}
+              {count != null && (
+                <span className="num text-xs opacity-60">{count}</span>
+              )}
             </label>
           </div>
         );
@@ -549,17 +566,19 @@ export function BoardRail({
             ways: apply() drops empty strings, and `one()` reads a bare
             `?condition=` as undefined.
 
-            TODO(condition-facet): no counts on these rows. computeFacets() in
-            lib/board-facets.ts doesn't emit a condition facet, and that file —
-            along with the FacetCounts type in lib/board-filters.ts — is owned
-            by another workstream, so this change doesn't touch it. The addition
-            is strictly additive when someone gets to it: count rows by
-            condition_pref with skip="condition" in matches(), expose
-            `counts.condition: Record<string, number>`, and pass it as `count`
-            here. Rendering countless rows is the honest interim state; a
-            hardcoded 0 would dim options that may well have matches. */}
+            COUNTS LANDED Aug 11 (was TODO(condition-facet)). computeFacets()
+            now emits `counts.condition`, so this group shows demand like every
+            other one. Read "Any" as the total ignoring condition — it is not
+            raw + graded, because a need whose buyer named no preference belongs
+            to none of the two and making the totals tie would mean inventing a
+            preference nobody stated. */}
         <Group legend="Condition">
-          <Segmented name="condition" options={CONDITIONS} value={condition} />
+          <Segmented
+            name="condition"
+            options={CONDITIONS}
+            value={condition}
+            counts={counts.condition}
+          />
         </Group>
 
         <Group legend="Buyer's max">
