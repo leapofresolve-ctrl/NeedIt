@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { SlidersHorizontal, X } from "lucide-react";
 
@@ -110,6 +111,10 @@ export function RefinePanel({
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  // Portal target only exists on the client. Rendering before mount would mean
+  // calling createPortal with no document.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // Close on Escape, lock background scroll, and move focus into the panel.
   useEffect(() => {
@@ -152,9 +157,33 @@ export function RefinePanel({
         )}
       </Button>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          {/* Backdrop */}
+      {/* ⚠️ PORTALLED TO <body> — NOT OPTIONAL, AND NOT FOR TIDINESS.
+          This sheet is `position: fixed`, and it renders from inside
+          `.board-locked-header`, which carries `backdrop-blur`. An ancestor
+          with `backdrop-filter` becomes the containing block for fixed-position
+          descendants, so `inset-0` was resolving to the header's ~83px strip
+          instead of the viewport: the sheet was drawn inside a thin bar and
+          pushed to its right edge, which read as a sliver of nothing sliding in
+          from the right. Every filter group was rendering correctly and none of
+          it was reachable.
+
+          The desktop advanced-search panel hit this identical bug on Aug 10 and
+          was fixed the identical way (board-rail.tsx, commit e474673). The
+          mobile sheet never got the same treatment. Anything `fixed` on this
+          page has to escape the header, because the header is blurred.
+
+          ⚠️ AND BECAUSE IT'S PORTALLED, IT CARRIES ITS OWN BREAKPOINT.
+          The trigger sits in a `lg:hidden` wrapper in app/page.tsx, but that
+          wrapper is no longer this element's DOM parent — it hides the button
+          and NOT the sheet. `lg:hidden` on the root below is what keeps a
+          full-screen mobile sheet off a desktop monitor. Same lesson the
+          desktop panel already paid for at 606px. */}
+      {open && mounted && createPortal(
+        <div className="fixed inset-0 z-50 flex justify-start lg:hidden">
+          {/* Backdrop. Full-width sheet means none of this is visible on a
+              phone — it's here for the scrim on larger phones in landscape and
+              as a click target that can't be reached anyway. Dismissal is the X
+              and the Escape key. */}
           <button
             type="button"
             aria-label="Close filters"
@@ -162,13 +191,18 @@ export function RefinePanel({
             className="absolute inset-0 bg-foreground/40"
           />
 
+          {/* Full width, entering from the LEFT (Kyle, Aug 10). The old
+              `max-w-[420px]` + right-hand entry was a desktop drawer shape
+              worn by a phone; on a 375px screen a filter surface should simply
+              be the screen. `border-l` goes with it — there is no left edge to
+              draw against when the sheet is the whole viewport. */}
           <div
             ref={panelRef}
             role="dialog"
             aria-modal="true"
             aria-label="Refine the board"
             tabIndex={-1}
-            className="relative flex h-full w-full max-w-[420px] flex-col border-l bg-background shadow-xl outline-none motion-safe:animate-in motion-safe:slide-in-from-right motion-safe:duration-200"
+            className="relative flex h-full w-full flex-col bg-background shadow-xl outline-none motion-safe:animate-in motion-safe:slide-in-from-left motion-safe:duration-200"
           >
             <div className="flex items-center justify-between border-b px-5 py-4">
               <h2 className="text-lg font-bold tracking-[-0.02em]">Refine</h2>
@@ -189,7 +223,8 @@ export function RefinePanel({
                 a stale selection behind for the next open. */}
             <RefineForm values={values} activeCount={activeCount} />
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
