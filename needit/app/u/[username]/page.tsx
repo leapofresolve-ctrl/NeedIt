@@ -8,10 +8,11 @@ import { Countdown } from "@/components/exchange/countdown";
 import { publishNeed } from "./actions";
 import { conditionChip, tagLabel } from "@/lib/need-tags";
 
+import { typeLabel } from "@/lib/board-filters";
 type RequestRow = {
   id: string;
   title: string;
-  type: "single" | "bulk";
+  type: "single" | "bulk" | "sealed";
   sport: string | null;
   budget_cents: number | null;
   price_mode: string | null;
@@ -38,7 +39,7 @@ type DemandAlert = {
   id: string;
   keyword: string | null;
   sport: string | null;
-  type: "single" | "bulk" | null;
+  type: "single" | "bulk" | "sealed" | null;
   min_budget_cents: number | null;
   max_budget_cents: number | null;
   active: boolean;
@@ -48,7 +49,7 @@ function summarizeAlert(a: DemandAlert) {
   const parts: string[] = [];
   if (a.keyword) parts.push(`“${a.keyword}”`);
   if (a.sport) parts.push(a.sport);
-  if (a.type) parts.push(a.type === "bulk" ? "Bulk lots" : "Singles");
+  if (a.type) parts.push(typeLabel(a.type));
   const money = (c: number) =>
     `$${(c / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
   if (a.min_budget_cents != null && a.max_budget_cents != null)
@@ -119,7 +120,9 @@ function Chips({
   const hiddenTags = tags.length - shownTags.length;
   return (
     <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-      {r.type === "bulk" ? (
+      {/* Mirrors the board row's badge in need-chips.tsx. Was a binary
+          ternary, which would have shown a sealed need as "Single". */}
+      {r.type === "bulk" && (
         <span
           className={`num text-[9px] font-bold uppercase tracking-[0.08em] rounded-sm px-1.5 py-0.5 shrink-0 ${
             dark ? "bg-[#1E2A24] text-live" : "bg-secondary text-primary-deep"
@@ -127,7 +130,8 @@ function Chips({
         >
           Bulk
         </span>
-      ) : (
+      )}
+      {r.type === "single" && (
         <span
           className={`num text-[9px] font-bold uppercase tracking-[0.08em] border rounded-sm px-1.5 py-0.5 shrink-0 ${
             dark
@@ -136,6 +140,15 @@ function Chips({
           }`}
         >
           Single
+        </span>
+      )}
+      {r.type === "sealed" && (
+        <span
+          className={`num text-[9px] font-bold uppercase tracking-[0.08em] rounded-sm px-1.5 py-0.5 shrink-0 ${
+            dark ? "bg-[#2A2418] text-warn" : "bg-secondary text-warn"
+          }`}
+        >
+          Sealed
         </span>
       )}
       {[r.sport, condition].filter(Boolean).map((chip) => (

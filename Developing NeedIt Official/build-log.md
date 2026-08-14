@@ -32,6 +32,7 @@ Everything genuinely outstanding, in one place. Nothing else in this document is
 
 ### Kyle only — blocking or near-blocking
 
+0. **Commit and push the wax/sealed sweep** — left uncommitted Aug 10, blocked by a stale lock an agent created (lesson 23). The DB already has `sealed`; the code that emits it does not. `rm -f .git/index.lock && git add -A && git commit -m "Board: wax & sealed as a third need type" && git push`. *Delete this item once pushed.*
 1. **Read the four `/legal/*` pages, set `LEGAL_ADDRESS`, flip `LEGAL_PUBLISHED = true`.** Pages are live but unlinked; the flag gates the footer Legal column, trust-and-safety links and `/help` cross-links. One line after the read.
 2. **Rotate the three remaining secrets** — `SUPABASE_SERVICE_ROLE_KEY`, `NOTIFY_WEBHOOK_SECRET`, `METRICS_API_TOKEN`. See `secret-rotation-runbook.md`, ~20 min. *(The Resend key is done — rotated Jul 29, old key revoked Aug 1.)*
 3. **Confirm the `offer-photos` storage bucket is NOT public** (Supabase → Storage). It was created public in June.
@@ -45,8 +46,9 @@ Everything genuinely outstanding, in one place. Nothing else in this document is
 8. **Wire `LIMITS.signupPerIp`** — defined in `lib/rate-limit.ts`, referenced by nothing. Signup runs in the browser client, so it needs moving to a server action; do it inside (7).
 9. **CSP tightening** — nonce-based `script-src`, drop `'unsafe-inline'`. Deferred from Phase 1 because it needs per-request nonces threaded through the proxy.
 10. **Post one public and one private need with a photo through the /post panel.** Shipped Aug 8, never submitted through. Both `redirect()` paths in `createNeed` must dismiss the panel rather than leave a stuck overlay. Cheap, and the only untested part of that change — do it the first time you post something real.
-11. **Feature freeze Sep 21.** Bug-fix only after.
-12. **Confirm the Advanced-search panel on a real phone.** Shipped Aug 10. Below 1024px the trigger should disappear, "Refine" should open the full-screen sheet, and **no floating panel should exist at any narrow width** — that exact bug shipped once already (portalled element didn't inherit its parent's `hidden lg:flex`). The browser wouldn't go below a 606px viewport, so 390 was never tested. One look while you're posting the buy-list.
+11. **Post one sealed need end-to-end.** Added Aug 10 across the enum, the post form, the filter panel, the board badge, the profile row and demand alerts — and never once submitted. The enum went in before the code, so an insert is the only thing that proves the two agree. Fold into (10); it's the same sitting.
+12. **Feature freeze Sep 21.** Bug-fix only after.
+13. **Confirm the Advanced-search panel on a real phone.** Shipped Aug 10. Below 1024px the trigger should disappear, "Refine" should open the full-screen sheet, and **no floating panel should exist at any narrow width** — that exact bug shipped once already (portalled element didn't inherit its parent's `hidden lg:flex`). The browser wouldn't go below a 606px viewport, so 390 was never tested. One look while you're posting the buy-list.
 
 ### Nice to have, degrade gracefully
 
@@ -143,6 +145,34 @@ Numbering is clean and sequential 0002–0017. *(The payments session's note cla
 ## Session history
 
 Reverse chronological. Most recent first.
+
+### Aug 10 (latest) — audit of the shipped filtering work, split three ways, and the board stops lying
+
+Started as a handoff reconcile: two parallel sessions had converged on the same feature and produced contradictory notes. The stale blocker ("nothing is pushed, `.git/index.lock` is stuck") was already resolved — `181a8c6` was on `origin/main`. The real finding came from auditing the shipped code against `exprifi-3b-addendum-board-filtering.md`: **13 gaps, five of them defects.**
+
+**The split.** Rather than one session touching everything, the 13 were partitioned into three work orders with **disjoint file ownership**, `app/page.tsx` partitioned by region and each prompt naming the block it may touch. Kyle ran B and C in parallel chats. That worked — three sessions, one repo, no lost work — and is the pattern to reuse. What it does *not* prevent is scope drift: B and C both kept going past their briefs, which is how the docked rail became the Advanced-search panel (see below).
+
+| Group | Gaps | Theme |
+|---|---|---|
+| A (this session) | 4, 5, 11, 12 | Truthful board — data, schema, search index |
+| B | 1, 6, 7, 8, 9, 13 | Locked header + rail mechanics |
+| C | 2, 3, 10 | Mobile parity, last native `<select>`s |
+
+**Gap 4 — the facet/query invariant had already drifted.** `lib/board-facets.ts` and the query in `app/page.tsx` are documented as needing to agree, and didn't: the page stripped `,()%_*` from `q` before the `ilike` and the counter didn't, and the page parsed money with `parseFloat` while the counter used `Number` (`"50abc"` → 50 vs NaN). Symptom would have been a seller clicking "Football · 6" and getting four rows. Fixed **structurally** rather than by comment — both rules extracted to `sanitiseQuery()` and `budgetCents()` in `lib/board-filters.ts`, imported by both sides. Money parsing made strict: an unreadable `?min=` is now ignored rather than half-interpreted.
+
+**Gap 5 — comp needs were vanishing silently.** 0018 gives `price_mode = 'comp'` a null `budget_cents`, and Postgres compares NULL to a range as false. So the moment a seller typed anything into Buyer's max, every "At comp" and open-ended need disappeared with no explanation. Faithful to the query, invisible to the user. `computeFacets` now emits `counts.unpriced` and the panel says so: *"Hiding N needs with no set budget. Clear the range to see them."* Considered and rejected: letting comp needs pass any budget filter — "Max $50" returning a need the buyer may pay $5,000 for is a worse lie than the one being fixed.
+
+**Gap 11 — the search shipped with no index.** §3 of the addendum called this a ship blocker (*"add a trigram or FTS index before shipping — this runs on every keystroke"*) and it was missed. A leading-wildcard `ILIKE` can't use a btree, so every keystroke was a full table scan. `0019_requests_search_index.sql` adds two `gin_trgm_ops` indexes — one per column, because PostgREST's `or()` emits two independent predicates and a concatenated expression index would sit unused. **Trigram, not FTS, deliberately:** FTS would change *which rows match*, putting the query back out of step with `matches()` — the exact invariant gap 4 had just repaired. An index that changes nothing about the result set cannot break it.
+
+**Gap 12 — "wax & sealed", and a wrong assumption caught by its own guard.** The first draft of `0020` assumed `requests.type` was text with a check constraint, because that's how `demand_alerts.type` models the same vocabulary and **there is no `0001` migration** — the base table was made in the dashboard, so its shape isn't in this repo. A probe found *no check constraint at all*, which was the tell. The migration's `raise exception` guard fired and stopped before changing anything. It's an **enum**, `request_type`. Widened with `alter type ... add value 'sealed'`; verified live as `single, bulk, sealed`.
+
+The code sweep found **13 sites** assuming two kinds, almost all the same bug: `type === "bulk" ? "Bulk lot" : "Single card"`. A binary ternary means the `else` catches everything, so wax would have rendered as "Single card" on the board, the profile, the detail page and in alert descriptions. Replaced with a shared `typeLabel()`; board badges switched to explicit per-value checks so a fourth kind fails at typecheck instead of mislabelling itself; `isType()` derived from `TYPES` rather than hand-written. Sealed gets an amber filled badge — a different asset class should read as one at a glance, which is the whole reason it stopped being "bulk".
+
+**The rail became a panel.** Mid-session, `?rail=1` on production showed the docked rail replaced by an "Advanced search" button — the reveal-on-click design §2.5a rejected by name. Raised it with a side-by-side mockup and the three original objections (hidden filters are unused filters; the counts are demand data, not chrome; it re-opens §1.4). **Kyle's call: the panel stays.** Recorded because the addendum still argues the other way and someone will read it later and be confused. Lesson 21 held again — the mockup got a decision in one exchange where prose hadn't.
+
+**Working method.** Kyle: *"I don't look into the files… I only look at what I can see."* Two process changes followed, both permanent: paste code and commands **inline** rather than pointing at a file, and **verify by going and looking** rather than asking for pasted output. Migrations were run by driving the Supabase SQL Editor in the browser (`/sql/new?content=<urlencoded>` loads the editor pre-filled), and every claim about DB state in this entry came from a query I ran and read myself. This also caught that 0019 had never run: SQL labelled "Supabase SQL Editor" had been pasted into a terminal, where it does nothing.
+
+**Left uncommitted at session end:** the gap-12 code sweep, blocked on the `.git/index.lock` I created myself (see lesson 23). DB is ahead of code, which is the safe direction.
 
 ### Aug 10 (late) — the panel finally speaks the app's language
 
@@ -511,6 +541,12 @@ Merged from every session. These are the ones that have already cost real time t
 
 **22. Check whether the surface you're styling still speaks the app's language.** The panel felt foreign because it was the last place using 44px checkbox rows while `/post` and the mobile sheet had both moved to `components/ui/chip-group` — the sheet on Aug 8, in an entry that congratulated itself on ending exactly this kind of divergence. **Before restyling, grep for the primitive the rest of the app already uses.** Where a surface can't consume the shared component (this one is an uncontrolled auto-submitting form; the chip components are controlled), export and import the shared *class string* rather than copying it, so the two can't drift apart again.
 
+**23. Never run `git` from the sandbox against Kyle's mounted repo.** Both `git status` and `git log` take `.git/index.lock`, and the sandbox has no permission to remove it afterward — so a read-only command leaves a 0-byte file that blocks every later `git add` with *"Another git process seems to be running."* This is the exact blocker the Aug 8 handoff opened with, recreated on Aug 10 by an agent checking whether a push had landed. **Read git state from the filesystem instead** (`.git/refs/heads/main`, `.git/refs/remotes/origin/main`, `.git/COMMIT_EDITMSG`), and if a lock does appear, the fix Kyle runs is `rm -f .git/index.lock` prepended to the commit.
+
+**24. When the base schema isn't in the repo, verify its shape before writing the ALTER.** There is no `0001` migration — `requests` was created in the Supabase dashboard — so nothing in `supabase/migrations/` describes the table everything else builds on. Aug 10's first `0020` draft inferred `requests.type` was text-with-a-check from how the *sibling* table models the same vocabulary, and was wrong: it's an enum. **What saved it was writing the migration to refuse rather than to no-op** — a `raise exception` on the unexpected column type, instead of a `do` block that would have found no matching constraint, dropped nothing, added nothing, and reported success. Prefer a migration that fails loudly on a violated assumption over one that quietly does nothing. Related: **adding an enum value is a one-way door** — Postgres has no `DROP VALUE`, so undoing it means a replacement type and a column rewrite.
+
+**25. A binary ternary is a latent bug the moment a vocabulary can grow.** `type === "bulk" ? "Bulk lot" : "Single card"` was correct with two kinds and silently wrong with three — the `else` swallows every future value, so wax rendered as a single card in four places and *nothing failed*. Not typecheck, not lint, not the build. **Where a value comes from a closed set, switch on the value explicitly and derive labels and validators from the one array that defines the set**, so adding a member breaks the build instead of the copy. Same shape as the Aug 8 lesson about duplicated vocabularies; the difference is that duplication is visible and an `else` branch is not.
+
 ---
 
 ## 💡 Deferred — post-MVP, not scheduled
@@ -521,6 +557,9 @@ Merged from every session. These are the ones that have already cost real time t
 - **Saved views, badges only** — no outbound anything (see the free/paid boundary). Worth building as the natural *on-ramp* to Lane 1: "you check this view every day — want us to just tell you?"
 - **Preset buyer questions on an offer** — canned-only Q&A, leak-safe: "Is price firm?", "Bundle?", "More photos?", "In hand?".
 - **Mandatory offer photos** — lean: required for single-card offers (trust/anti-fake), optional for bulk (don't suppress liquidity). Kyle's call.
+- **Unify the two need-type vocabularies.** `requests.type` is an enum (`request_type`); `demand_alerts.type` is text + check. Same three values, two mechanisms, nothing keeping them in step — widening one and forgetting the other is a live trap, and 0020 had to widen both by hand. Pick one and migrate.
+- **Last native `<select>`s.** §2.2's "zero native select" goal is met on the board but not app-wide: `components/alerts/create-alert-form.tsx` still has them (sport, type, expiry). Cheap once `/alerts` is touched for anything else.
+- **Tag facet in the filter panel.** `requests.tags` has had a GIN index since 0018 and the vocabulary is locked in `lib/need-tags.ts`. Wait until open needs clear ~15 — a tag column of zeros is worse than no tag column.
 - **Supabase Realtime** for a truly instant bell instead of the 15s poll.
 - **Unified transaction log** — History is buyer-side; seller-side sales live in `/completed-deals` and "Your offers".
 - **`published_at` column** — TTFO currently measures from `created_at`, which is wrong for private→published wants.

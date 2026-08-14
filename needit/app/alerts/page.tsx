@@ -7,11 +7,12 @@ import { CreateAlertForm } from "@/components/alerts/create-alert-form";
 import { FREE_ALERT_LIMIT, DIGEST_CADENCE_COPY } from "@/lib/alerts";
 import { toggleAlert, deleteAlert } from "./actions";
 
+import { typeLabel } from "@/lib/board-filters";
 type AlertRow = {
   id: string;
   keyword: string | null;
   sport: string | null;
-  type: "single" | "bulk" | null;
+  type: "single" | "bulk" | "sealed" | null;
   min_budget_cents: number | null;
   max_budget_cents: number | null;
   active: boolean;
@@ -30,7 +31,7 @@ function summarize(a: AlertRow) {
   const parts: string[] = [];
   if (a.keyword) parts.push(`“${a.keyword}”`);
   if (a.sport) parts.push(a.sport);
-  if (a.type) parts.push(a.type === "bulk" ? "Bulk lots" : "Singles");
+  if (a.type) parts.push(typeLabel(a.type));
   const min = money(a.min_budget_cents);
   const max = money(a.max_budget_cents);
   if (min && max) parts.push(`${min}–${max}`);

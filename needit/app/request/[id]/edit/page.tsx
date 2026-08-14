@@ -44,7 +44,7 @@ export default async function EditNeedPage({
             id: request.id,
             title: request.title,
             description: request.description,
-            type: request.type === "bulk" ? "bulk" : "single",
+            type: request.type,
             sport: request.sport,
             budget_cents: request.budget_cents,
             price_mode: request.price_mode,

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { createAlert, type AlertState } from "@/app/alerts/actions";
 
+import { TYPES } from "@/lib/board-filters";
 const SPORTS = [
   "Basketball",
   "Football",
@@ -83,8 +84,11 @@ export function CreateAlertForm({
           <Label htmlFor="type">Need type</Label>
           <select id="type" name="type" className={fieldClass}>
             <option value="">Any</option>
-            <option value="single">Single</option>
-            <option value="bulk">Bulk lot</option>
+            {TYPES.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
           </select>
         </div>
         <div className="flex gap-3">

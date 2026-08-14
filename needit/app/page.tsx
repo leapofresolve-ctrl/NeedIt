@@ -14,6 +14,7 @@ import {
   parseBoardFilters,
   resetHref,
   sanitiseQuery,
+  typeLabel,
 } from "@/lib/board-filters";
 import { FACET_COLUMNS, computeFacets, type FacetRow } from "@/lib/board-facets";
 import { SiteHeader } from "@/components/site-header";
@@ -33,7 +34,7 @@ type RequestRow = {
   id: string;
   buyer_id: string;
   title: string;
-  type: "single" | "bulk";
+  type: "single" | "bulk" | "sealed";
   sport: string | null;
   budget_cents: number | null;
   price_mode: string | null;
@@ -191,7 +192,7 @@ export default async function Home({
     filters.q && { key: "q", label: `“${filters.q}”`, dashed: true },
     ...filters.types.map((t) => ({
       key: `type:${t}`,
-      label: t === "bulk" ? "Bulk lots" : "Single cards",
+      label: typeLabel(t),
     })),
     ...filters.sports.map((s) => ({ key: `sport:${s}`, label: s })),
     filters.condition && {

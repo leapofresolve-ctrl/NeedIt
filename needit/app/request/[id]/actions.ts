@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { isType } from "@/lib/board-filters";
 import {
   isCondition,
   isGradeFloor,
@@ -27,7 +28,7 @@ export async function updateNeed(
   const budgetRaw = (formData.get("budget") ?? "").toString().trim();
 
   if (!title) return { error: "Please give your want a title." };
-  if (type !== "single" && type !== "bulk")
+  if (!type || !isType(type))
     return { error: "Pick single or bulk." };
 
   // Same validation as createNeed, deliberately duplicated rather than shared:

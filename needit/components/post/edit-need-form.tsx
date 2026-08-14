@@ -30,7 +30,9 @@ import {
   ChipSegmentedGroup,
 } from "@/components/ui/chip-group";
 import { PhotoPicker } from "@/components/post/photo-picker";
-import { SPORTS } from "@/lib/board-filters";
+import { SPORTS,
+  TYPES,
+} from "@/lib/board-filters";
 import {
   CONDITIONS,
   GRADE_FLOORS,
@@ -45,10 +47,7 @@ const SPORT_OPTIONS = [
   ...SPORTS.map((s) => ({ value: s, label: s })),
 ];
 
-const TYPE_OPTIONS = [
-  { value: "single", label: "Single card" },
-  { value: "bulk", label: "Bulk lot" },
-];
+const TYPE_OPTIONS = TYPES.map((t) => ({ value: t.value, label: t.label }));
 
 const TAG_OPTIONS = NEED_TAGS.map((t) => ({ value: t.slug, label: t.label }));
 const GRADE_OPTIONS = GRADE_FLOORS.map((g) => ({ value: g, label: g }));
@@ -57,7 +56,7 @@ export type EditNeedInitial = {
   id: string;
   title: string;
   description: string | null;
-  type: "single" | "bulk";
+  type: "single" | "bulk" | "sealed";
   sport: string | null;
   budget_cents: number | null;
   price_mode: string | null;
@@ -71,7 +70,7 @@ export function EditNeedForm({ need }: { need: EditNeedInitial }) {
   const action = updateNeed.bind(null, need.id);
   const [state, formAction, pending] = useActionState(action, initialState);
 
-  const [type, setType] = useState(need.type === "bulk" ? "bulk" : "single");
+  const [type, setType] = useState<string>(need.type);
   const [sport, setSport] = useState(need.sport ?? "");
   const [priceMode, setPriceMode] = useState<"max" | "comp">(
     need.price_mode === "comp" ? "comp" : "max",

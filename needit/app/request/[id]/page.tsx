@@ -12,6 +12,7 @@ import { acceptOffer, declineOffer } from "./actions";
 import { FundDealButton } from "@/components/deal/fund-deal-button";
 import { conditionChip, tagLabel } from "@/lib/need-tags";
 
+import { typeLabel } from "@/lib/board-filters";
 const COUNTER_LIMIT = 10;
 
 type OfferRow = {
@@ -203,7 +204,7 @@ export async function generateMetadata({
   const budget = r.budget_cents
     ? `$${(r.budget_cents / 100).toLocaleString("en-US")}`
     : "an open budget";
-  const kind = r.type === "bulk" ? "bulk lot" : "single card";
+  const kind = typeLabel(r.type).toLowerCase();
 
   const indexable = r.visibility === "public" && r.status === "open";
 
@@ -364,7 +365,7 @@ export default async function RequestDetail({
           )}
           <div className="flex flex-wrap gap-2">
             <Badge variant="secondary">
-              {request.type === "bulk" ? "Bulk lot" : "Single"}
+              {typeLabel(request.type)}
             </Badge>
             {request.sport && <Badge variant="outline">{request.sport}</Badge>}
             {conditionChip(request.condition_pref, request.grade_min) && (

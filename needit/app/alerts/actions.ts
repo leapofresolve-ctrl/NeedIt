@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { FREE_ALERT_LIMIT } from "@/lib/alerts";
 
+import { isType } from "@/lib/board-filters";
 export type AlertState = { error?: string };
 
 export async function createAlert(
@@ -24,7 +25,7 @@ export async function createAlert(
   if (!keyword && !sport && !type && !minRaw && !maxRaw) {
     return { error: "Set at least one criterion." };
   }
-  if (type && type !== "single" && type !== "bulk") {
+  if (type && !isType(type)) {
     return { error: "Type must be single or bulk." };
   }
 

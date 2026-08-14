@@ -41,7 +41,9 @@ import {
   ChipSegmentedGroup,
 } from "@/components/ui/chip-group";
 import { PhotoPicker } from "@/components/post/photo-picker";
-import { SPORTS } from "@/lib/board-filters";
+import { SPORTS,
+  TYPES,
+} from "@/lib/board-filters";
 import {
   CONDITIONS,
   DEFAULT_EXPIRY,
@@ -58,10 +60,7 @@ const SPORT_OPTIONS = [
   ...SPORTS.map((s) => ({ value: s, label: s })),
 ];
 
-const TYPE_OPTIONS = [
-  { value: "single", label: "Single card" },
-  { value: "bulk", label: "Bulk lot" },
-];
+const TYPE_OPTIONS = TYPES.map((t) => ({ value: t.value, label: t.label }));
 
 const TAG_OPTIONS = NEED_TAGS.map((t) => ({ value: t.slug, label: t.label }));
 

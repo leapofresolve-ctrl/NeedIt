@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { isType } from "@/lib/board-filters";
 import {
   isCondition,
   isGradeFloor,
@@ -33,7 +34,7 @@ export async function createNeed(
       : "public";
 
   if (!title) return { error: "Please give your need a title." };
-  if (type !== "single" && type !== "bulk")
+  if (!type || !isType(type))
     return { error: "Pick single or bulk." };
 
   // ── Price mode ────────────────────────────────────────────────────────────

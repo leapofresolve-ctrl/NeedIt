@@ -16,8 +16,9 @@
 
 import { conditionChip, tagLabel } from "@/lib/need-tags";
 
+import { typeLabel } from "@/lib/board-filters";
 export type NeedChipData = {
-  type: "single" | "bulk";
+  type: "single" | "bulk" | "sealed";
   sport: string | null;
   condition_pref: string | null;
   grade_min: string | null;
@@ -42,13 +43,26 @@ export function NeedChips({
 
   return (
     <>
-      {need.type === "bulk" ? (
+      {/* Three kinds, three treatments. This was a binary ternary, so adding
+          "sealed" to the enum would have quietly rendered a case of wax as
+          "Single" — the else branch catches everything that isn't bulk. Keyed
+          off the value instead, so a fourth kind fails loudly at typecheck
+          rather than lying on the board. Sealed gets the filled badge in amber
+          rather than live-green: it reads as a different asset class at a
+          glance, which is the whole reason it stopped being "bulk". */}
+      {need.type === "bulk" && (
         <span className={`${chip} font-bold bg-[#1E2A24] text-live`}>Bulk</span>
-      ) : (
+      )}
+      {need.type === "single" && (
         <span
           className={`${chip} font-bold border border-[hsl(var(--primary-live))] text-live`}
         >
           Single
+        </span>
+      )}
+      {need.type === "sealed" && (
+        <span className={`${chip} font-bold bg-[#2A2418] text-warn`}>
+          Sealed
         </span>
       )}
 
@@ -92,7 +106,7 @@ export function NeedChipsLight({ need }: { need: NeedChipData }) {
   return (
     <>
       <span className="rounded-sm border px-2 py-0.5 text-xs font-medium capitalize">
-        {need.type === "bulk" ? "Bulk lot" : "Single card"}
+        {typeLabel(need.type)}
       </span>
       {need.sport && (
         <span className="rounded-sm border px-2 py-0.5 text-xs">{need.sport}</span>
